@@ -4,11 +4,11 @@ Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01
 
 | Lot | État | Preuve et reste à faire |
 |---|---|---|
-| A confidentialité | Partiel | Tests WS/SSE standalone et WS Fastify sur source mémoire ; contrôle des sessions et appartenances PostgreSQL, origine/expiration et révocation média à compléter. |
-| B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Démarrage, seed, certificats et cookie navigateur restent à tester. |
-| C identité et chat PostgreSQL | Partiel | Repository transactionnel, test de concurrence et identité, direct et historique `/api/v1` raccordés à PostgreSQL (`1b631bc`, CI 45193174450) ; rattrapage HTTP et WebSocket PostgreSQL (`b5fbe96`, CI 45195526535) ; groupes et gestion des membres ajoutés (`fd1f8bd`, CI 45197678830) ; interface, reprise après coupure réelle et redémarrage complet restent à réaliser. |
+| A confidentialité | Partiel | Tests WS/SSE standalone et WS Fastify sur source mémoire ; sessions et appartenances PostgreSQL exercées sur WebSocket v1 ; matrice complète de réception, limitation des tentatives et révocation média à compléter. |
+| B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Attributs du cookie vérifiés sous Chromium sur loopback ; démarrage Compose, seed, certificats et cookie sous HTTPS restent à tester. |
+| C identité et chat PostgreSQL | Partiel | Repository transactionnel, test de concurrence et identité, direct et historique `/api/v1` raccordés à PostgreSQL (`1b631bc`, CI 45193174450) ; rattrapage HTTP et WebSocket PostgreSQL (`b5fbe96`, CI 45195526535) ; groupes et gestion des membres ajoutés (`fd1f8bd`, CI 45197678830) ; interface et reprise après mise hors ligne simulée et redémarrage du processus API exercés en Chromium (E17) ; pile Compose et scénarios de panne complets restent à vérifier. |
 | D média | Ouvert | Admission LiveKit et réception audio/vidéo encore absentes. |
-| E parcours/CI | Partiel | Parcours Chromium F01–F05/F13 vert sur le run 45202274116 ; la pile Compose HTTPS, métriques Grafana et média restent à réaliser. |
+| E parcours/CI | Partiel | Parcours Chromium F01–F05/F13 vert sur les runs 45202274116 et 45203593069 ; la pile Compose HTTPS, métriques Grafana et média restent à réaliser. |
 
 Résultats et SHA : [rapport R01](report/r01.md). Le [mandat](revisions/R01-socle-j1.md) définit la réception et les travaux restants.
 

@@ -171,7 +171,17 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 
 - **Date UTC :** 2026-11-23, 15:11–15:13. **Lot / IDs :** E et V ; F01–F05, F13, O01 (profil local CI).
 - **SHA / environnement :** `b1067771f96e4e4155232511c497c2eca877c83b` ; run [GitHub 45202274116](https://github.com/Zayonx-0/ChatISEN/actions/runs/45202274116), Ubuntu 24.04, PostgreSQL 17, Node 24, pnpm 10.20.0 et Chromium Playwright. Le commit précédent avait échoué sur Ubuntu 26.04 non supporté ; le runner a été épinglé sur Ubuntu 24.04.
-- **Protocole et attendu :** deux contextes Chromium, deux comptes, cookies sécurisés, direct, échanges, groupe, viewport mobile 390 px, fermeture de Bob pendant 15 secondes, envoi de 20 messages, reprise, redémarrage de l'API et lecture de l'historique. Un tiers est testé par l'API.
+- **Protocole et attendu :** trois comptes et contextes Chromium, dont un tiers ; cookies sécurisés pour les deux participants, direct, échanges, groupe, viewport mobile 390 px, mise hors ligne du contexte de Bob pendant au moins 15 secondes, envoi de 20 messages, reprise, redémarrage de l'API et lecture de l'historique. Le tiers tente de lire l'historique par l'API.
 - **Observé :** le scénario `F01 F02 F03 F04 F05 F13` passe ; Playwright rapporte **1 passed**. La CI installe Chromium, exécute le parcours puis conserve les traces synthétiques pour trois jours. Le test local équivalent a aussi passé en 48,7 s avec des ports et une base jetables.
 - **Limite :** le run automatise l'API Fastify et le proxy Vite sur des ports locaux du runner, pas la pile Docker Compose HTTPS publique. Il ne couvre pas les pistes audio/vidéo, le partage d'écran, Firefox ni Grafana ; les traces sont des artefacts de test potentiellement sensibles et ne sont pas versionnées.
 - **Sources :** [commit e2e](https://github.com/Zayonx-0/ChatISEN/commit/40a1dd5), [correction Ubuntu](https://github.com/Zayonx-0/ChatISEN/commit/b1067771f96e4e4155232511c497c2eca877c83b), [extrait CI](preuves/45202274116/extrait.txt), [test](../../tests/e2e/chat.spec.ts).
+
+
+## E18 — Contrôle de la tête documentaire b56ac97
+
+- **Date UTC :** 2026-11-23, 15:17:38–15:19:49. **Lot / IDs :** B, C et E ; contrôles disponibles O01, F01–F05 et F13 partiels.
+- **SHA / environnement :** tête PR `b56ac973b6cbe9cf72a625daac87b872da1e25fc`, fusion temporaire testée `76dc80218401a303c46694f56d80ee9b6e410371` avec `a3241a92f4efe2781213914df29794e2513d1a23` ; GitHub Actions Ubuntu 24.04, Node 24, pnpm 10.20.0, PostgreSQL 17 et Chromium.
+- **Protocole et attendu :** installation verrouillée, validation de configuration Compose, types, builds, tests disponibles et `pnpm test:e2e` sur la tête courante ; attendre leur succès.
+- **Observé :** le job est vert ; 15 tests réussis, aucun échec ni ignoré, puis un scénario Chromium réussi. Il confirme la correction Ubuntu relatée en E17 après l'échec du run 45201816405.
+- **Limite :** le test navigateur utilise Fastify et Vite sur loopback avec une base de service, et non le démarrage complet Compose HTTPS ; il ne démontre ni les médias reçus ni Grafana. Le job vert ne vaut pas réception J1.
+- **Sources :** [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45203593069), [extrait expurgé](preuves/45203593069/extrait.txt), [test navigateur](../../tests/e2e/chat.spec.ts), [E17](#e17--parcours-navigateur-réel-sur-postgresql).
