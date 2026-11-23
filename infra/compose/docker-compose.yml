@@ -1,0 +1,45 @@
+name: chatisen
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: {POSTGRES_USER: chatisen, POSTGRES_PASSWORD: chatisen, POSTGRES_DB: chatisen}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U chatisen"], interval: 5s, timeout: 3s, retries: 20}
+  api:
+    build: ../../apps/api
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://chatisen:chatisen@postgres:5432/chatisen
+      CSRF_SECRET: ${CSRF_SECRET:-change-me-in-demo}
+      CORS_ORIGIN: http://localhost
+      COOKIE_SECURE: "false"
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: devsecret
+    depends_on: {postgres: {condition: service_healthy}}
+    expose: ["3000"]
+  web:
+    build: ../../apps/web
+    depends_on: [api]
+    expose: ["80"]
+  livekit:
+    image: livekit/livekit-server:v1.8.4
+    command: ["--dev", "--bind", "0.0.0.0"]
+    environment: {LIVEKIT_KEYS: devkey: devsecret}
+    ports: ["7880:7880", "7881:7881", "7882:7882/udp"]
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["80:80"]
+    volumes: [../edge/nginx.conf:/etc/nginx/nginx.conf:ro]
+    depends_on: [web, api]
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes: [../../ops/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["9090:9090"]
+    depends_on: [api]
+  grafana:
+    image: grafana/grafana:12.0.0
+    ports: ["3001:3000"]
+    volumes: [../../ops/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro]
+    depends_on: [prometheus]
+volumes: {pgdata: {}}

@@ -1,0 +1,10 @@
+- name: ChatISEN host
+  hosts: chatisen
+  become: true
+  tasks:
+    - name: Install Docker
+      ansible.builtin.package: {name: docker.io, state: present}
+    - name: Create app directory
+      ansible.builtin.file: {path: /opt/chatisen, state: directory, mode: '0750'}
+    - name: Explain deployment handoff
+      ansible.builtin.debug: {msg: 'Copy a tagged checkout and run docker compose up -d --build'}

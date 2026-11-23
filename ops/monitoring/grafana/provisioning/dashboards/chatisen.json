@@ -1,0 +1,1 @@
+{"title":"ChatISEN","panels":[{"type":"timeseries","title":"Requêtes HTTP","targets":[{"expr":"rate(chatisen_http_requests_total[5m])"}]},{"type":"timeseries","title":"Messages","targets":[{"expr":"rate(chatisen_messages_total[5m])"}]}],"schemaVersion":39,"version":1}
