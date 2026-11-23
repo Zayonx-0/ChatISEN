@@ -115,3 +115,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** le test ciblé passe en PostgreSQL local puis en CI PostgreSQL 17 ; le run CI compte 13 tests réussis, aucun ignoré. L'API enregistre et recherche l'empreinte de session en base et le profil reste accessible après recréation de l'application avec un nouveau pool.
 - **Limite :** il s'agit d'injections HTTP, pas d'un redémarrage complet de conteneur ou d'un navigateur. Les anciennes routes `/api` et les conversations restent en mémoire, le WebSocket n'utilise pas encore les sessions PostgreSQL, et limitation de tentatives, profil modifiable et parcours complet restent ouverts. Ce résultat n'établit pas la réception F01/S01.
 - **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/3007b999a4544b82516d21f8eab387fb6288d2fb), [extrait CI](preuves/45191807962/extrait.txt), [test](../../tests/integration/identity/postgres-identity.test.ts).
+
+
+## E12 — Routes v1 de direct et historique PostgreSQL
+
+- **Date UTC :** 2026-11-23, 14:21. **Lot / IDs :** C ; F02, F04 et S02 (partiels).
+- **SHA / environnement :** tête PR `1b631bc8ffd9ca0986144bc23c7441a7eb466129` ; test local PostgreSQL 16 jetable puis [run GitHub 45193174450](https://github.com/Zayonx-0/ChatISEN/actions/runs/45193174450) sur Linux et PostgreSQL 17.
+- **Protocole et attendu :** deux comptes créent simultanément le même direct, un tiers tente d'en lire les messages ; envoyer 125 messages, rejouer une commande, vérifier un conflit de contenu et lire l'historique en pages de 50. Les objets de réponse sont confrontés aux schémas du contrat.
+- **Observé :** un seul direct, accès tiers refusé, retry avec même ID et conflit 409 pour un contenu différent ; 125 IDs distincts répartis en trois pages. Le run GitHub a passé 14 tests, aucun ignoré, incluant ce parcours d'injection HTTP.
+- **Limite :** ces routes sont testées par injection HTTP : ni navigateur, ni socket v1, ni redémarrage complet, ni groupes ou rattrapage d'événements ne sont encore vérifiés. Les anciennes routes restent en mémoire.
+- **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/1b631bc8ffd9ca0986144bc23c7441a7eb466129), [extrait expurgé](preuves/45193174450/extrait.txt), [test](../../tests/integration/chat/postgres-chat.test.ts).
