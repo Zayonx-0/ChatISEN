@@ -1,6 +1,6 @@
 import {Pool, type PoolClient, type QueryResultRow} from 'pg';
 import {randomUUID} from 'node:crypto';
-import type {Conversation, Member, Message, Session, User} from '../types.js';
+import type {Conversation, Message, Session, User} from '../types.js';
 
 type DbUser=QueryResultRow&{id:string;handle:string;display_name:string;password_hash:string;created_at:Date|string};
 type DbSession=QueryResultRow&{id:string;user_id:string;token_hash:Buffer|string;created_at:Date|string;expires_at:Date|string;revoked_at:Date|string|null};
@@ -68,12 +68,18 @@ export class PostgresRepository {
   /** Inserts event and message under the conversation row lock; clientId retries are idempotent. */
   async appendMessage(conversationId:string,senderId:string,text:string,clientId:string):Promise<{message:Message;created:boolean}>{
     return this.transaction(async client=>{
-      const existing=(await client.query<DbMessage>('select id,conversation_id,seq,sender_id,text,client_id,created_at from messages where conversation_id=$1 and sender_id=$2 and client_id=$3',[conversationId,senderId,clientId])).rows[0];
-      if(existing)return {message:mapMessage(existing),created:false};
-      const membership=await client.query('select 1 from conversation_members where conversation_id=$1 and user_id=$2 and left_at is null',[conversationId,senderId]);
-      if(membership.rowCount!==1)throw new Error('forbidden');
-      const c=(await client.query<{last_seq:string}>('select last_seq from conversations where id=$1 for update',[conversationId])).rows[0];
+      // Use one lock order across conversation mutations: conversation first,
+      // then membership. The membership lock protects against concurrent removal.
+      const c=(await client.query<{last_seq:string}>('select last_seq from conversations where id=$1 and closed_at is null for update',[conversationId])).rows[0];
       if(!c)throw new Error('conversation_not_found');
+      const membership=await client.query('select 1 from conversation_members where conversation_id=$1 and user_id=$2 and left_at is null for update',[conversationId,senderId]);
+      if(membership.rowCount!==1)throw new Error('forbidden');
+      // The conversation lock serializes retries before checking the key.
+      const existing=(await client.query<DbMessage>('select id,conversation_id,seq,sender_id,text,client_id,created_at from messages where conversation_id=$1 and sender_id=$2 and client_id=$3',[conversationId,senderId,clientId])).rows[0];
+      if(existing){
+        if(existing.text!==text)throw new Error('idempotency_conflict');
+        return {message:mapMessage(existing),created:false};
+      }
       const seq=BigInt(c.last_seq)+1n;
       const messageId=randomUUID();
       const payload={messageId,conversationId,senderId,clientId,text};
