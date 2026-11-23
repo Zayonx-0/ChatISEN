@@ -1,0 +1,13 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45206726364
+Tête PR : c88aa7e677dedb554de574d3cd4e1c82c638fc87
+Fusion testée : 5ee31d2359765dec41f019fcf29021490e4b9300
+Job : success ; Ubuntu 24.04, PostgreSQL 17, Node 24, pnpm 10.20.0, Chromium
+Extraits expurgés :
+2026-11-23T15:34:51Z HEAD is now at 5ee31d2 Merge c88aa7e677dedb554de574d3cd4e1c82c638fc87 into a3241a92f4efe2781213914df29794e2513d1a23
+2026-11-23T15:35:09Z ✔ calls v1 authorizes membership, signs bounded admissions and rejects invalid states
+2026-11-23T15:35:13Z ✔ LiveKit admission is signed and restricted to one identity and room for five minutes
+2026-11-23T15:35:17Z ℹ tests 17
+2026-11-23T15:35:17Z ℹ pass 17
+2026-11-23T15:35:17Z ℹ fail 0
+2026-11-23T15:35:17Z ℹ skipped 0
+2026-11-23T15:36:14Z 1 passed (24.4s)
