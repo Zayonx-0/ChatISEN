@@ -85,3 +85,13 @@ Ce journal conserve les observations, y compris les échecs et les essais ignor�
 - **Sources :** [workflow à la tête b703eb1](https://github.com/Zayonx-0/ChatISEN/blob/b703eb1d8a54b229080d741617aaeaaf562281f4/.github/workflows/r01.yml), [extrait expurgé](preuves/45176334218/extrait.txt), [suivi de rédaction](../suivi.md).
 
 Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d0f24d841b9928c91d2a48ec7f` : le run [45178224595](https://github.com/Zayonx-0/ChatISEN/actions/runs/45178224595) est également vert. Il porte sur la même portée de contrôles et confirme que la mise à jour du rapport n'a pas introduit de régression. GitHub signale seulement une annotation de dépréciation concernant le runtime Node 20 interne de certaines actions officielles, forcé vers Node 24 par le runner ; ce n'est pas un échec du job.
+
+
+## E09 — Première tranche C : repository PostgreSQL transactionnel
+
+- **Date UTC :** 2026-11-23, heure du commit non conservée dans le journal local. **Lot / IDs :** C ; F01–F05, S01–S02, O04–O06.
+- **SHA / environnement :** `2bb0a9b136e0ba3352e12625fb11265f3285b014`, branche `rev/01-socle-j1`, runner GitHub avec PostgreSQL de service ; le run associé est vert.
+- **Protocole et attendu :** fournir une couche SQL explicite pour utilisateurs, sessions, conversations, membres et messages ; verrouiller la séquence, écrire l'événement et le message dans une transaction, puis rendre un retry par `clientId` idempotent.
+- **Observé :** `PostgresRepository` ajoute le pool, les transactions, les sessions avec hash et révocation, les directs/groupes, l'appartenance, la pagination et `appendMessage` avec `FOR UPDATE`, événement `conversation_events` et retry idempotent. Le test d'intégration exerce migration, utilisateurs, session, direct, message, retry et révocation. Le run [45179423750](https://github.com/Zayonx-0/ChatISEN/actions/runs/45179423750) est vert.
+- **Limite :** le test d'intégration est ignoré localement sans `DATABASE_URL` mais le run CI dispose de PostgreSQL ; l'assertion de migration et le repository ne suffisent pas encore à démontrer le parcours métier. `server.ts` n'utilise pas encore ce repository, les routes `/api/v1` ne sont pas alignées et le redémarrage de l'API n'est pas prouvé.
+- **Sources :** [commit C](https://github.com/Zayonx-0/ChatISEN/commit/2bb0a9b136e0ba3352e12625fb11265f3285b014), [repository](../../apps/api/src/repositories/postgres.ts), [test d'intégration](../../tests/integration/c/postgres-repository.test.ts), [run CI](https://github.com/Zayonx-0/ChatISEN/actions/runs/45179423750).
