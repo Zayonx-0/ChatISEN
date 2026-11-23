@@ -15,9 +15,11 @@
     "study": "python analysis/study.py",
     "doctor": "node scripts/doctor.mjs",
     "up": "docker compose -f infra/compose/docker-compose.yml up -d --build",
-    "down": "docker compose -f infra/compose/docker-compose.yml down"
+    "down": "docker compose -f infra/compose/docker-compose.yml down",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "pg": "^8.23.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
