@@ -26,6 +26,10 @@ export class PostgresRepository {
     const row=(await this.pool.query<DbUser>('insert into users(handle,display_name,password_hash) values($1,$2,$3) returning id,handle,display_name,password_hash,created_at',[handle.toLowerCase(),displayName,passwordHash])).rows[0];
     return mapUser(row);
   }
+  async findUserById(userId:string):Promise<User|undefined>{
+    const row=(await this.pool.query<DbUser>('select id,handle,display_name,password_hash,created_at from users where id=$1',[userId])).rows[0];
+    return row?mapUser(row):undefined;
+  }
   async findUserByHandle(handle:string):Promise<User|undefined>{
     const row=(await this.pool.query<DbUser>('select id,handle,display_name,password_hash,created_at from users where handle=$1',[handle.toLowerCase()])).rows[0];
     return row?mapUser(row):undefined;

@@ -5,9 +5,13 @@ import {memory,now,hash,token,addUser,addSession,findSession,createConversation,
 import {passwordHash,passwordVerify,csrfFor,csrfOk} from './security.js';
 import {broadcast,add,channelCount} from './ws.js'; import {registry,requests,messages,activeSockets} from './metrics.js';
 import type {User,Conversation,Message,Call} from './types.js';
+import {PostgresRepository} from './repositories/postgres.js';
+import {registerPostgresIdentity} from './identity/postgres-routes.js';
 
 const app=Fastify({logger:true,trustProxy:process.env.TRUST_PROXY==='true'});
 await app.register(cookie); await app.register(cors,{origin:process.env.CORS_ORIGIN||true,credentials:true}); await app.register(multipart,{limits:{fileSize:5*1024*1024,files:1}}); await app.register(websocket);
+const postgres=process.env.DATABASE_URL?new PostgresRepository(process.env.DATABASE_URL):undefined;
+if(postgres){await registerPostgresIdentity(app,postgres);app.addHook('onClose',async()=>{await postgres.close();});}
 app.addHook('onResponse',async(req,reply)=>{requests.inc({method:req.method,route:req.routeOptions.url,status:String(reply.statusCode)});});
 
 type Req=FastifyRequest&{user?:User;rawSession?:string};
@@ -18,7 +22,7 @@ function publicUser(u:User){return {id:u.id,handle:u.handle,displayName:u.displa
 function publicMessage(m:Message){const u=memory.users.get(m.senderId);return {...m,sender:u?publicUser(u):null};}
 
 app.get('/healthz',async()=>({status:'ok',service:'chatisen-api',time:now()}));
-app.get('/readyz',async()=>({status:'ready',database:'memory-fallback',version:'0.1.0'}));
+app.get('/readyz',async(_req,reply)=>{if(!postgres)return {status:'ready',database:'memory-fallback',version:'1.1.0'};try{await postgres.ping();return {status:'ready',database:'postgres',version:'1.1.0'};}catch{return reply.code(503).send({status:'unavailable',database:'postgres'});}});
 app.get('/metrics',async(_req,reply)=>{reply.header('Content-Type',registry.contentType);return registry.metrics();});
 
 app.post('/api/auth/register',async(req,reply)=>{const b=req.body as any;const handle=String(b?.handle||'').trim().toLowerCase();const displayName=String(b?.displayName||handle).trim();const password=String(b?.password||'');if(!/^[a-z0-9_]{3,30}$/.test(handle)||password.length<8)return reply.code(400).send({error:{code:'VALIDATION_ERROR',message:'handle ou mot de passe invalide'}});if([...memory.users.values()].some(u=>u.handle===handle))return reply.code(409).send({error:{code:'HANDLE_TAKEN',message:'Identifiant déjà utilisé'}});const u=addUser(handle,displayName,await passwordHash(password));const {raw}=addSession(u.id,Number(process.env.SESSION_TTL_HOURS||24));reply.setCookie('__Host-chatisen',raw,{httpOnly:true,secure:process.env.COOKIE_SECURE==='true',sameSite:'lax',path:'/',maxAge:86400});return reply.code(201).send({user:publicUser(u),csrf:csrfFor(raw)});});
