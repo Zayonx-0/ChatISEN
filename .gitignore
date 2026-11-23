@@ -7,3 +7,4 @@ artifacts/**/*.json
 artifacts/**/*.log
 *.local
 infra/edge/certs/
+/data/

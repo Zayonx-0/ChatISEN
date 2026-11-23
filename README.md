@@ -1,6 +1,6 @@
 # ChatISEN
 
-ChatISEN est une plateforme académique de communication temps réel : comptes, conversations directes et de groupe, historique ordonné, appels audio/vidéo, partage de fichier et suivi opérationnel.
+ChatISEN est un projet académique de communication temps réel en cours de révision. Le socle J1 n’est pas encore reçu : le profil cible n’a pas de persistance métier PostgreSQL ni d’appels audio/vidéo réels. Voir [le bilan R01](docs/report/r01.md).
 
 Le dépôt contient deux profils :
 
@@ -17,10 +17,10 @@ PORT=3000 make dev
 # ouvrir http://localhost:3000
 ```
 
-Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur notifie les abonnés par WebSocket. Une invitation d’appel audio/vidéo affiche le contrôle d’acceptation ; le profil Compose fournit le service LiveKit pour le transport média réel.
+Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur standalone notifie les abonnés autorisés par WebSocket. Les appels affichés sont simulés ; le transport média LiveKit n’est pas encore intégré.
 
 ```sh
-make verify               # typecheck statique, contrats et recette API (un socket local est requis)
+make verify LEVEL=core    # échoue tant que les critères de recette R01 sont ouverts
 make up                   # profil Compose reproductible
 make down
 ```
