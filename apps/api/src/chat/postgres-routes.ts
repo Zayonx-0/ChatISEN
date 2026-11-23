@@ -2,6 +2,7 @@ import type {FastifyInstance,FastifyRequest} from 'fastify';
 import {PostgresRepository,type PostgresMessage} from '../repositories/postgres.js';
 import {postgresAuthenticator,invalid,type AuthRequest} from '../identity/postgres-routes.js';
 import {csrfOk} from '../security.js';
+import {GroupOperations,GroupOperationError} from './group-operations.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const seq=/^(0|[1-9][0-9]*)$/;
@@ -10,7 +11,7 @@ const messageDto=(m:PostgresMessage)=>({id:m.id,conversationId:m.conversationId,
 
 /** Incremental v1 HTTP chat routes; WebSocket catch-up is not yet wired. */
 export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepository){
-  const authenticate=postgresAuthenticator(repo);
+  const authenticate=postgresAuthenticator(repo);const groups=new GroupOperations(repo);
   const mutation=async(req:AuthRequest,reply:any)=>{await authenticate(req,reply);if(reply.sent)return;
     if(!process.env.CORS_ORIGIN||req.headers.origin!==process.env.CORS_ORIGIN)return invalid(reply,403,'ORIGIN_DENIED','Origine refusée');
     if(!csrfOk(req.identity!.token,String(req.headers['x-csrf-token']||'')))return invalid(reply,403,'CSRF_FAILED','Jeton CSRF invalide');
@@ -41,6 +42,39 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     if(found.rowCount!==members.length)return invalid(reply,404,'NOT_FOUND','Utilisateur indisponible');
     try{const group=await repo.createGroupIdempotent(uid,body.title.trim(),members,body.clientId);const result=await detail(group.id,uid);if(!result)return invalid(reply,404,'NOT_FOUND','Conversation indisponible');return reply.code(group.created?201:200).send(result);}
     catch(error){if((error as Error).message==='idempotency_conflict')return invalid(reply,409,'IDEMPOTENCY_CONFLICT','Clé déjà utilisée');if((error as Error).message==='forbidden')return invalid(reply,404,'NOT_FOUND','Conversation indisponible');throw error;}
+  });
+  const groupFailure=(error:unknown,reply:any)=>{
+    if(!(error instanceof GroupOperationError))throw error;
+    if(error.kind==='forbidden')return invalid(reply,403,'FORBIDDEN','Action réservée au propriétaire');
+    if(error.kind==='conflict')return invalid(reply,409,'CONFLICT','Action incompatible avec l’état du groupe');
+    return invalid(reply,404,'NOT_FOUND','Ressource indisponible');
+  };
+  app.patch('/api/v1/conversations/:id',{preHandler:mutation},async(req,reply)=>{
+    const cid=(req.params as {id:string}).id,body=req.body as {title?:unknown}|undefined,uid=(req as AuthRequest).identity!.user.id;
+    if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
+    if(typeof body?.title!=='string'||!body.title.trim()||body.title.trim().length>120)return invalid(reply,400,'VALIDATION_ERROR','Titre invalide');
+    try{await groups.rename(cid,uid,body.title.trim());return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
+  });
+  app.post('/api/v1/conversations/:id/members/:userId',{preHandler:mutation},async(req,reply)=>{
+    const {id:cid,userId}=req.params as {id:string;userId:string};const uid=(req as AuthRequest).identity!.user.id;
+    if(!uuid.test(cid)||!uuid.test(userId))return invalid(reply,404,'NOT_FOUND','Ressource indisponible');
+    try{const created=await groups.add(cid,uid,userId.toLowerCase());return reply.code(created?201:200).send(await detail(cid,uid));}catch(error){return groupFailure(error,reply);}
+  });
+  app.delete('/api/v1/conversations/:id/members/:userId',{preHandler:mutation},async(req,reply)=>{
+    const {id:cid,userId}=req.params as {id:string;userId:string};const uid=(req as AuthRequest).identity!.user.id;
+    if(!uuid.test(cid)||!uuid.test(userId))return invalid(reply,404,'NOT_FOUND','Ressource indisponible');
+    try{await groups.remove(cid,uid,userId.toLowerCase());return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
+  });
+  app.post('/api/v1/conversations/:id/transfer',{preHandler:mutation},async(req,reply)=>{
+    const cid=(req.params as {id:string}).id,uid=(req as AuthRequest).identity!.user.id,body=req.body as {newOwnerId?:unknown}|undefined;
+    if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
+    if(typeof body?.newOwnerId!=='string'||!uuid.test(body.newOwnerId))return invalid(reply,400,'VALIDATION_ERROR','Membre invalide');
+    try{await groups.transfer(cid,uid,body.newOwnerId.toLowerCase());return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
+  });
+  app.post('/api/v1/conversations/:id/leave',{preHandler:mutation},async(req,reply)=>{
+    const cid=(req.params as {id:string}).id,uid=(req as AuthRequest).identity!.user.id;
+    if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
+    try{await groups.leave(cid,uid);return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
   });
   app.get('/api/v1/users',{preHandler:authenticate},async(req,reply)=>{
     const handle=(req.query as {handle?:unknown}).handle;

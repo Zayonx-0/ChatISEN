@@ -29,6 +29,22 @@ test('F02 F04 S02 v1 direct and message routes use PostgreSQL with pagination an
     const nextList=await app.inject({method:'GET',url:`/api/v1/conversations?limit=1&cursor=${aliceList.json().nextCursor}`,headers:{cookie:alice.cookie}});assert.equal(nextList.statusCode,200);assert.equal(nextList.json().items.length,1);assert.equal(nextList.json().nextCursor,null);
     const groupDetail=await app.inject({method:'GET',url:`/api/v1/conversations/${groupFirst.json().id}`,headers:{cookie:bob.cookie}});assert.equal(groupDetail.statusCode,200);assert.equal(groupDetail.json().members.length,2);
     const hiddenGroup=await app.inject({method:'GET',url:`/api/v1/conversations/${groupFirst.json().id}`,headers:{cookie:eve.cookie}});assert.equal(hiddenGroup.statusCode,404);
+    const groupUrl=`/api/v1/conversations/${groupFirst.json().id}`;
+    const memberRename=await app.inject({method:'PATCH',url:groupUrl,headers:headers(bob),payload:{title:'Interdit'}});assert.equal(memberRename.statusCode,403);
+    const ownerLeave=await app.inject({method:'POST',url:`${groupUrl}/leave`,headers:headers(alice)});assert.equal(ownerLeave.statusCode,409);
+    const renamed=await app.inject({method:'PATCH',url:groupUrl,headers:headers(alice),payload:{title:'Projet'}});assert.equal(renamed.statusCode,200);assert.equal(renamed.json().title,'Projet');
+    const added=await app.inject({method:'POST',url:`${groupUrl}/members/${eve.user.id}`,headers:headers(alice)});assert.equal(added.statusCode,201);assert.equal(added.json().members.length,3);
+    const addedAgain=await app.inject({method:'POST',url:`${groupUrl}/members/${eve.user.id}`,headers:headers(alice)});assert.equal(addedAgain.statusCode,200);
+    const nowVisible=await app.inject({method:'GET',url:groupUrl,headers:{cookie:eve.cookie}});assert.equal(nowVisible.statusCode,200);
+    const removeSelf=await app.inject({method:'DELETE',url:`${groupUrl}/members/${alice.user.id.toUpperCase()}`,headers:headers(alice)});assert.equal(removeSelf.statusCode,409);
+    const removed=await app.inject({method:'DELETE',url:`${groupUrl}/members/${eve.user.id}`,headers:headers(alice)});assert.equal(removed.statusCode,204);
+    const noLongerVisible=await app.inject({method:'GET',url:groupUrl,headers:{cookie:eve.cookie}});assert.equal(noLongerVisible.statusCode,404);
+    const transferred=await app.inject({method:'POST',url:`${groupUrl}/transfer`,headers:headers(alice),payload:{newOwnerId:bob.user.id}});assert.equal(transferred.statusCode,200);assert.equal(transferred.json().members.filter((m:{role:string})=>m.role==='owner').length,1);
+    const previousOwner=await app.inject({method:'PATCH',url:groupUrl,headers:headers(alice),payload:{title:'Interdit'}});assert.equal(previousOwner.statusCode,403);
+    const aliceLeft=await app.inject({method:'POST',url:`${groupUrl}/leave`,headers:headers(alice)});assert.equal(aliceLeft.statusCode,204);
+    const bobLeft=await app.inject({method:'POST',url:`${groupUrl}/leave`,headers:headers(bob)});assert.equal(bobLeft.statusCode,204);
+    const closed=await app.inject({method:'GET',url:groupUrl,headers:{cookie:bob.cookie}});assert.equal(closed.statusCode,404);
+
     const url=`/api/v1/conversations/${direct.id}/messages`;
     const outsider=await app.inject({method:'GET',url,headers:{cookie:eve.cookie}});assert.equal(outsider.statusCode,404);
     const id=randomUUID();const payload={clientId:id,text:'bonjour'};
