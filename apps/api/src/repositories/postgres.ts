@@ -1,5 +1,5 @@
 import {Pool, type PoolClient, type QueryResultRow} from 'pg';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import type {Conversation, Message, Session, User} from '../types.js';
 
 export type PostgresMessage=Omit<Message,'seq'>&{seq:string};
@@ -60,6 +60,26 @@ export class PostgresRepository {
       const members=[...new Set([ownerId,...memberIds])];
       for(const uid of members)await client.query(`insert into conversation_members(conversation_id,user_id,role) values($1,$2,$3)`,[row.id,uid,uid===ownerId?'owner':'member']);
       return mapConversation(row);
+    });
+  }
+  async createGroupIdempotent(ownerId:string,title:string,memberIds:string[],clientId:string):Promise<Conversation & {created:boolean}>{
+    const members=[...new Set(memberIds)].sort();
+    const fingerprint=createHash('sha256').update(JSON.stringify({title,members})).digest();
+    return this.transaction(async client=>{
+      // Serialize even first use of a key; a unique row cannot lock what does not yet exist.
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))',[`${ownerId}:${clientId}`]);
+      const previous=(await client.query<{conversation_id:string;command_hash:Buffer}>('select conversation_id,command_hash from group_creation_commands where user_id=$1 and client_id=$2',[ownerId,clientId])).rows[0];
+      if(previous){
+        if(!previous.command_hash.equals(fingerprint))throw new Error('idempotency_conflict');
+        const row=(await client.query<DbConversation>(`select c.id,c.type,c.title,c.last_seq,c.created_at from conversations c join conversation_members m on m.conversation_id=c.id where c.id=$1 and c.closed_at is null and m.user_id=$2 and m.left_at is null`,[previous.conversation_id,ownerId])).rows[0];
+        if(!row)throw new Error('forbidden');
+        return {...mapConversation(row),created:false};
+      }
+      const row=(await client.query<DbConversation>(`insert into conversations(type,title,last_seq) values('group',$1,1) returning id,type,title,last_seq,created_at`,[title])).rows[0];
+      for(const uid of [ownerId,...members])await client.query(`insert into conversation_members(conversation_id,user_id,role) values($1,$2,$3)`,[row.id,uid,uid===ownerId?'owner':'member']);
+      await client.query(`insert into conversation_events(conversation_id,seq,event_type,entity_id,payload) values($1,1,'conversation.created',$1,$2::jsonb)`,[row.id,JSON.stringify({title,ownerId})]);
+      await client.query('insert into group_creation_commands(user_id,client_id,command_hash,conversation_id) values($1,$2,$3,$4)',[ownerId,clientId,fingerprint,row.id]);
+      return {...mapConversation(row),created:true};
     });
   }
   async isMember(conversationId:string,userId:string):Promise<boolean>{

@@ -21,6 +21,14 @@ test('F02 F04 S02 v1 direct and message routes use PostgreSQL with pagination an
     const search=await app.inject({method:'GET',url:`/api/v1/users?handle=${bob.user.handle}`,headers:{cookie:alice.cookie}});assert.equal(search.statusCode,200);assert.equal(search.json().id,bob.user.id);
     const [one,two]=await Promise.all([app.inject({method:'POST',url:'/api/v1/conversations/direct',headers:headers(alice),payload:{peerId:bob.user.id}}),app.inject({method:'POST',url:'/api/v1/conversations/direct',headers:headers(bob),payload:{peerId:alice.user.id}})]);
     assert.deepEqual([one.statusCode,two.statusCode].sort(),[200,201]);const direct=one.json();assert.equal(direct.id,two.json().id);validate(direct,schemaAt(schema,'#/$defs/ConversationDetail'),schema);
+    const groupCommand={clientId:randomUUID(),title:'Équipe',memberIds:[bob.user.id]};
+    const [groupFirst,groupRetry]=await Promise.all([app.inject({method:'POST',url:'/api/v1/conversations/groups',headers:headers(alice),payload:groupCommand}),app.inject({method:'POST',url:'/api/v1/conversations/groups',headers:headers(alice),payload:groupCommand})]);
+    assert.deepEqual([groupFirst.statusCode,groupRetry.statusCode].sort(),[200,201]);assert.equal(groupFirst.json().id,groupRetry.json().id);validate(groupFirst.json(),schemaAt(schema,'#/$defs/ConversationDetail'),schema);
+    const groupConflict=await app.inject({method:'POST',url:'/api/v1/conversations/groups',headers:headers(alice),payload:{...groupCommand,title:'Autre'}});assert.equal(groupConflict.statusCode,409);
+    const aliceList=await app.inject({method:'GET',url:'/api/v1/conversations?limit=1',headers:{cookie:alice.cookie}});assert.equal(aliceList.statusCode,200);validate(aliceList.json(),schemaAt(schema,'#/definitions/ConversationList'),schema);assert.equal(aliceList.json().items.length,1);assert.ok(aliceList.json().nextCursor);
+    const nextList=await app.inject({method:'GET',url:`/api/v1/conversations?limit=1&cursor=${aliceList.json().nextCursor}`,headers:{cookie:alice.cookie}});assert.equal(nextList.statusCode,200);assert.equal(nextList.json().items.length,1);assert.equal(nextList.json().nextCursor,null);
+    const groupDetail=await app.inject({method:'GET',url:`/api/v1/conversations/${groupFirst.json().id}`,headers:{cookie:bob.cookie}});assert.equal(groupDetail.statusCode,200);assert.equal(groupDetail.json().members.length,2);
+    const hiddenGroup=await app.inject({method:'GET',url:`/api/v1/conversations/${groupFirst.json().id}`,headers:{cookie:eve.cookie}});assert.equal(hiddenGroup.statusCode,404);
     const url=`/api/v1/conversations/${direct.id}/messages`;
     const outsider=await app.inject({method:'GET',url,headers:{cookie:eve.cookie}});assert.equal(outsider.statusCode,404);
     const id=randomUUID();const payload={clientId:id,text:'bonjour'};
