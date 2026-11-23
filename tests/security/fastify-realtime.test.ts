@@ -8,6 +8,8 @@ const {default:app}=await import('../../apps/api/src/server.js');
 
 test('S01 S02 Fastify refuses outsiders and revocation stops realtime delivery',async()=>{
   await app.ready();
+  const anonymous=await app.inject({method:"POST",url:"/api/conversations",payload:{type:"group",title:"Test"}});
+  assert.equal(anonymous.statusCode,401);
   const alice=addUser('alice_test','Alice','x'),bob=addUser('bob_test','Bob','x'),eve=addUser('eve_test','Eve','x');
   const a=addSession(alice.id),b=addSession(bob.id),e=addSession(eve.id);
   const c=createConversation('group','Test',alice.id,[bob.id]);
