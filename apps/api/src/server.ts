@@ -7,11 +7,12 @@ import {broadcast,add,channelCount} from './ws.js'; import {registry,requests,me
 import type {User,Conversation,Message,Call} from './types.js';
 import {PostgresRepository} from './repositories/postgres.js';
 import {registerPostgresIdentity} from './identity/postgres-routes.js';
+import {registerPostgresChat} from './chat/postgres-routes.js';
 
 const app=Fastify({logger:true,trustProxy:process.env.TRUST_PROXY==='true'});
 await app.register(cookie); await app.register(cors,{origin:process.env.CORS_ORIGIN||true,credentials:true}); await app.register(multipart,{limits:{fileSize:5*1024*1024,files:1}}); await app.register(websocket);
 const postgres=process.env.DATABASE_URL?new PostgresRepository(process.env.DATABASE_URL):undefined;
-if(postgres){await registerPostgresIdentity(app,postgres);app.addHook('onClose',async()=>{await postgres.close();});}
+if(postgres){await registerPostgresIdentity(app,postgres);await registerPostgresChat(app,postgres);app.addHook('onClose',async()=>{await postgres.close();});}
 app.addHook('onResponse',async(req,reply)=>{requests.inc({method:req.method,route:req.routeOptions.url,status:String(reply.statusCode)});});
 
 type Req=FastifyRequest&{user?:User;rawSession?:string};

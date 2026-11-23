@@ -2,6 +2,7 @@ import {Pool, type PoolClient, type QueryResultRow} from 'pg';
 import {randomUUID} from 'node:crypto';
 import type {Conversation, Message, Session, User} from '../types.js';
 
+export type PostgresMessage=Omit<Message,'seq'>&{seq:string};
 type DbUser=QueryResultRow&{id:string;handle:string;display_name:string;password_hash:string;created_at:Date|string};
 type DbSession=QueryResultRow&{id:string;user_id:string;token_hash:Buffer|string;created_at:Date|string;expires_at:Date|string;revoked_at:Date|string|null};
 type DbConversation=QueryResultRow&{id:string;type:'direct'|'group';title:string|null;last_seq:string|number;created_at:Date|string};
@@ -43,12 +44,14 @@ export class PostgresRepository {
     return row?mapSession(row):undefined;
   }
   async revokeSession(sessionId:string):Promise<boolean>{return (await this.pool.query('update sessions set revoked_at=now() where id=$1 and revoked_at is null',[sessionId])).rowCount===1;}
-  async createDirectConversation(ownerId:string,otherId:string):Promise<Conversation>{
+  async createDirectConversation(ownerId:string,otherId:string):Promise<Conversation & {created:boolean}>{
     const [low,high]=[ownerId,otherId].sort();
     return this.transaction(async client=>{
-      const row=(await client.query<DbConversation>(`insert into conversations(type,direct_user_low,direct_user_high) values('direct',$1,$2) on conflict(direct_user_low,direct_user_high) where type='direct' and closed_at is null do update set updated_at=conversations.updated_at returning id,type,title,last_seq,created_at`,[low,high])).rows[0];
-      await client.query(`insert into conversation_members(conversation_id,user_id,role) values($1,$2,'member'),($1,$3,'member') on conflict(conversation_id,user_id) do update set left_at=null`,[row.id,ownerId,otherId]);
-      return mapConversation(row);
+      const inserted=(await client.query<DbConversation>(`insert into conversations(type,direct_user_low,direct_user_high) values('direct',$1,$2) on conflict(direct_user_low,direct_user_high) where type='direct' and closed_at is null do nothing returning id,type,title,last_seq,created_at`,[low,high])).rows[0];
+      const row=inserted??(await client.query<DbConversation>(`select id,type,title,last_seq,created_at from conversations where type='direct' and direct_user_low=$1 and direct_user_high=$2 and closed_at is null`,[low,high])).rows[0];
+      if(!row)throw new Error('conversation_not_found');
+      await client.query(`insert into conversation_members(conversation_id,user_id,role) values($1,$2,'member'),($1,$3,'member') on conflict(conversation_id,user_id) do nothing`,[row.id,ownerId,otherId]);
+      return {...mapConversation(row),created:Boolean(inserted)};
     });
   }
   async createGroupConversation(ownerId:string,title:string,memberIds:string[]=[]):Promise<Conversation>{
@@ -63,14 +66,14 @@ export class PostgresRepository {
     const row=(await this.pool.query('select 1 from conversation_members where conversation_id=$1 and user_id=$2 and left_at is null',[conversationId,userId])).rowCount;
     return row===1;
   }
-  async listMessages(conversationId:string,limit=50,before?:string):Promise<Message[]>{
+  async listMessages(conversationId:string,limit=50,before?:string):Promise<PostgresMessage[]>{
     const args:[string,number|string]=[conversationId,Math.min(100,Math.max(1,limit))];
     const beforeSql=before?' and seq < $3':''; if(before)args.push(before);
     const rows=(await this.pool.query<DbMessage>(`select id,conversation_id,seq,sender_id,text,client_id,created_at from messages where conversation_id=$1${beforeSql} order by seq desc limit $2`,args)).rows;
     return rows.reverse().map(mapMessage);
   }
   /** Inserts event and message under the conversation row lock; clientId retries are idempotent. */
-  async appendMessage(conversationId:string,senderId:string,text:string,clientId:string):Promise<{message:Message;created:boolean}>{
+  async appendMessage(conversationId:string,senderId:string,text:string,clientId:string):Promise<{message:PostgresMessage;created:boolean}>{
     return this.transaction(async client=>{
       // Use one lock order across conversation mutations: conversation first,
       // then membership. The membership lock protects against concurrent removal.
@@ -98,4 +101,4 @@ export class PostgresRepository {
 function mapUser(row:DbUser):User{return {id:row.id,handle:row.handle,displayName:row.display_name,passwordHash:row.password_hash,createdAt:iso(row.created_at)}}
 function mapSession(row:DbSession):Session{return {id:row.id,userId:row.user_id,tokenHash:Buffer.from(row.token_hash).toString('hex'),csrfHash:'',createdAt:iso(row.created_at),expiresAt:iso(row.expires_at),revokedAt:row.revoked_at?iso(row.revoked_at):undefined}}
 function mapConversation(row:DbConversation):Conversation{return {id:row.id,type:row.type,title:row.title,ownerId:null,lastSeq:Number(row.last_seq),createdAt:iso(row.created_at)}}
-function mapMessage(row:DbMessage):Message{return {id:row.id,conversationId:row.conversation_id,seq:Number(row.seq),senderId:row.sender_id,text:row.text,clientMessageId:row.client_id,createdAt:iso(row.created_at)}}
+function mapMessage(row:DbMessage):PostgresMessage{return {id:row.id,conversationId:row.conversation_id,seq:String(row.seq),senderId:row.sender_id,text:row.text,clientMessageId:row.client_id,createdAt:iso(row.created_at)}}

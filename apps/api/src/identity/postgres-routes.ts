@@ -4,23 +4,28 @@ import {PostgresRepository} from '../repositories/postgres.js';
 import {passwordHash,passwordVerify,csrfFor,csrfOk} from '../security.js';
 import type {User,Session} from '../types.js';
 
-type AuthRequest=FastifyRequest & {identity?:{user:User;session:Session;token:string}};
-const tokenHash=(value:string)=>createHash('sha256').update(value).digest('hex');
-const cookieName='__Host-chatisen';
+export type AuthRequest=FastifyRequest & {identity?:{user:User;session:Session;token:string}};
+export const tokenHash=(value:string)=>createHash('sha256').update(value).digest('hex');
+export const cookieName='__Host-chatisen';
 const handlePattern=/^[a-z0-9_]{3,32}$/;
-const invalid=(reply:FastifyReply,status:number,code:string,message:string)=>reply.code(status).send({code,message,requestId:randomUUID()});
+export const invalid=(reply:FastifyReply,status:number,code:string,message:string)=>reply.code(status).send({code,message,requestId:randomUUID()});
 const profile=(user:User,token:string)=>({id:user.id,handle:user.handle,displayName:user.displayName,createdAt:user.createdAt,csrfToken:csrfFor(token)});
 
-/** Routes v1 identity persisted in PostgreSQL. Depends on @fastify/cookie. */
-export async function registerPostgresIdentity(app:FastifyInstance,repo:PostgresRepository){
-  const secureCookie=(reply:FastifyReply,value:string)=>reply.setCookie(cookieName,value,{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:86400});
-  const authenticate=async(req:AuthRequest,reply:FastifyReply)=>{
+/** Shared session lookup for PostgreSQL-backed v1 routes. */
+export function postgresAuthenticator(repo:PostgresRepository){
+  return async(req:AuthRequest,reply:FastifyReply)=>{
     const token=req.cookies[cookieName];
     const session=token?await repo.findSession(tokenHash(token)):undefined;
     const user=session?await repo.findUserById(session.userId):undefined;
     if(!token||!session||!user)return invalid(reply,401,'UNAUTHORIZED','Authentification requise');
     req.identity={user,session,token};
   };
+}
+
+/** Routes v1 identity persisted in PostgreSQL. Depends on @fastify/cookie. */
+export async function registerPostgresIdentity(app:FastifyInstance,repo:PostgresRepository){
+  const secureCookie=(reply:FastifyReply,value:string)=>reply.setCookie(cookieName,value,{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:86400});
+  const authenticate=postgresAuthenticator(repo);
   const sameOrigin=(req:FastifyRequest)=>Boolean(process.env.CORS_ORIGIN)&&req.headers.origin===process.env.CORS_ORIGIN;
   app.post('/api/v1/auth/register',async(req,reply)=>{
     if(!sameOrigin(req))return invalid(reply,403,'ORIGIN_DENIED','Origine refusée');
