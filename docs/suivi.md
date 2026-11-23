@@ -1,16 +1,13 @@
-# Suivi pilote
+# Suivi de révision R01
 
-| Lot | État | Preuve | Dépendance |
-|---|---|---|---|
-| 0 contrats/migrations/fixtures | livré | `tests/contract`, commit `acf425d` | PostgreSQL réel requis pour l’essai DB |
-| I/C/X J1 API, UI, exécution locale | livré en profil standalone, Compose préparé | `tests/standalone`, `docs/report/validation.md` | daemon Docker et navigateur pour parcours UI |
-| M appels | API d’invitation livrée, adaptateur LiveKit Compose préparé | routes `/api/conversations/:id/calls` | accès LiveKit et deux navigateurs |
-| E collaboration | route/affichage de base livrés | limite 5 MiB dans API TypeScript | test multipart sur Compose |
-| Q qualité/données | scaffold `analysis/study.py` et métriques | run `make study` | export `getStats` humain |
-| R fiabilité/sécurité | contrôles et scripts livrés | `docs/security`, `tests/security` | VM/réseaux pour validation complète |
-| P performance | protocole documenté, aucune valeur inventée | `ARCHITECTURE-ChatISEN.md` P01–P04 | fenêtre dédiée et k6 |
-| V/T remise | README, spécification, rapport, conducteur livrés | `docs/` | répétition média et ACME |
+Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01-socle-j1` et sa PR portent les travaux intermédiaires ; le jalon J1 et la version 1.1.0 restent non reçus.
 
-## Écarts justifiés
+| Lot | État | Preuve et reste à faire |
+|---|---|---|
+| A confidentialité | Partiel | Tests WS/SSE standalone et WS Fastify sur source mémoire ; contrôle des sessions et appartenances PostgreSQL, origine/expiration et révocation média à compléter. |
+| B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Démarrage, seed, certificats et cookie navigateur restent à tester. |
+| C identité et chat PostgreSQL | Ouvert | Migration PostgreSQL 17 testée deux fois en CI ; routes contractuelles, stockage métier, transactions et reprise restent à réaliser. |
+| D média | Ouvert | Admission LiveKit et réception audio/vidéo encore absentes. |
+| E parcours/CI | Partiel | Workflow et recette qui échoue si les preuves manquent ; Playwright, métriques et démonstration restent à réaliser. |
 
-Le mode standalone est ajouté pour rendre J1 exécutable sans registre npm ni daemon PostgreSQL. Il conserve l’API métier et la sécurité de session/CSRF mais remplace PostgreSQL/Argon2id par JSON/`crypto.scrypt`. Le profil Compose reste la cible architecturelle. Toute valeur non mesurée est marquée à exécuter.
+Résultats et SHA : [rapport R01](report/r01.md). Le [mandat](revisions/R01-socle-j1.md) définit la réception et les travaux restants.
