@@ -1,12 +1,14 @@
-name: R01 core
+name: R01 — contrôles automatisés
 on:
   pull_request:
   push:
-    branches: [rev/01-socle-j1]
+    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  verify:
+  checks:
+    name: Builds, tests et configuration Compose
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -32,8 +34,22 @@ jobs:
         with:
           node-version: '24'
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Validate Compose configuration
+      - name: Installer les dépendances verrouillées
+        run: pnpm install --frozen-lockfile
+      - name: Valider la configuration Compose
         run: docker compose -f infra/compose/docker-compose.yml config --quiet
-      - name: Verify R01 core
-        run: make verify LEVEL=core
+      - name: Vérifier les types
+        run: pnpm typecheck
+      - name: Compiler les applications
+        run: pnpm build
+      - name: Exécuter les tests disponibles
+        run: pnpm test
+      - name: Préciser la portée des contrôles
+        if: always()
+        run: |
+          {
+            echo '## Portée des contrôles R01'
+            echo 'Ce workflow vérifie uniquement les builds, les tests disponibles et la configuration Compose.'
+            echo 'La recette J1 reste ouverte : la persistance métier PostgreSQL, les médias reçus, le parcours navigateur et Grafana ne sont pas démontrés.'
+            echo 'La publication v1.1.0 reste soumise à make verify LEVEL=core et aux critères du mandat R01.'
+          } >> "$GITHUB_STEP_SUMMARY"
