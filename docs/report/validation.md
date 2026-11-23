@@ -1,6 +1,6 @@
 # Validation et écarts
 
-Run de préparation : **2026-11-23 UTC**, poste macOS arm64, Node 24.14.1 (le binaire npm disponible est Node 21.6.0), Docker CLI 29.8.0 sans daemon accessible, aucun PostgreSQL local, aucun domaine public ni second réseau.
+Run de préparation : **2026-11-23 UTC**, poste macOS arm64, Node 24.14.1 au shell (le binaire invoqué par npm/tests est Node 21.6.0), Docker CLI 29.8.0 sans daemon accessible, aucun PostgreSQL local, aucun domaine public ni second réseau.
 
 ## Résultats réels
 
