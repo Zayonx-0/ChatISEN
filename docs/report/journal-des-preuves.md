@@ -155,3 +155,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** une seule création, retry convergent, conflit 409, liste paginée, détail accessible aux membres et refus au tiers dans les tests d'injection. Une migration ajoute les clés d'idempotence des groupes. La configuration Compose attend désormais la migration après la disponibilité de PostgreSQL et avant le lancement de l'API. La CI est verte.
 - **Limite :** la configuration Compose a été validée sans démarrage complet de la pile ; changement de membres, transfert et sortie de groupe restent à réaliser et éprouver. Le parcours navigateur n'est pas couvert.
 - **Sources :** [commit groupes](https://github.com/Zayonx-0/ChatISEN/commit/39317c280f840d986cd5a5e5e3414ef20d540232), [commit Compose](https://github.com/Zayonx-0/ChatISEN/commit/b9cb431eaacfefbf637f8f8a20ee785e1873d198), [extrait CI](preuves/45196890463/extrait.txt), [test](../../tests/integration/chat/postgres-chat.test.ts).
+
+
+## E16 — Gestion transactionnelle des groupes
+
+- **Date UTC :** 2026-11-23, après 14:34. **Lot / IDs :** C ; F03 et S02 (partiels).
+- **SHA / environnement :** tête PR `fd1f8bd46768b03c39324d4062a23928a00ea089` ; PostgreSQL 16 local puis [run GitHub 45197678830](https://github.com/Zayonx-0/ChatISEN/actions/runs/45197678830) sur PostgreSQL 17.
+- **Protocole et attendu :** renommer, ajouter et retirer un membre, transférer la propriété, refuser les actions d'un membre ordinaire, puis quitter et fermer le groupe lorsque le dernier propriétaire part.
+- **Observé :** tests HTTP par injection réussis ; les changements de groupe et leurs événements sont écrits transactionnellement, et un propriétaire actif est maintenu pendant le transfert. Un propriétaire ne peut pas quitter si d'autres membres restent. Le tiers retiré ne peut plus lire le détail. La CI est verte.
+- **Limite :** tests sur API et base, sans interface navigateur ni retrait pendant un appel média ; les courses entre toutes les opérations de gestion et les transferts de données restent à éprouver.
+- **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/fd1f8bd46768b03c39324d4062a23928a00ea089), [test](../../tests/integration/chat/postgres-chat.test.ts), [extrait CI](preuves/45197678830/extrait.txt).
