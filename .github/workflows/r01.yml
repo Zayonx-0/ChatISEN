@@ -33,5 +33,7 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate Compose configuration
+        run: docker compose -f infra/compose/docker-compose.yml config --quiet
       - name: Verify R01 core
         run: make verify LEVEL=core
