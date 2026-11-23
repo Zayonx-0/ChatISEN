@@ -105,3 +105,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** le run [45190081857](https://github.com/Zayonx-0/ChatISEN/actions/runs/45190081857) a exécuté le premier test repository ; le run [45190512565](https://github.com/Zayonx-0/ChatISEN/actions/runs/45190512565) a passé le test renforcé de concurrence et révocation. La suite du second run rapporte 12 tests réussis, aucun échec et aucun ignoré. La correction sérialise les écritures par conversation et protège l'appartenance pendant la transaction ; une clé identique avec contenu différent est refusée.
 - **Limite :** ces tests portent sur le repository directement, pas sur les routes HTTP ou l'API assemblée ; le raccordement Fastify et les parcours de redémarrage/reprise restent à réaliser. Les runs GitHub sont déclenchés par la PR et peuvent utiliser un commit de fusion temporaire ; les SHA ci-dessus sont ceux des têtes de branche communiqués par Actions.
 - **Sources :** [test CI initial](https://github.com/Zayonx-0/ChatISEN/actions/runs/45190081857), [test CI renforcé](https://github.com/Zayonx-0/ChatISEN/actions/runs/45190512565), [test repository](../../tests/integration/c/postgres-repository.test.ts).
+
+
+## E11 — Identité v1 raccordée à PostgreSQL
+
+- **Date UTC :** 2026-11-23, 14:13. **Lot / IDs :** C ; F01, S01 (partiels).
+- **SHA / environnement :** tête PR `3007b999a4544b82516d21f8eab387fb6288d2fb` ; test local sur PostgreSQL 16 et run GitHub [45191807962](https://github.com/Zayonx-0/ChatISEN/actions/runs/45191807962) sur PostgreSQL 17, Node 24 et pnpm 10.20.0.
+- **Protocole et attendu :** migration sur base jetable, inscription et profil v1, refus d'origine étrangère et d'une mutation sans CSRF, recréation de l'application et reconnexion à la même base, puis déconnexion et refus de l'ancienne session.
+- **Observé :** le test ciblé passe en PostgreSQL local puis en CI PostgreSQL 17 ; le run CI compte 13 tests réussis, aucun ignoré. L'API enregistre et recherche l'empreinte de session en base et le profil reste accessible après recréation de l'application avec un nouveau pool.
+- **Limite :** il s'agit d'injections HTTP, pas d'un redémarrage complet de conteneur ou d'un navigateur. Les anciennes routes `/api` et les conversations restent en mémoire, le WebSocket n'utilise pas encore les sessions PostgreSQL, et limitation de tentatives, profil modifiable et parcours complet restent ouverts. Ce résultat n'établit pas la réception F01/S01.
+- **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/3007b999a4544b82516d21f8eab387fb6288d2fb), [extrait CI](preuves/45191807962/extrait.txt), [test](../../tests/integration/identity/postgres-identity.test.ts).

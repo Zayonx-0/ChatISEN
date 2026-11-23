@@ -6,7 +6,7 @@ Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01
 |---|---|---|
 | A confidentialité | Partiel | Tests WS/SSE standalone et WS Fastify sur source mémoire ; contrôle des sessions et appartenances PostgreSQL, origine/expiration et révocation média à compléter. |
 | B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Démarrage, seed, certificats et cookie navigateur restent à tester. |
-| C identité et chat PostgreSQL | Partiel | Repository transactionnel et test C renforcé sur PostgreSQL 17 (`dc2cf21`, CI 45190512565) ; intégration dans `server.ts`, routes `/api/v1`, redémarrage et reprise restent à réaliser. |
+| C identité et chat PostgreSQL | Partiel | Repository transactionnel, test de concurrence et identité `/api/v1` raccordée à PostgreSQL (`3007b99`, CI 45191807962) ; conversations, socket, redémarrage complet et reprise restent à réaliser. |
 | D média | Ouvert | Admission LiveKit et réception audio/vidéo encore absentes. |
 | E parcours/CI | Partiel | Workflow des contrôles disponibles vert sur le run 45176334218 ; la recette J1 reste séparée et bloquante, Playwright, métriques et démonstration restent à réaliser. |
 

@@ -1,0 +1,10 @@
+Run https://github.com/Zayonx-0/ChatISEN/actions/runs/45191807962
+Tête PR : 3007b999a4544b82516d21f8eab387fb6288d2fb
+Job : success ; PostgreSQL 17, Node 24, pnpm 10.20.0
+Extraits expurgés :
+Builds, tests et configuration Compose	Run actions/checkout@v4	2026-11-23T14:13:24.9781726Z HEAD is now at c334af0 Merge 3007b999a4544b82516d21f8eab387fb6288d2fb into a3241a92f4efe2781213914df29794e2513d1a23
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:13:42.6768192Z ✔ F01 S01 PostgreSQL identity persists session and enforces origin and CSRF (553.485904ms)
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:13:47.8539810Z ℹ tests 13
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:13:47.8577595Z ℹ pass 13
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:13:47.8583173Z ℹ fail 0
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:13:47.8584253Z ℹ skipped 0
