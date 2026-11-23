@@ -145,3 +145,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** notification et lecture dans le journal, rattrapage ordonné de 20 événements, refus d'accès et absence de nouvelle livraison après déconnexion. Le run GitHub a passé 15 tests, aucun ignoré. Le relais de notifications `LISTEN/NOTIFY` réveille le lecteur, qui dispose également d'une vérification périodique ; Nginx possède un routage d'upgrade pour `/api/v1/ws`.
 - **Limite :** les abonnements de test sont injectés dans une instance Fastify, sauf les refus d'ouverture essayés sur socket locale. Il n'y a pas encore de preuve sur deux processus API, de coupure pendant 15 secondes, de proxy HTTPS assemblé ou de parcours navigateur. Aucun résultat de média.
 - **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/b5fbe967b9ee5a64e96c96fe74f699310b958d18), [test](../../tests/integration/chat/postgres-websocket.test.ts), [extrait CI](preuves/45195526535/extrait.txt).
+
+
+## E15 — Groupes et ordre de migration Compose
+
+- **Date UTC :** 2026-11-23, après 14:34. **Lot / IDs :** B et C ; F03, O01 (partiels).
+- **SHA / environnement :** commits `39317c280f840d986cd5a5e5e3414ef20d540232` et `b9cb431eaacfefbf637f8f8a20ee785e1873d198` ; PostgreSQL 16 local puis [run GitHub 45196890463](https://github.com/Zayonx-0/ChatISEN/actions/runs/45196890463) sur PostgreSQL 17.
+- **Protocole et attendu :** créer deux fois le même groupe avec la même commande en concurrence, tenter un conflit de contenu, consulter la liste et le détail comme membre et comme tiers ; valider la configuration Compose.
+- **Observé :** une seule création, retry convergent, conflit 409, liste paginée, détail accessible aux membres et refus au tiers dans les tests d'injection. Une migration ajoute les clés d'idempotence des groupes. La configuration Compose attend désormais la migration après la disponibilité de PostgreSQL et avant le lancement de l'API. La CI est verte.
+- **Limite :** la configuration Compose a été validée sans démarrage complet de la pile ; changement de membres, transfert et sortie de groupe restent à réaliser et éprouver. Le parcours navigateur n'est pas couvert.
+- **Sources :** [commit groupes](https://github.com/Zayonx-0/ChatISEN/commit/39317c280f840d986cd5a5e5e3414ef20d540232), [commit Compose](https://github.com/Zayonx-0/ChatISEN/commit/b9cb431eaacfefbf637f8f8a20ee785e1873d198), [extrait CI](preuves/45196890463/extrait.txt), [test](../../tests/integration/chat/postgres-chat.test.ts).
