@@ -32,5 +32,10 @@ test('F02 F04 S02 v1 direct and message routes use PostgreSQL with pagination an
     let before='';const seen:string[]=[];let pages=0;
     do{const page=await app.inject({method:'GET',url:`${url}?limit=50${before?'&beforeSeq='+before:''}`,headers:{cookie:bob.cookie}});assert.equal(page.statusCode,200);validate(page.json(),schemaAt(schema,'#/$defs/MessagePage'),schema);seen.push(...page.json().items.map((x:{id:string})=>x.id));before=page.json().nextBeforeSeq;pages++;}while(before);
     assert.equal(pages,3);assert.equal(seen.length,125);assert.equal(new Set(seen).size,125);
+    const eventsUrl=`/api/v1/conversations/${direct.id}/events`;
+    const deniedEvents=await app.inject({method:'GET',url:eventsUrl,headers:{cookie:eve.cookie}});assert.equal(deniedEvents.statusCode,404);
+    const firstEvents=await app.inject({method:'GET',url:`${eventsUrl}?afterSeq=0&limit=100`,headers:{cookie:bob.cookie}});assert.equal(firstEvents.statusCode,200);validate(firstEvents.json(),schemaAt(schema,'#/$defs/EventPage'),schema);assert.equal(firstEvents.json().items.length,100);assert.equal(firstEvents.json().hasMore,true);assert.equal(firstEvents.json().nextAfterSeq,'100');
+    const rest=await app.inject({method:'GET',url:`${eventsUrl}?afterSeq=100&limit=100`,headers:{cookie:bob.cookie}});assert.equal(rest.statusCode,200);assert.equal(rest.json().items.length,25);assert.equal(rest.json().hasMore,false);assert.equal(rest.json().nextAfterSeq,'125');
+
   }finally{await app.close();}
 });
