@@ -11,3 +11,11 @@ Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01
 | E parcours/CI | Partiel | Workflow et recette qui échoue si les preuves manquent ; Playwright, métriques et démonstration restent à réaliser. |
 
 Résultats et SHA : [rapport R01](report/r01.md). Le [mandat](revisions/R01-socle-j1.md) définit la réception et les travaux restants.
+
+## Convention de rédaction et de preuves
+
+Cette convention s'applique à R01 et aux révisions suivantes jusqu'à la remise. Lorsqu'un lot se termine ou se trouve bloqué, son sous-agent transmet au pilote les changements, le SHA testé, l'environnement, les commandes ou protocoles, les résultats observés (échecs et essais ignorés compris), les limites et les liens vers les preuves. Une simple présence de fichier ou un test avec mocks ne vaut pas réception du scénario intégré.
+
+Le pilote vérifie les résultats sur le commit et le run correspondants, puis ajoute une entrée datée en UTC dans le [journal des preuves](report/journal-des-preuves.md), avec le lot, les IDs de recette, l'attendu, l'observé et sa portée. Il conserve par lien les artefacts existants et archive dans `docs/report/preuves/<id-du-run>/` un extrait CI court et expurgé des secrets, cookies et données personnelles. Une correction donne lieu à une nouvelle entrée qui renvoie à l'essai précédent ; le pilote distingue le SHA de tête de PR du SHA de fusion temporaire réellement testé par Actions.
+
+Après chaque entrée, le pilote met à jour les paragraphes concernés du [rapport technique](report/rapport-technique.md) et rattache chaque résultat chiffré à son entrée. Si une expérience infirme un choix, il garde la décision initiale et l'essai dans le journal, puis explique dans le rapport les observations qui motivent l'évolution. Les essais non réalisés restent explicitement ouverts. La publication d'une version demeure soumise aux critères de réception du mandat applicable ; cette convention documentaire ne les remplace pas.
