@@ -6,3 +6,4 @@ dist/
 artifacts/**/*.json
 artifacts/**/*.log
 *.local
+infra/edge/certs/
