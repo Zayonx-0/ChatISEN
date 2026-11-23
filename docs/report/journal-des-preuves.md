@@ -135,3 +135,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** la route v1 relit le journal durable et renvoie les événements en ordre croissant ; le test HTTP couvre 125 événements en deux pages, ainsi qu'un refus tiers. Le test de migration renforcé réussit ; le run GitHub est vert. Cette correction répond à la faiblesse d'assertion documentée en E06–E07.
 - **Limite :** le rattrapage est exercé par injection HTTP, sans coupure de socket réelle ni redémarrage de l'API ; le flux temps réel PostgreSQL et la reprise intégrée restent à faire.
 - **Sources :** [commit événements](https://github.com/Zayonx-0/ChatISEN/commit/0030f0a873430608a7c1eb1713242ff5ffe60f90), [commit test migration](https://github.com/Zayonx-0/ChatISEN/commit/1e0a6a3932a96b77ac84e672d902e68e78e9f9b4), [extrait CI](preuves/45194051994/extrait.txt).
+
+
+## E14 — WebSocket v1 sur journal PostgreSQL
+
+- **Date UTC :** 2026-11-23, 14:34. **Lot / IDs :** A et C ; F05, S01–S02 (partiels).
+- **SHA / environnement :** tête PR `b5fbe967b9ee5a64e96c96fe74f699310b958d18` ; PostgreSQL 16 local et [run GitHub 45195526535](https://github.com/Zayonx-0/ChatISEN/actions/runs/45195526535) sur Linux et PostgreSQL 17.
+- **Protocole et attendu :** ouvrir la socket v1 avec origine et session contrôlées ; s'abonner à un direct, publier des messages, déconnecter puis réabonner Bob après 20 messages manqués ; tenter l'accès tiers, l'ouverture anonyme et d'origine étrangère, puis révoquer une session et publier à nouveau.
+- **Observé :** notification et lecture dans le journal, rattrapage ordonné de 20 événements, refus d'accès et absence de nouvelle livraison après déconnexion. Le run GitHub a passé 15 tests, aucun ignoré. Le relais de notifications `LISTEN/NOTIFY` réveille le lecteur, qui dispose également d'une vérification périodique ; Nginx possède un routage d'upgrade pour `/api/v1/ws`.
+- **Limite :** les abonnements de test sont injectés dans une instance Fastify, sauf les refus d'ouverture essayés sur socket locale. Il n'y a pas encore de preuve sur deux processus API, de coupure pendant 15 secondes, de proxy HTTPS assemblé ou de parcours navigateur. Aucun résultat de média.
+- **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/b5fbe967b9ee5a64e96c96fe74f699310b958d18), [test](../../tests/integration/chat/postgres-websocket.test.ts), [extrait CI](preuves/45195526535/extrait.txt).
