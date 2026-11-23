@@ -1,0 +1,49 @@
+{
+  "profile": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "handle": "alice",
+    "displayName": "Alice Martin",
+    "createdAt": "2026-01-01T00:00:00Z",
+    "csrfToken": "csrf_fixture_token_abcdefghijklmnopqrstuvwxyz123456789"
+  },
+  "message": {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "conversationId": "99999999-9999-4999-8999-999999999999",
+    "seq": "42",
+    "senderId": "11111111-1111-4111-8111-111111111111",
+    "clientId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "text": "On se retrouve dans l’appel ?",
+    "createdAt": "2026-09-01T10:03:00Z"
+  },
+  "event": {
+    "v": 1,
+    "type": "event",
+    "conversationId": "99999999-9999-4999-8999-999999999999",
+    "seq": "42",
+    "at": "2026-09-01T10:03:00Z",
+    "event": "message.created",
+    "data": {
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "senderId": "11111111-1111-4111-8111-111111111111",
+      "clientId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "text": "On se retrouve dans l’appel ?"
+    }
+  },
+  "call": {
+    "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "conversationId": "99999999-9999-4999-8999-999999999999",
+    "initiatorId": "11111111-1111-4111-8111-111111111111",
+    "mode": "video",
+    "state": "ringing",
+    "roomName": "chatisen_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "createdAt": "2026-09-01T10:04:00Z"
+  },
+  "qualityBatch": {
+    "samples": [
+      { "capturedAt": "2026-09-01T10:04:05Z", "packetsReceived": 1000, "packetsLost": 4, "jitterMs": 12.5, "rttMs": 48, "bitrateKbps": 512.25, "trackPresent": true },
+      { "capturedAt": "2026-09-01T10:04:10Z", "packetsReceived": 1010, "packetsLost": 8, "jitterMs": 18, "rttMs": 65, "bitrateKbps": 480, "trackPresent": true }
+    ]
+  },
+  "wsSubscribe": { "v": 1, "type": "subscribe", "conversationId": "99999999-9999-4999-8999-999999999999", "afterSeq": "41" },
+  "wsReady": { "v": 1, "type": "ready", "heartbeatSeconds": 30 }
+}

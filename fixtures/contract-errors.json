@@ -1,0 +1,4 @@
+[
+  { "code": "NOT_MEMBER", "message": "Accès indisponible", "requestId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd" },
+  { "code": "IDEMPOTENCY_CONFLICT", "message": "La clé client est déjà utilisée avec un contenu différent", "requestId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }
+]

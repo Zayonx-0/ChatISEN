@@ -1,0 +1,1217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatisen.local/contracts/v1/http.json",
+  "title": "ChatISEN HTTP v1 JSON schemas",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "Seq": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "PostgreSQL bigint encoded as a decimal JSON string"
+    },
+    "DateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    },
+    "Handle": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{3,32}$"
+    },
+    "DisplayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "ClientId": {
+      "$ref": "#/$defs/Uuid"
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "BAD_REQUEST",
+        "VALIDATION_ERROR",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "NOT_MEMBER",
+        "NOT_FOUND",
+        "CONFLICT",
+        "IDEMPOTENCY_CONFLICT",
+        "DIRECT_ALREADY_EXISTS",
+        "CALL_IN_PROGRESS",
+        "CALL_ENDED",
+        "INVALID_STATE",
+        "FILE_TOO_LARGE",
+        "UNSUPPORTED_MEDIA_TYPE",
+        "RATE_LIMITED",
+        "DEPENDENCY_UNAVAILABLE",
+        "CSRF_FAILED",
+        "ORIGIN_DENIED",
+        "RESYNC_REQUIRED",
+        "MEDIA_ADMISSION_DENIED",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "ApiError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "requestId"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "requestId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "UserPublic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "handle",
+        "displayName"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "displayName": {
+          "$ref": "#/$defs/DisplayName"
+        }
+      }
+    },
+    "UserProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "handle",
+        "displayName",
+        "createdAt",
+        "csrfToken"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "displayName": {
+          "$ref": "#/$defs/DisplayName"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "csrfToken": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 256
+        }
+      }
+    },
+    "RegisterRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "displayName",
+        "password"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "displayName": {
+          "$ref": "#/$defs/DisplayName"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        }
+      }
+    },
+    "LoginRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "password"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        }
+      }
+    },
+    "AuthResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user"
+      ],
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/UserProfile"
+        }
+      }
+    },
+    "PatchMeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayName"
+      ],
+      "properties": {
+        "displayName": {
+          "$ref": "#/$defs/DisplayName"
+        }
+      }
+    },
+    "ConversationType": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "group"
+      ]
+    },
+    "MemberRole": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "member"
+      ]
+    },
+    "Member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user",
+        "role",
+        "joinedAt"
+      ],
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/UserPublic"
+        },
+        "role": {
+          "$ref": "#/$defs/MemberRole"
+        },
+        "joinedAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "leftAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "fileName",
+        "mediaType",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "mediaType": {
+          "type": "string",
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "application/pdf",
+            "text/plain"
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5242880
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "conversationId",
+        "seq",
+        "senderId",
+        "clientId",
+        "createdAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "conversationId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "seq": {
+          "$ref": "#/$defs/Seq"
+        },
+        "senderId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "clientId": {
+          "$ref": "#/$defs/ClientId"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "attachment": {
+          "$ref": "#/$defs/Attachment"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "author": {
+          "$ref": "#/$defs/UserPublic"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "text"
+          ],
+          "not": {
+            "required": [
+              "attachment"
+            ]
+          }
+        },
+        {
+          "required": [
+            "attachment"
+          ],
+          "not": {
+            "required": [
+              "text"
+            ]
+          }
+        }
+      ]
+    },
+    "ConversationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "lastSeq",
+        "role",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "type": {
+          "$ref": "#/$defs/ConversationType"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 120
+        },
+        "lastSeq": {
+          "$ref": "#/$defs/Seq"
+        },
+        "role": {
+          "$ref": "#/$defs/MemberRole"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "lastMessage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Message"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "openCall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CallSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ConversationDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "lastSeq",
+        "role",
+        "updatedAt",
+        "members"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "type": {
+          "$ref": "#/$defs/ConversationType"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 120
+        },
+        "lastSeq": {
+          "$ref": "#/$defs/Seq"
+        },
+        "role": {
+          "$ref": "#/$defs/MemberRole"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "lastMessage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Message"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "openCall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CallSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Member"
+          },
+          "maxItems": 1000
+        }
+      }
+    },
+    "CreateDirectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "peerId"
+      ],
+      "properties": {
+        "peerId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      }
+    },
+    "CreateGroupRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "memberIds",
+        "clientId"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "memberIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "minItems": 1,
+          "maxItems": 99,
+          "uniqueItems": true
+        },
+        "clientId": {
+          "$ref": "#/$defs/ClientId"
+        }
+      }
+    },
+    "PatchConversationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    "AddMemberRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "userId"
+      ],
+      "properties": {
+        "userId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      }
+    },
+    "TransferRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "newOwnerId"
+      ],
+      "properties": {
+        "newOwnerId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      }
+    },
+    "CreateMessageRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientId",
+        "text"
+      ],
+      "properties": {
+        "clientId": {
+          "$ref": "#/$defs/ClientId"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^(?=.*\\S).+$"
+        }
+      }
+    },
+    "MessagePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "nextBeforeSeq"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "maxItems": 100
+        },
+        "nextBeforeSeq": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Seq"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "type",
+        "conversationId",
+        "seq",
+        "at",
+        "event",
+        "data"
+      ],
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "event"
+        },
+        "conversationId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "seq": {
+          "$ref": "#/$defs/Seq"
+        },
+        "at": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "event": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]{2,63}$"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "maxProperties": 32
+        }
+      }
+    },
+    "EventPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "nextAfterSeq",
+        "hasMore"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Event"
+          },
+          "maxItems": 100
+        },
+        "nextAfterSeq": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Seq"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CallMode": {
+      "type": "string",
+      "enum": [
+        "audio",
+        "video"
+      ]
+    },
+    "CallState": {
+      "type": "string",
+      "enum": [
+        "ringing",
+        "active",
+        "ended"
+      ]
+    },
+    "CallSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "conversationId",
+        "initiatorId",
+        "mode",
+        "state",
+        "roomName",
+        "createdAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "conversationId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "initiatorId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "mode": {
+          "$ref": "#/$defs/CallMode"
+        },
+        "state": {
+          "$ref": "#/$defs/CallState"
+        },
+        "roomName": {
+          "type": "string",
+          "pattern": "^chatisen_[0-9a-f-]{36}$"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "endedAt": {
+          "$ref": "#/$defs/DateTime"
+        }
+      }
+    },
+    "CreateCallRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientId",
+        "mode"
+      ],
+      "properties": {
+        "clientId": {
+          "$ref": "#/$defs/ClientId"
+        },
+        "mode": {
+          "$ref": "#/$defs/CallMode"
+        }
+      }
+    },
+    "JoinCallResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callId",
+        "serverUrl",
+        "token",
+        "expiresAt"
+      ],
+      "properties": {
+        "callId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "serverUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^wss://"
+        },
+        "token": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 4096
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/DateTime"
+        }
+      }
+    },
+    "QualitySample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capturedAt",
+        "packetsReceived",
+        "packetsLost",
+        "jitterMs",
+        "rttMs",
+        "bitrateKbps",
+        "trackPresent"
+      ],
+      "properties": {
+        "capturedAt": {
+          "$ref": "#/$defs/DateTime"
+        },
+        "packetsReceived": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "packetsLost": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "jitterMs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "rttMs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 120000
+        },
+        "bitrateKbps": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "trackPresent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "QualityBatchRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "samples"
+      ],
+      "properties": {
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QualitySample"
+          },
+          "minItems": 1,
+          "maxItems": 30
+        }
+      }
+    },
+    "Cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "FileUploadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientId",
+        "file"
+      ],
+      "properties": {
+        "clientId": {
+          "$ref": "#/$defs/ClientId"
+        },
+        "file": {
+          "type": "string",
+          "contentEncoding": "binary",
+          "description": "Multipart binary; MIME is checked against the allowlist and size is capped at 5 MiB"
+        }
+      }
+    }
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "auth": "origin",
+      "request": "#/definitions/RegisterRequest",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/AuthResponse"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "auth": "origin",
+      "request": "#/definitions/LoginRequest",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/AuthResponse"
+      },
+      "errors": [
+        401,
+        429
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "auth": "session+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/me",
+      "auth": "session",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/UserProfile"
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/me",
+      "auth": "session+csrf",
+      "request": "#/definitions/PatchMeRequest",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/UserProfile"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/users?handle={handle}",
+      "auth": "session",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/UserPublic"
+      },
+      "errors": [
+        404
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/conversations",
+      "auth": "session",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/ConversationList"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/direct",
+      "auth": "session+csrf",
+      "request": "#/definitions/CreateDirectRequest",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/ConversationDetail"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/groups",
+      "auth": "session+csrf",
+      "request": "#/definitions/CreateGroupRequest",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/ConversationDetail"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/conversations/{id}",
+      "auth": "member",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/ConversationDetail"
+      },
+      "errors": [
+        404
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/conversations/{id}",
+      "auth": "owner+csrf",
+      "request": "#/definitions/PatchConversationRequest",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/ConversationDetail"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/members/{userId}",
+      "auth": "owner+csrf",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/ConversationDetail"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/conversations/{id}/members/{userId}",
+      "auth": "owner+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/transfer",
+      "auth": "owner+csrf",
+      "request": "#/definitions/TransferRequest",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/ConversationDetail"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/leave",
+      "auth": "member+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/conversations/{id}/messages",
+      "auth": "member",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/MessagePage"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/messages",
+      "auth": "member+csrf",
+      "request": "#/definitions/CreateMessageRequest",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/Message"
+      },
+      "errors": [
+        409
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/conversations/{id}/events",
+      "auth": "member",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/EventPage"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/files",
+      "auth": "member+csrf",
+      "contentType": "multipart/form-data",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/Message"
+      },
+      "errors": [
+        413,
+        415
+      ],
+      "request": "#/definitions/FileUploadRequest"
+    },
+    {
+      "method": "GET",
+      "path": "/files/{id}",
+      "auth": "member",
+      "success": {
+        "status": 200,
+        "contentType": "application/octet-stream"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/conversations/{id}/calls",
+      "auth": "member+csrf",
+      "request": "#/definitions/CreateCallRequest",
+      "success": {
+        "status": 201,
+        "schema": "#/definitions/CallSummary"
+      },
+      "errors": [
+        409
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/calls/{id}",
+      "auth": "participant",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/CallSummary"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/calls/{id}/join",
+      "auth": "member+csrf",
+      "success": {
+        "status": 200,
+        "schema": "#/definitions/JoinCallResponse"
+      },
+      "errors": [
+        403,
+        409
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/calls/{id}/decline",
+      "auth": "member+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/calls/{id}/leave",
+      "auth": "participant+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/calls/{id}/end",
+      "auth": "initiator-or-owner+csrf",
+      "success": {
+        "status": 204
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/calls/{id}/quality",
+      "auth": "participant+csrf",
+      "request": "#/definitions/QualityBatchRequest",
+      "success": {
+        "status": 202
+      },
+      "errors": [
+        429
+      ]
+    }
+  ],
+  "definitions": {
+    "RegisterRequest": {
+      "$ref": "#/$defs/RegisterRequest"
+    },
+    "LoginRequest": {
+      "$ref": "#/$defs/LoginRequest"
+    },
+    "AuthResponse": {
+      "$ref": "#/$defs/AuthResponse"
+    },
+    "UserProfile": {
+      "$ref": "#/$defs/UserProfile"
+    },
+    "PatchMeRequest": {
+      "$ref": "#/$defs/PatchMeRequest"
+    },
+    "UserPublic": {
+      "$ref": "#/$defs/UserPublic"
+    },
+    "ConversationList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "nextCursor"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConversationSummary"
+          },
+          "maxItems": 100
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CreateDirectRequest": {
+      "$ref": "#/$defs/CreateDirectRequest"
+    },
+    "CreateGroupRequest": {
+      "$ref": "#/$defs/CreateGroupRequest"
+    },
+    "ConversationDetail": {
+      "$ref": "#/$defs/ConversationDetail"
+    },
+    "PatchConversationRequest": {
+      "$ref": "#/$defs/PatchConversationRequest"
+    },
+    "AddMemberRequest": {
+      "$ref": "#/$defs/AddMemberRequest"
+    },
+    "TransferRequest": {
+      "$ref": "#/$defs/TransferRequest"
+    },
+    "CreateMessageRequest": {
+      "$ref": "#/$defs/CreateMessageRequest"
+    },
+    "Message": {
+      "$ref": "#/$defs/Message"
+    },
+    "MessagePage": {
+      "$ref": "#/$defs/MessagePage"
+    },
+    "EventPage": {
+      "$ref": "#/$defs/EventPage"
+    },
+    "CreateCallRequest": {
+      "$ref": "#/$defs/CreateCallRequest"
+    },
+    "CallSummary": {
+      "$ref": "#/$defs/CallSummary"
+    },
+    "JoinCallResponse": {
+      "$ref": "#/$defs/JoinCallResponse"
+    },
+    "QualityBatchRequest": {
+      "$ref": "#/$defs/QualityBatchRequest"
+    },
+    "ApiError": {
+      "$ref": "#/$defs/ApiError"
+    },
+    "FileUploadRequest": {
+      "$ref": "#/$defs/FileUploadRequest"
+    }
+  }
+}

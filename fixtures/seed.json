@@ -1,0 +1,19 @@
+{
+  "users": [
+    { "id": "11111111-1111-4111-8111-111111111111", "handle": "alice", "displayName": "Alice Martin", "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$fixture$alice" },
+    { "id": "22222222-2222-4222-8222-222222222222", "handle": "bob", "displayName": "Bob Durand", "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$fixture$bob" },
+    { "id": "33333333-3333-4333-8333-333333333333", "handle": "chloe", "displayName": "Chloé Bernard", "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$fixture$chloe" },
+    { "id": "44444444-4444-4444-8444-444444444444", "handle": "eve", "displayName": "Eve Petit", "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$fixture$eve" }
+  ],
+  "conversations": [
+    { "id": "99999999-9999-4999-8999-999999999999", "type": "direct", "directUserLow": "11111111-1111-4111-8111-111111111111", "directUserHigh": "22222222-2222-4222-8222-222222222222", "lastSeq": "1" },
+    { "id": "88888888-8888-4888-8888-888888888888", "type": "group", "title": "Projet ChatISEN", "lastSeq": "2" }
+  ],
+  "members": [
+    { "conversationId": "99999999-9999-4999-8999-999999999999", "userId": "11111111-1111-4111-8111-111111111111", "role": "owner" },
+    { "conversationId": "99999999-9999-4999-8999-999999999999", "userId": "22222222-2222-4222-8222-222222222222", "role": "member" },
+    { "conversationId": "88888888-8888-4888-8888-888888888888", "userId": "11111111-1111-4111-8111-111111111111", "role": "owner" },
+    { "conversationId": "88888888-8888-4888-8888-888888888888", "userId": "22222222-2222-4222-8222-222222222222", "role": "member" },
+    { "conversationId": "88888888-8888-4888-8888-888888888888", "userId": "33333333-3333-4333-8333-333333333333", "role": "member" }
+  ]
+}

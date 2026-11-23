@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatisen.local/contracts/v1/ws.json",
+  "title": "ChatISEN WebSocket v1 envelopes",
+  "$defs": {
+    "Uuid": { "type": "string", "format": "uuid", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" },
+    "Seq": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "DateTime": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$" },
+    "ErrorCode": { "type": "string", "enum": ["BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN", "NOT_MEMBER", "NOT_FOUND", "RESYNC_REQUIRED", "RATE_LIMITED", "DEPENDENCY_UNAVAILABLE", "INTERNAL_ERROR"] },
+    "Error": { "type": "object", "additionalProperties": false, "required": ["code", "message", "requestId"], "properties": { "code": { "$ref": "#/$defs/ErrorCode" }, "message": { "type": "string", "minLength": 1, "maxLength": 240 }, "requestId": { "$ref": "#/$defs/Uuid" } } },
+    "Event": { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId", "seq", "at", "event", "data"], "properties": { "v": { "const": 1 }, "type": { "const": "event" }, "conversationId": { "$ref": "#/$defs/Uuid" }, "seq": { "$ref": "#/$defs/Seq" }, "at": { "$ref": "#/$defs/DateTime" }, "event": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,63}$" }, "data": { "type": "object", "additionalProperties": true, "maxProperties": 32 } } },
+    "ClientType": { "type": "string", "enum": ["subscribe", "unsubscribe", "ack", "ping"] },
+    "ServerType": { "type": "string", "enum": ["ready", "subscribed", "event", "conversation_list_changed", "resync_required", "error", "pong"] },
+    "ClientEnvelope": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId", "afterSeq"], "properties": { "v": { "const": 1 }, "type": { "const": "subscribe" }, "conversationId": { "$ref": "#/$defs/Uuid" }, "afterSeq": { "$ref": "#/$defs/Seq" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId"], "properties": { "v": { "const": 1 }, "type": { "const": "unsubscribe" }, "conversationId": { "$ref": "#/$defs/Uuid" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId", "seq"], "properties": { "v": { "const": 1 }, "type": { "const": "ack" }, "conversationId": { "$ref": "#/$defs/Uuid" }, "seq": { "$ref": "#/$defs/Seq" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type"], "properties": { "v": { "const": 1 }, "type": { "const": "ping" } } }
+      ]
+    },
+    "ServerEnvelope": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "heartbeatSeconds"], "properties": { "v": { "const": 1 }, "type": { "const": "ready" }, "heartbeatSeconds": { "type": "integer", "minimum": 5, "maximum": 120 } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId", "snapshotSeq"], "properties": { "v": { "const": 1 }, "type": { "const": "subscribed" }, "conversationId": { "$ref": "#/$defs/Uuid" }, "snapshotSeq": { "$ref": "#/$defs/Seq" } } },
+        { "$ref": "#/$defs/Event" },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type"], "properties": { "v": { "const": 1 }, "type": { "const": "conversation_list_changed" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "conversationId", "fromSeq"], "properties": { "v": { "const": 1 }, "type": { "const": "resync_required" }, "conversationId": { "$ref": "#/$defs/Uuid" }, "fromSeq": { "$ref": "#/$defs/Seq" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type", "error"], "properties": { "v": { "const": 1 }, "type": { "const": "error" }, "error": { "$ref": "#/$defs/Error" } } },
+        { "type": "object", "additionalProperties": false, "required": ["v", "type"], "properties": { "v": { "const": 1 }, "type": { "const": "pong" } } }
+      ]
+    }
+  },
+  "definitions": {
+    "ClientEnvelope": { "$ref": "#/$defs/ClientEnvelope" },
+    "ServerEnvelope": { "$ref": "#/$defs/ServerEnvelope" },
+    "Event": { "$ref": "#/$defs/Event" },
+    "Error": { "$ref": "#/$defs/Error" }
+  }
+}

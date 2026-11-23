@@ -1,0 +1,17 @@
+{
+  "name": "@chatisen/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ChatISEN v1 HTTP and WebSocket contracts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./schemas/http": "./schemas/http.json",
+    "./schemas/ws": "./schemas/ws.json",
+    "./schemas/openapi": "./schemas/openapi.json"
+  },
+  "files": ["src", "schemas"]
+}
