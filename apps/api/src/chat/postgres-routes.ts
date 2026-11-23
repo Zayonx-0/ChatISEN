@@ -34,7 +34,7 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     const uid=(req as AuthRequest).identity!.user.id;const cid=(req.params as {id:string}).id;
     if(!uuid.test(cid)||!await repo.isMember(cid,uid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
     const query=req.query as {beforeSeq?:string;limit?:string};const limit=query.limit===undefined?50:Number(query.limit);
-    if(!Number.isInteger(limit)||limit<1||limit>100||(query.beforeSeq!==undefined&&(!seq.test(query.beforeSeq)||BigInt(query.beforeSeq)>9223372036854775807n)))return invalid(reply,400,'VALIDATION_ERROR','Pagination invalide');
+    if(!Number.isInteger(limit)||limit<1||limit>100||(query.beforeSeq!==undefined&&(!seq.test(query.beforeSeq)||query.beforeSeq.length>19||BigInt(query.beforeSeq)>9223372036854775807n)))return invalid(reply,400,'VALIDATION_ERROR','Pagination invalide');
     const items=await repo.listMessages(cid,limit,query.beforeSeq);
     return {items:items.map(messageDto),nextBeforeSeq:items.length===limit?items[0].seq:null};
   });
@@ -42,7 +42,7 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     const uid=(req as AuthRequest).identity!.user.id;const cid=(req.params as {id:string}).id;
     if(!uuid.test(cid)||!await repo.isMember(cid,uid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
     const query=req.query as {afterSeq?:string;limit?:string};const after=query.afterSeq??'0';const limit=query.limit===undefined?50:Number(query.limit);
-    if(!Number.isInteger(limit)||limit<1||limit>100||!seq.test(after)||BigInt(after)>9223372036854775807n)return invalid(reply,400,'VALIDATION_ERROR','Pagination invalide');
+    if(!Number.isInteger(limit)||limit<1||limit>100||!seq.test(after)||after.length>19||BigInt(after)>9223372036854775807n)return invalid(reply,400,'VALIDATION_ERROR','Pagination invalide');
     const rows=await repo.pool.query(`select e.seq,e.event_type,e.payload,e.occurred_at from conversation_events e join conversation_members m on m.conversation_id=e.conversation_id and m.user_id=$2 and m.left_at is null where e.conversation_id=$1 and e.seq>$3 order by e.seq asc limit $4`,[cid,uid,after,limit+1]);
     const hasMore=rows.rows.length>limit;const visible=rows.rows.slice(0,limit);
     const items=visible.map(row=>{const data={...row.payload};if(data.messageId&&!data.id){data.id=data.messageId;delete data.messageId;}return {v:1,type:'event',conversationId:cid,seq:String(row.seq),at:iso(row.occurred_at),event:row.event_type,data};});
