@@ -1,0 +1,11 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45194051994
+Tête PR : 1e0a6a3932a96b77ac84e672d902e68e78e9f9b4
+Job : success ; PostgreSQL 17, Node 24, pnpm 10.20.0
+Extraits expurgés :
+Builds, tests et configuration Compose	Run actions/checkout@v4	2026-11-23T14:25:59.3649008Z HEAD is now at 9bd1071 Merge 1e0a6a3932a96b77ac84e672d902e68e78e9f9b4 into a3241a92f4efe2781213914df29794e2513d1a23
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:16.4115297Z ✔ migration runner executes two passes when DATABASE_URL is provided (150.221562ms)
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:19.2944355Z ✔ F02 F04 S02 v1 direct and message routes use PostgreSQL with pagination and isolation (1808.432663ms)
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:25.5473363Z ℹ tests 14
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:25.5484314Z ℹ pass 14
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:25.5484952Z ℹ fail 0
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-23T14:26:25.5486437Z ℹ skipped 0

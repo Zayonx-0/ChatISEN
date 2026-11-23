@@ -125,3 +125,13 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** un seul direct, accès tiers refusé, retry avec même ID et conflit 409 pour un contenu différent ; 125 IDs distincts répartis en trois pages. Le run GitHub a passé 14 tests, aucun ignoré, incluant ce parcours d'injection HTTP.
 - **Limite :** ces routes sont testées par injection HTTP : ni navigateur, ni socket v1, ni redémarrage complet, ni groupes ou rattrapage d'événements ne sont encore vérifiés. Les anciennes routes restent en mémoire.
 - **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/1b631bc8ffd9ca0986144bc23c7441a7eb466129), [extrait expurgé](preuves/45193174450/extrait.txt), [test](../../tests/integration/chat/postgres-chat.test.ts).
+
+
+## E13 — Rattrapage des événements et test de migration renforcé
+
+- **Date UTC :** 2026-11-23, après 14:21. **Lot / IDs :** C ; F05, O01 (partiels).
+- **SHA / environnement :** commits `0030f0a873430608a7c1eb1713242ff5ffe60f90` et `1e0a6a3932a96b77ac84e672d902e68e78e9f9b4` ; test local PostgreSQL 16 et [run GitHub 45194051994](https://github.com/Zayonx-0/ChatISEN/actions/runs/45194051994) sur PostgreSQL 17.
+- **Protocole et attendu :** lire les événements après un curseur exclusif par pages, refuser un tiers ; vérifier que la migration initiale est enregistrée et que `users` existe, puis que le deuxième passage n'applique rien.
+- **Observé :** la route v1 relit le journal durable et renvoie les événements en ordre croissant ; le test HTTP couvre 125 événements en deux pages, ainsi qu'un refus tiers. Le test de migration renforcé réussit ; le run GitHub est vert. Cette correction répond à la faiblesse d'assertion documentée en E06–E07.
+- **Limite :** le rattrapage est exercé par injection HTTP, sans coupure de socket réelle ni redémarrage de l'API ; le flux temps réel PostgreSQL et la reprise intégrée restent à faire.
+- **Sources :** [commit événements](https://github.com/Zayonx-0/ChatISEN/commit/0030f0a873430608a7c1eb1713242ff5ffe60f90), [commit test migration](https://github.com/Zayonx-0/ChatISEN/commit/1e0a6a3932a96b77ac84e672d902e68e78e9f9b4), [extrait CI](preuves/45194051994/extrait.txt).
