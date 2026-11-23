@@ -1,7 +1,20 @@
 import type {WebSocket} from 'ws';
-import {WebSocketServer} from 'ws';
-const channels=new Map<string,Set<WebSocket>>();
-export const add=(channel:string,s:WebSocket)=>{let set=channels.get(channel);if(!set)channels.set(channel,set=new Set());set.add(s);s.on('close',()=>set!.delete(s));};
-export const broadcast=(channel:string,event:unknown)=>{for(const s of channels.get(channel)||[])if(s.readyState===1)s.send(JSON.stringify(event));};
+
+type Subscription={socket:WebSocket; authorized:()=>boolean};
+const channels=new Map<string,Set<Subscription>>();
+/** A subscription is valid only as long as the originating session and membership remain valid. */
+export function add(channel:string,socket:WebSocket,authorized:()=>boolean){
+  if(!authorized())return false;
+  let set=channels.get(channel);if(!set)channels.set(channel,set=new Set());
+  const entry={socket,authorized};set.add(entry);
+  socket.once('close',()=>{set!.delete(entry);if(!set!.size)channels.delete(channel)});
+  return true;
+}
+export function broadcast(channel:string,event:unknown){
+  const set=channels.get(channel);for(const entry of set||[]){
+    if(!entry.authorized()){set!.delete(entry);continue;}
+    if(entry.socket.readyState===1)entry.socket.send(JSON.stringify(event));
+  }
+  if(set&&!set.size)channels.delete(channel);
+}
 export const channelCount=()=>[...channels.values()].reduce((n,s)=>n+s.size,0);
-export function setup(server:any){const wss=new WebSocketServer({noServer:true});server.server.on('upgrade',(req:any,socket:any,head:any)=>{if(!req.url?.startsWith('/api/ws'))return;wss.handleUpgrade(req,socket,head,(ws)=>wss.emit('connection',ws,req));});wss.on('connection',(socket,req)=>{socket.on('message',(raw)=>{try{const m=JSON.parse(String(raw));if(m.subscribe&&typeof m.subscribe==='string')add(m.subscribe,socket);}catch{}});socket.send(JSON.stringify({type:'ready',version:1}));});return wss;}
