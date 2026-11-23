@@ -8,7 +8,7 @@ Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01
 | B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Démarrage, seed, certificats et cookie navigateur restent à tester. |
 | C identité et chat PostgreSQL | Partiel | Repository transactionnel, test de concurrence et identité, direct et historique `/api/v1` raccordés à PostgreSQL (`1b631bc`, CI 45193174450) ; rattrapage HTTP et WebSocket PostgreSQL (`b5fbe96`, CI 45195526535) ; groupes et gestion des membres ajoutés (`fd1f8bd`, CI 45197678830) ; interface, reprise après coupure réelle et redémarrage complet restent à réaliser. |
 | D média | Ouvert | Admission LiveKit et réception audio/vidéo encore absentes. |
-| E parcours/CI | Partiel | Workflow des contrôles disponibles vert sur le run 45176334218 ; la recette J1 reste séparée et bloquante, Playwright, métriques et démonstration restent à réaliser. |
+| E parcours/CI | Partiel | Parcours Chromium F01–F05/F13 vert sur le run 45202274116 ; la pile Compose HTTPS, métriques Grafana et média restent à réaliser. |
 
 Résultats et SHA : [rapport R01](report/r01.md). Le [mandat](revisions/R01-socle-j1.md) définit la réception et les travaux restants.
 
