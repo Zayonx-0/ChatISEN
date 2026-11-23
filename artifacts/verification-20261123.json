@@ -1,0 +1,11 @@
+{
+  "date": "2026-11-23",
+  "commit": "861fa80",
+  "commands": [
+    {"command":"npm run typecheck","result":"passed"},
+    {"command":"node --test tests/standalone.test.mjs","result":"passed: 1"},
+    {"command":"node --test tests/contract/contract.test.mjs","result":"passed: 7, skipped: 1 (DATABASE_URL absent)"}
+  ],
+  "external_or_human": ["PostgreSQL migration double pass", "LiveKit media with two browsers", "TURN/TLS and second network", "screen sharing permission", "Firefox", "ACME/TLS public VM", "backup restore", "k6 P01-P04", "getStats A01-A03"],
+  "notes": "No quantitative performance or media result was invented. Standalone profile is the reproducible local fallback; Compose is the target deployment."
+}
