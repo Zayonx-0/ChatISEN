@@ -2,6 +2,15 @@
 
 Ce journal conserve les observations, y compris les échecs et les essais ignorés. Les dates sont en UTC ; lorsqu'un document source ne donne que le jour, l'heure reste inconnue. Un SHA indique le code examiné ou testé, pas nécessairement le commit contenant ce journal. Les liens de run concernent le dépôt privé et exigent ses droits d'accès. Les extraits sont volontairement limités aux lignes utiles, sans jeton, cookie ni données personnelles.
 
+## E00 — Initialisation, V1.0 publiée et ouverture de R01
+
+- **Date UTC :** 2026-11-23, entre 10:14 et 11:26 UTC d'après les commits. **Lot / IDs :** dépôt initial, lot 0, puis ouverture de R01 ; O01, D01.
+- **SHA / environnement :** dépôt initial `9e0cc6357d80f77bd68455e0c69b930ae970dd96`, contrats et migration `87835b0ed9f6b71da68ddfdecf0bcc9baeeb5f14`, application et déploiement initial `861fa808d0d5ff46d8c52cdb71e3835938fbf2f2`, tag publié `v1.0.0` sur `a3241a92f4efe2781213914df29794e2513d1a23`.
+- **Protocole et attendu :** partir du cahier et du PDF, créer le dossier `Projet`, initialiser Git, geler les contrats, migrations et fixtures, puis publier le socle sur le dépôt privé GitHub.
+- **Observé :** dépôt privé `Zayonx-0/ChatISEN`, branche `main`, tag `v1.0.0`, puis branche `rev/01-socle-j1` et PR nº 1 depuis le SHA V1.0. Le mandat et l'audit R01 ont été committés dans `83f425f68b1af0d3a4326a6348f806fee5b2ec59`.
+- **Limite :** la publication V1.0 ne constituait pas une réception J1 ; l'audit a ensuite confirmé les écarts de confidentialité, de persistance et de média. La branche R01 reste le lieu de travail ; aucun `v1.1.0` n'est publié.
+- **Sources :** [dépôt privé](https://github.com/Zayonx-0/ChatISEN), [tag v1.0.0](https://github.com/Zayonx-0/ChatISEN/releases/tag/v1.0.0), [mandat R01](../revisions/R01-socle-j1.md), [audit V1.0](audit-livraison.md).
+
 ## E01 — Choix de départ : identité locale et architecture
 
 - **Date UTC :** 2026-11-23, heure non conservée. **Lot / IDs :** architecture initiale ; F01, S01–S03, F04–F08, O04.
@@ -64,3 +73,13 @@ Ce journal conserve les observations, y compris les échecs et les essais ignor�
 - **Observé :** configuration Compose valide, builds et onze tests réussis, aucun ignoré, test de migration à deux passages réussi ; `make verify LEVEL=core` échoue explicitement et le job est en échec. Le test Fastify en mémoire vérifie la réception persistante par un membre autorisé après retrait d'un autre et révocation d'une session.
 - **Limite :** E06 demeure le constat sur son propre SHA ; E07 ne prouve pas l'application complète, la persistance des messages, les médias, Playwright ou Grafana. L'assertion faible sur le premier passage du runner signalée en E06 est toujours présente à ce SHA. R01 et la réception J1 restent ouverts.
 - **Sources :** [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45160656434), [extrait expurgé](preuves/45160656434/extrait.txt), [test Fastify à ce SHA](https://github.com/Zayonx-0/ChatISEN/blob/8bd6ec3d4556c0ef890110ed1dd16bedcd29cad6/tests/security/fastify-realtime.test.ts), [rapport R01](r01.md).
+
+## E08 — Workflow CI corrigé et run vert
+
+- **Date UTC :** 2026-11-23, 12:39:11–12:40:04. **Lot / IDs :** B et E ; O01, contrôles de construction et tests disponibles.
+- **SHA / environnement :** `b703eb1d8a54b229080d741617aaeaaf562281f4` sur la PR nº 1 ; GitHub Actions Ubuntu, Node 24, pnpm 10.20.0 et PostgreSQL 17 de service.
+- **Incident précédent :** les runs [45174892301](https://github.com/Zayonx-0/ChatISEN/actions/runs/45174892301) et [45174904541](https://github.com/Zayonx-0/ChatISEN/actions/runs/45174904541), sur `00527ad2095b269a43e782b0011827cd8240c599`, échouaient à l'étape `make verify LEVEL=core` après les contrôles disponibles. Le script de réception est volontairement non nul tant que J1 est incomplet ; le workflow mélangeait donc contrôle technique et décision de réception, et le push et la PR provoquaient deux notifications.
+- **Correction et attendu :** le commit `b703eb1` remplace ce chemin par un job de contrôles disponibles : installation verrouillée, `docker compose ... config --quiet`, typecheck, build et tests. Le résumé doit expliciter que la recette J1 n'est pas encore prouvée.
+- **Observé :** le run [45176334218](https://github.com/Zayonx-0/ChatISEN/actions/runs/45176334218) est vert ; toutes les étapes du job `Builds, tests et configuration Compose` réussissent. Les tests rapportent 11 réussis, 0 échec et 0 ignoré. La configuration Compose est interprétée et le job termine sans erreur.
+- **Limite :** ce run ne démarre pas la pile Compose, ne vérifie pas les écritures métier PostgreSQL, les appels audio/vidéo, le parcours Playwright ou Grafana. Le run vert signifie que les contrôles automatisés disponibles passent ; J1 reste soumis à `make verify LEVEL=core` et aux critères R01.
+- **Sources :** [workflow à la tête b703eb1](https://github.com/Zayonx-0/ChatISEN/blob/b703eb1d8a54b229080d741617aaeaaf562281f4/.github/workflows/r01.yml), [extrait expurgé](preuves/45176334218/extrait.txt), [suivi de rédaction](../suivi.md).
