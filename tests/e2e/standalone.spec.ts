@@ -81,3 +81,33 @@ test('standalone : notifications et appels audio et vidéo entre deux sessions',
     await alice.getByRole('button',{name:'Appel audio'}).click();await expect(bob.getByRole('heading',{name:'Appel entrant'})).toBeVisible();await bob.getByRole('button',{name:'Refuser'}).click();await expect(alice.getByRole('heading',{name:'Appel en attente'})).toHaveCount(0);
   }finally{await a.close();await b.close();await c.close();}
 });
+
+test('F03 : créer un groupe depuis le site et discuter à trois',async({browser})=>{
+  test.setTimeout(60000);
+  const contexts=await Promise.all([browser.newContext({viewport:{width:390,height:844}}),browser.newContext(),browser.newContext()]);
+  const [alice,bob,charlie]=await Promise.all(contexts.map(context=>context.newPage()));
+  try{
+    await register(alice,'alice_group','Alice');await register(bob,'bob_group','Bob');await register(charlie,'charlie_group','Charlie');
+    await alice.getByRole('button',{name:'Créer un groupe'}).click();
+    const dialog=alice.getByRole('dialog',{name:'Créer un groupe'});
+    await dialog.getByLabel('Nom du groupe').fill('Projet commun');
+    await expect(dialog.getByRole('button',{name:'Créer le groupe'})).toBeDisabled();
+    const search=dialog.getByRole('searchbox',{name:'Ajouter des contacts'});
+    await search.fill('bob_group');await dialog.getByRole('button',{name:/@bob_group/}).click();
+    await dialog.getByRole('button',{name:'Retirer Bob'}).click();
+    await search.fill('bob_group');await dialog.getByRole('button',{name:/@bob_group/}).click();
+    await search.fill('charlie_group');await dialog.getByRole('button',{name:/@charlie_group/}).click();
+    await expect(dialog.getByRole('button',{name:'Créer le groupe'})).toBeEnabled();
+    expect(await alice.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);
+    await dialog.getByRole('button',{name:'Créer le groupe'}).click();
+    await expect(alice.getByRole('heading',{name:'Projet commun'})).toBeVisible();
+    await expect(alice.getByText('3 membres')).toBeVisible();
+    await bob.getByRole('button',{name:/Projet commun/}).click();
+    await charlie.getByRole('button',{name:/Projet commun/}).click();
+    for(const [page,message] of [[alice,'Bonjour de Alice'],[bob,'Bonjour de Bob'],[charlie,'Bonjour de Charlie']] as const){
+      await page.getByRole('textbox',{name:'Message',exact:true}).fill(message);await page.getByRole('button',{name:'Envoyer'}).click();
+      for(const recipient of [alice,bob,charlie])await expect(recipient.locator('#messages p').getByText(message,{exact:true})).toBeVisible();
+    }
+    await alice.reload();await expect(alice.locator('#messages p').getByText('Bonjour de Charlie',{exact:true})).toBeVisible();
+  }finally{await Promise.all(contexts.map(context=>context.close()));}
+});
