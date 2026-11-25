@@ -12,6 +12,8 @@ legend
   | POST /conversations/{id}/messages | {text,clientMessageId}, 201 {message} | Même nom de clé, réponse 201 {message} |
   | DELETE /conversations/{id}/members/{uid} | owner · écrit leftAt | owner · écrit leftAt et diffuse |
   | POST /conversations/{id}/members | Route absente | {userId} · owner · 200 {ok:true} |
+  | GET /push/config | Session → disponibilité et clé VAPID publique | Route absente |
+  | POST /push/subscriptions · DELETE | Ajoute ou retire pour la session avec CSRF | Route absente |
   | GET /ws avec Upgrade | {subscribe:"conversation:"+id}, tous les fils connus | Même trame d’abonnement, mémoire Fastify |
   | GET /events?conversationId=… | SSE par conversation · utilisateur et membre | Route absente |
   | POST /conversations/{id}/calls | {kind} direct à deux → 201 {call} | {kind} → 201 {call,token} de démonstration |
@@ -22,7 +24,7 @@ legend
   | POST /conversations/{id}/attachments | Route absente | Multipart, un fichier ≤ 5 Mio, stocké en RAM |
   | GET /attachments/{id} | Données base64 préexistantes, contrôle par conversation | Buffer du fichier, contrôle par message |
 
-  <b>Stockage standalone</b>   users[], sessions[], conversations[], members[], messages[], calls[], attachments[].
+  <b>Stockage standalone</b>   users[], sessions[], conversations[], members[], messages[], calls[], attachments[], pushSubscriptions[].
   Conversation porte pair (UUID triés) et lastSeq numérique. Message porte conversationId, senderId, clientMessageId.
   Call porte initiatorId, recipientId et leurs IDs de session. publicCall retire ces IDs de session du DTO.
   Cookie local chatisen en HTTP, __Host-chatisen avec COOKIE_SECURE=true. Les erreurs utilisent {error:{code,message}}.
