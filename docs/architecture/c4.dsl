@@ -65,7 +65,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                 caddy = container "Caddy · frontal unique de la VM" "Sur la VM Debian 13. Redirige HTTP :80, termine TLS sur :443 et relaie HTTP et WebSocket sur loopback." "Caddy / TLS"
                 local = container "chatisen.service · Node sur la VM" "apps/standalone/server.mjs. Sur la VM, systemd lance chatisen.service avec Node 24.14.1 en écoute sur 127.0.0.1:3000. En local, pnpm dev." "Node.js / node:http" {
                     localRouter = component "Entrée du serveur" "server.mjs sert apps/web/public, oriente /api et accepte l’Upgrade sur /api/ws. GET /readyz rend json-demo." "node:http"
-                    localAuth = component "Identité et session" "scrypt, empreinte SHA-256 du jeton de session, HMAC CSRF. Cookie __Host-chatisen en HTTPS, Secure, HttpOnly et SameSite=Lax." "node:crypto"
+                    localAuth = component "Authentification User · session locale" "POST /api/auth/register ou login. Mot de passe scrypt salé. Jeton opaque, SHA-256 en JSON et cookie __Host-chatisen (Secure, HttpOnly, SameSite=Lax). Expiration à 24 h, révocation au logout. CSRF par HMAC." "Node.js / node:crypto"
                     localChat = component "Messagerie et persistance" "Directs, groupes et messages. Vérifie l’appartenance, incrémente lastSeq et écrit le document JSON avant diffusion." "node:http / node:fs"
                     localChannels = component "Abonnements WebSocket" "Canaux par conversation. Contrôle PUBLIC_ORIGIN, la session et le membre. Diffuse messages et signalisation de l’appel." "WS / SSE"
                     localCalls = component "Signalisation des appels" "Invitations, réponses, SDP et ICE vers la session du pair. GET /api/config communique le serveur STUN aux navigateurs." "HTTP + WebSocket"
@@ -169,7 +169,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         localBrowser -> localChat "Recherche et écrit" "HTTP /api"
         localBrowser -> localChannels "Souscrit à tous les fils connus" "WS /api/ws"
         localBrowser -> localCalls "Crée, accepte et signale" "HTTP /api"
-        localRouter -> localAuth "F04 · Crée et vérifie les sessions"
+        localRouter -> localAuth "F04 · Inscrit, connecte, vérifie /api/auth/me et révoque au logout"
         localRouter -> localChat "F05 · Groupes, directs et messages"
         localRouter -> localChannels "F07 · Ouvre les abonnements" "WS / SSE"
         localRouter -> localCalls "F08 · Invite, accepte et relaie SDP/ICE"

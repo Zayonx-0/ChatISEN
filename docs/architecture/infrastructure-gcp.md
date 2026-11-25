@@ -62,6 +62,20 @@ Le point d’entrée web est unique. Le serveur accepte aussi SSH pour Ops. Une 
 | F16 · Intégration continue | Contributeur → dépôt GitHub privé → runner GitHub Actions | Déclenchement sur pull request et push sur main. Installation verrouillée, builds, contrôle de Compose, tests PostgreSQL et Chromium. | Consulter le résultat associé au SHA de la PR. Le workflow r01.yml valide le candidat et archive les traces des tests. |
 | F17 · Livraison sur la VM | Ops via F12, puis VM → dépôt GitHub privé | Récupération Git puis sélection d’un SHA de main dans /opt/chatisen/app. Une modification des dessins devient lisible via Caddy. | Livraison déclenchée par Ops. Vérifier la provenance du SHA, les fichiers publics et la disponibilité. |
 
+## Authentification User
+
+Les requêtes partent du navigateur sur l’origine publique, traversent Caddy en HTTPS via F02 et arrivent à Node via F03. F04 est le module d’identité locale de ce même processus. [Code de l’identité et des sessions](../../apps/standalone/server.mjs) · [Réglages du service en ligne](../../ops/gcp/chatisen.service)
+
+| Étape | Requête ou donnée | Contrôle ou résultat |
+|---|---|---|
+| Inscrire ou connecter | POST /api/auth/register ou POST /api/auth/login, avec identifiant et mot de passe dans le corps HTTPS. | Node conserve un hash scrypt salé dans users[].passwordHash à l’inscription et le vérifie à la connexion. Un mauvais identifiant ou mot de passe renvoie 401 à la connexion. |
+| Ouvrir la session | Node génère un jeton aléatoire opaque de 32 octets. Le JSON conserve son SHA-256 dans sessions[].tokenHash, lié à userId avec expiration à 24 h. | Le jeton est renvoyé au navigateur par Set-Cookie __Host-chatisen. Attributs Secure, HttpOnly, SameSite=Lax et Path=/. La réponse JSON fournit le profil et le jeton CSRF calculé par HMAC. |
+| Retrouver le profil | GET /api/auth/me. Le navigateur transmet le cookie automatiquement. | Node recherche l’empreinte de la session, vérifie son expiration et sa révocation. Sans session valide, la route renvoie 401. |
+| Autoriser une action | Le client ajoute x-csrf-token aux écritures gardées. Pour le fil privé, Node vérifie l’appartenance active. | Une session identifie le compte. L’appartenance au fil détermine ses droits. WebSocket vérifie aussi l’origine et les droits de souscription. |
+| Déconnecter | POST /api/auth/logout. | Node renseigne revokedAt si la session est active et efface le cookie. Le jeton révoqué doit ensuite être rejeté par /api/auth/me. |
+
+Le contrôle de support se joue sur un environnement de test avec deux comptes et un tiers. Vérifier les attributs du cookie, le refus de lecture du tiers, le refus d’une écriture gardée sans jeton CSRF et le statut après déconnexion. [Tests de confidentialité WebSocket/SSE](../../tests/security/standalone-realtime.test.mjs)
+
 ## Règles VPC visibles sur nic0
 
 Ces huit règles IPv4 correspondent aux tags de l’instance ou à toutes les VM du VPC `default`. Elles ont toutes le sens **INGRESS**, l’action **ALLOW** et la journalisation **désactivée**. La console n’a pas pu afficher les associations de politiques héritées faute du droit `compute.organizations.listAssociations`. La lecture depuis le compte de la VM avait également échoué par manque de scopes. La politique effective complète, les règles de sortie et le filtrage local Debian restent à confirmer. [Règles VPC du projet](https://console.cloud.google.com/networking/firewalls/list?project=project-fd23d3d9-a7e8-4002-a7a) · [Sous-réseau régional](https://console.cloud.google.com/networking/subnetworks/details/europe-west4/default?project=project-fd23d3d9-a7e8-4002-a7a)

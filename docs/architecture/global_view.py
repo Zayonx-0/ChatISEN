@@ -24,6 +24,7 @@ ICONS = {
     'dns': '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3q8 9 0 18-8-9 0-18Z"/>',
     'terminal': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/>',
     'shield': '<path d="M12 2 4 5v6c0 5 3 8 8 11 5-3 8-6 8-11V5l-8-3Z"/><path d="m8 12 3 3 5-6"/>',
+    'lock': '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>',
     'disk': '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/>',
     'bell': '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4"/>',
     'server': '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h1m-1 9h1"/>',
@@ -80,7 +81,7 @@ def render_global_view():
     colors = ''.join(f'.{kind}{{fill:{color}}}' for kind, color in COLORS.items())
     page = [f'''<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="title description">
 <title id="title">ChatISEN · Architecture globale</title>
-<desc id="description">Déploiement observé sur une VM Compute Engine. À gauche, les deux navigateurs et les acteurs Ops et Admin. Au centre, le VPC, le pare-feu, Caddy, Node et le disque. Les services Push, CI et snapshots se trouvent à droite. Les flux F01 à F17 sont décrits dans la légende et dans le lecteur.</desc>
+<desc id="description">Déploiement observé sur une VM Compute Engine. À gauche, les deux navigateurs et les acteurs Ops et Admin. Au centre, le VPC, le pare-feu, Caddy, Node, son module d’authentification User et le disque. Les services Push, CI et snapshots se trouvent à droite. Les flux F01 à F17 sont décrits dans la légende et dans le lecteur.</desc>
 <defs>{markers}</defs>
 <style>
 text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font-size:15px; }}
@@ -121,7 +122,7 @@ text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font
 
     # Users and direct media.
     add(label(51, 174, 'User · membre ou enseignant', 'card'))
-    add(label(51, 195, 'Compte ChatISEN et session locale', 'small'))
+    add(label(51, 195, 'Compte ChatISEN · identité locale F04', 'small'))
     add(card(48, 222, 244, 78, 'Navigateur A', ['Client JavaScript · WebRTC'], 'browser', 'web'))
     add(card(48, 355, 244, 78, 'Navigateur B', ['Même site · session indépendante'], 'browser', 'web'))
     add(arrow('M85 303V352', 'media', both=True))
@@ -164,7 +165,7 @@ text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font
     add(label(447, 529, 'Règle SSH · P65534', 'micro'))
     add(label(447, 553, '8 règles VPC visibles', 'micro'))
 
-    add(card(647, 268, 181, 108, 'Caddy 2.6.2', ['Terminaison TLS', 'Proxy HTTP / WSS', 'Sert /architecture/'], 'caddy', 'web'))
+    add(card(647, 268, 181, 112, 'Caddy 2.6.2', ['Terminaison TLS', 'Proxy HTTP / WSS', 'Sert /architecture/', 'F14 · Sondes HTTPS'], 'caddy', 'web'))
     add(arrow('M607 306H644', 'web', both=True))
     add(arrow('M828 306H913', 'web', both=True))
     add(tag(847, 279, 'F03', 'web'))
@@ -176,22 +177,34 @@ text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font
     add(label(967, 299, 'Node.js 24 · chatisen.service', 'card'))
     add(label(932, 324, '127.0.0.1:3000 · apps/standalone/server.mjs', 'micro'))
     add(label(932, 350, 'F03   Front statique · apps/web/public', 'small'))
-    add(label(932, 371, 'F04   Session, cookie, CSRF, droits', 'small'))
-    add(label(932, 392, 'F05   Direct, groupes et historique', 'small'))
+    add(label(932, 371, 'F04   Appelle le module d’authentification', 'small'))
+    add(label(932, 392, 'F05   Chat privé · membre actif du fil', 'small'))
     add(label(932, 413, 'F07 / F08   WS/SSE et signalisation SDP/ICE', 'small'))
     add(label(932, 433, 'F10   Notifications via push.mjs', 'small'))
 
-    add(rectangle(647, 390, 181, 59, '#fff9f3', '#ead1ba', 9))
-    add(label(661, 412, 'F14 · Sondes HTTPS', 'id ops'))
-    add(label(661, 433, '/healthz · /readyz · /metrics', 'micro'))
-    add(arrow('M737 390V378', 'ops'))
+    # F04 is a module of the Node process. Password and token hashes share the JSON store.
+    add(rectangle(647, 390, 246, 156, '#eef4ff', '#a7bff0', 11))
+    add(icon('lock', 660, 398, COLORS['web'], 23))
+    add(label(692, 416, 'Auth utilisateur · F04', 'card'))
+    for y, value in [
+        (437, 'POST /api/auth/{login,register}'),
+        (453, 'Mot de passe · scrypt + sel'),
+        (469, 'Session 24 h · hash SHA-256 du jeton'),
+        (485, 'Cookie __Host-chatisen (Path=/)'),
+        (501, 'Secure · HttpOnly · SameSite=Lax'),
+        (517, 'GET /api/auth/me · CSRF en écriture'),
+        (533, 'Logout → session révoquée'),
+    ]:
+        add(label(660, y, value, 'micro'))
+    add(arrow('M916 409H896', 'web', both=True))
+    add(arrow('M893 520H913', 'data'))
 
-    add(card(647, 468, 181, 112, 'systemd / SSH', ['sshd · caddy · chatisen', 'Journaux et Ops Agent', 'Gestion des services'], 'terminal', 'ops'))
+    add(card(647, 557, 246, 57, 'systemd / SSH', ['sshd · journaux · Ops Agent'], 'terminal', 'ops'))
     add(arrow('M292 514H429', 'ops'))
-    add(arrow('M607 514H644', 'ops'))
+    add(arrow('M607 514H634V581H644', 'ops'))
     add(tag(343, 487, 'F12', 'ops'))
 
-    add(card(916, 489, 307, 110, 'Stockage JSON', ['/var/lib/chatisen/chatisen.json', 'Comptes, liens, messages, sessions, appels', 'ext4 · pd-balanced zonal · 10 Go'], 'disk', 'data'))
+    add(card(916, 489, 307, 110, 'Stockage JSON', ['/var/lib/chatisen/chatisen.json', 'Comptes, sessions hachées, fils et messages', 'ext4 · pd-balanced zonal · 10 Go'], 'disk', 'data'))
     add(arrow('M1059 445V486', 'data'))
     add(tag(1070, 454, 'F06', 'data'))
 
