@@ -31,3 +31,32 @@ test('standalone : inscription, direct, messages, rechargement et mobile',async(
   await alice.locator('[name=handle]').fill('alice_e2e');await alice.locator('[name=password]').fill('motdepasse-test');await alice.getByRole('button',{name:'Se connecter'}).click();await expect(alice.locator('#messages p').getByText('Direct existant',{exact:true})).toBeVisible();
  }finally{await a.close();await b.close();}
 });
+
+test('standalone : notifications et appels audio et vidéo entre deux sessions',async({browser})=>{
+  test.setTimeout(60000);
+  const a=await browser.newContext({permissions:['microphone','camera','notifications']}),b=await browser.newContext({permissions:['microphone','camera','notifications']}),c=await browser.newContext();
+  const alice=await a.newPage(),bob=await b.newPage(),charlie=await c.newPage();
+  const mediaReceived=async(page:Page,kind:'audio'|'video')=>page.evaluate(async wanted=>{
+    const peer=(0,eval)('state.peer') as RTCPeerConnection|null;if(!peer)return 0;const stats=await peer.getStats();let result=0;
+    stats.forEach(stat=>{if(stat.type==='inbound-rtp'&&stat.kind===wanted)result+=wanted==='video'?(stat.framesDecoded||0):(stat.bytesReceived||0)});return result;
+  },kind);
+  try{
+    await register(alice,'alice_call','Alice');await register(bob,'bob_call','Bob');await register(charlie,'charlie_call','Charlie');
+    await bob.getByRole('button',{name:'Activer les notifications'}).click();await expect(bob.getByRole('status').filter({hasText:'Notifications : activées'})).toBeVisible();
+    await alice.getByPlaceholder('Rechercher un handle').fill('bob_call');await alice.getByRole('button',{name:/@bob_call/}).click();
+    await bob.getByRole('button',{name:/Alice/}).click();
+    await bob.getByPlaceholder('Rechercher un handle').fill('charlie_call');await bob.getByRole('button',{name:/@charlie_call/}).click();
+    await alice.getByLabel('Message').fill('Notification de test');await alice.getByRole('button',{name:'Envoyer'}).click();
+    await expect(bob.getByRole('status').filter({hasText:'Nouveau message'})).toBeVisible();await expect(bob.getByLabel('1 message(s) non lu(s)')).toBeVisible();
+    const creation=alice.waitForResponse(r=>r.url().includes('/calls')&&r.request().method()==='POST');await alice.getByRole('button',{name:'Appel audio'}).click();const callId=(await (await creation).json()).call.id as string;
+    const forbidden=await charlie.evaluate(async id=>{const me=await (await fetch('/api/auth/me')).json();return (await fetch(`/api/calls/${id}/answer`,{method:'POST',headers:{'content-type':'application/json','x-csrf-token':me.csrf},body:JSON.stringify({action:'accept'})})).status},callId);expect(forbidden).toBe(404);
+    await expect(bob.getByRole('heading',{name:'Appel entrant'})).toBeVisible();await bob.getByRole('button',{name:'Accepter'}).click();
+    await expect(alice.locator('#call-status')).toHaveText('Connecté',{timeout:15000});await expect(bob.locator('#call-status')).toHaveText('Connecté',{timeout:15000});
+    await expect.poll(()=>mediaReceived(alice,'audio'),{timeout:15000}).toBeGreaterThan(0);await expect.poll(()=>mediaReceived(bob,'audio'),{timeout:15000}).toBeGreaterThan(0);
+    await alice.getByRole('button',{name:'Couper le micro'}).click();await expect(alice.getByRole('button',{name:'Activer le micro'})).toBeVisible();expect(await alice.evaluate(()=>(0,eval)('state.stream.getAudioTracks()[0].enabled'))).toBe(false);await alice.getByRole('button',{name:'Activer le micro'}).click();expect(await alice.evaluate(()=>(0,eval)('state.stream.getAudioTracks()[0].enabled'))).toBe(true);await alice.getByRole('button',{name:'Raccrocher'}).click();await expect(bob.getByRole('heading',{name:'Appel en cours'})).toHaveCount(0);
+    await alice.getByRole('button',{name:'Appel vidéo'}).click();await expect(bob.getByRole('heading',{name:'Appel entrant'})).toBeVisible();await bob.getByRole('button',{name:'Accepter'}).click();
+    await expect.poll(()=>mediaReceived(alice,'video'),{timeout:15000}).toBeGreaterThan(0);await expect.poll(()=>mediaReceived(bob,'video'),{timeout:15000}).toBeGreaterThan(0);
+    await bob.getByRole('button',{name:'Couper la caméra'}).click();await expect(bob.getByRole('button',{name:'Activer la caméra'})).toBeVisible();expect(await bob.evaluate(()=>(0,eval)('state.stream.getVideoTracks()[0].enabled'))).toBe(false);await bob.getByRole('button',{name:'Activer la caméra'}).click();expect(await bob.evaluate(()=>(0,eval)('state.stream.getVideoTracks()[0].enabled'))).toBe(true);await bob.getByRole('button',{name:'Raccrocher'}).click();await expect(alice.getByRole('heading',{name:'Appel en cours'})).toHaveCount(0);
+    await alice.getByRole('button',{name:'Appel audio'}).click();await expect(bob.getByRole('heading',{name:'Appel entrant'})).toBeVisible();await bob.getByRole('button',{name:'Refuser'}).click();await expect(alice.getByRole('heading',{name:'Appel en attente'})).toHaveCount(0);
+  }finally{await a.close();await b.close();await c.close();}
+});

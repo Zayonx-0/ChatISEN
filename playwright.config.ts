@@ -1,2 +1,2 @@
 import {defineConfig} from '@playwright/test';
-export default defineConfig({testDir:'tests/e2e',testMatch:['chat.spec.ts','standalone.spec.ts'],workers:1,retries:0,outputDir:'artifacts/playwright-results',reporter:'list',use:{browserName:'chromium',headless:true,trace:'off',launchOptions:{executablePath:process.env.CHATISEN_CHROMIUM_PATH||undefined}}});
+export default defineConfig({testDir:'tests/e2e',testMatch:['chat.spec.ts','standalone.spec.ts'],workers:1,retries:0,outputDir:'artifacts/playwright-results',reporter:'list',use:{browserName:'chromium',headless:true,trace:'off',launchOptions:{executablePath:process.env.CHATISEN_CHROMIUM_PATH||undefined,args:['--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required']}}});

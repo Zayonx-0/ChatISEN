@@ -17,7 +17,7 @@ PORT=3000 make dev
 # ouvrir http://localhost:3000
 ```
 
-Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur standalone notifie les abonnés autorisés par WebSocket. Les appels audio et vidéo ne sont pas encore disponibles. Pour appliquer une mise à jour du serveur, arrêtez-le avec `Ctrl+C`, relancez `PORT=3000 make dev`, puis rechargez la page. Les données locales restent dans `data/chatisen.json`.
+Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur standalone notifie les abonnés autorisés par WebSocket. Sur `localhost`, les appels directs audio/vidéo utilisent WebRTC entre les navigateurs : les deux participants doivent autoriser le microphone et, pour la vidéo, la caméra. Les notifications apparaissent dans l'application ; utilisez « Activer les notifications » pour autoriser aussi les notifications du navigateur lorsque l'onglet est en arrière-plan. Ce mode local n'utilise ni LiveKit ni relais TURN : il ne garantit pas les appels entre réseaux différents. Pour appliquer une mise à jour du serveur, arrêtez-le avec `Ctrl+C`, relancez `PORT=3000 make dev`, puis rechargez la page. Les données locales restent dans `data/chatisen.json`.
 
 ```sh
 make verify LEVEL=core    # échoue tant que les critères de recette R01 sont ouverts
