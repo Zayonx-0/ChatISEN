@@ -296,3 +296,12 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 - **Observé :** le scénario Playwright ciblé F03 réussit. La création est impossible dans le formulaire avant de saisir un nom et de sélectionner deux contacts. Les trois messages et l’historique après rechargement sont visibles.
 - **Limite :** données et navigateurs synthétiques en local. La recette sur le site déployé et les autres critères de réception restent à vérifier séparément.
 - **Sources :** [parcours F03](../../tests/e2e/standalone.spec.ts), [interface standalone](../../apps/web/public/app.js).
+
+## E30 — Recette de groupe sur le site déployé
+
+- **Date UTC :** 2026-11-25, vers 13:43. **Lot / IDs :** profil standalone, F03–F04 ; suite de E29.
+- **SHA / environnement :** `9b08996060c52700b035d646bf6ac64075ef3ea6` déployé sur le site HTTPS ; Chromium sur macOS, trois contextes et comptes synthétiques, dont un écran de 390 px.
+- **Protocole et attendu :** Alice crée depuis l’interface un groupe nommé avec Bob et Charlie ; les trois l’ouvrent et envoient chacun un message. Tous doivent recevoir les trois messages et Alice doit retrouver l’historique après rechargement.
+- **Observé :** création et échanges réussis, historique retrouvé après rechargement. Trois comptes et un groupe synthétiques ont été créés pour cet essai. La CI de la PR a réussi 21 tests et quatre parcours navigateur.
+- **Limite :** test synthétique limité au parcours de groupe du profil standalone. Il ne démontre pas à lui seul tous les critères du Mandatory ni ceux de R01.
+- **Sources :** [PR](https://github.com/Zayonx-0/ChatISEN/pull/7), [run CI](https://github.com/Zayonx-0/ChatISEN/actions/runs/45625903511), [extrait expurgé](preuves/45625903511/extrait.txt), [E29](#e29--création-de-groupe-depuis-le-site).
