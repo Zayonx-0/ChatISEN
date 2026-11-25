@@ -96,7 +96,7 @@ const architecture = {
       "id": "02-conteneurs",
       "title": "Conteneurs",
       "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
       "links": [
         [
           "Inventaire GCP et reconstruction",
@@ -120,7 +120,7 @@ const architecture = {
             "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"
           ],
           "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
           "links": [
             [
               "Inventaire vérifié",
@@ -826,7 +826,7 @@ const architecture = {
       ],
       [
         "Snapshots Compute Engine, multi-région eu",
-        "La politique default-schedule-1 attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération.",
+        "La politique quotidienne de snapshots (nom expurgé) attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération.",
         "Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative."
       ],
       [
@@ -959,7 +959,7 @@ const architecture = {
       [
         "F15 · Copie du disque",
         "Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu",
-        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1.",
+        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon politique quotidienne expurgée.",
         "Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier."
       ]
     ],
@@ -986,11 +986,11 @@ const architecture = {
         "Tag https-server"
       ],
       [
-        "allow-tcp-27028-instance",
+        "règle spécifique (nom expurgé)",
         "1000",
         "0.0.0.0/0",
         "TCP 27028",
-        "Tag instance-27028-codex"
+        "Tag tag spécifique (nom expurgé)"
       ],
       [
         "default-allow-health-check",
@@ -1109,7 +1109,7 @@ const architecture = {
         "Portée"
       ],
       [
-        "Politique default-schedule-1",
+        "Politique de snapshots (nom expurgé)",
         "Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée.",
         "Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique."
       ],
@@ -1143,7 +1143,7 @@ const architecture = {
       [
         "IPv4 publique",
         "Une adresse statique Standard réservée dans europe-west4 et attachée à la VM",
-        "Heures d’adresse attachée × tarif applicable. Une autre IPv4 réservée et inutilisée dans us-central1 figure au projet. Son coût éventuel relève du projet jusqu’à attribution."
+        "Heures d’adresse attachée × tarif applicable. Une autre adresse IPv4 réservée et inutilisée figure au projet. Sa région et son association restent à vérifier."
       ],
       [
         "Trafic",

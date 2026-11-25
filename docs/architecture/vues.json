@@ -30,7 +30,7 @@
     "id": "02-conteneurs",
     "title": "Conteneurs",
     "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-    "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+    "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
     "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Caddy", "../../ops/gcp/Caddyfile.template"], ["Unité systemd", "../../ops/gcp/chatisen.service"]],
     "details": [
       {
@@ -38,7 +38,7 @@
         "title": "Déploiement Google Cloud",
         "steps": ["curl -fsS https://ia-pple.isen.fedyna.fr/readyz", "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"],
         "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-        "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+        "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
         "links": [["Inventaire vérifié", "infrastructure-gcp.md"], ["Vue de déploiement", "details/vues.dsl"], ["Procédure GCP versionnée", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"], ["Disponibilité du démonstrateur", "https://ia-pple.isen.fedyna.fr/readyz"]],
         "tables": ["Placement et points d’entrée", "Règles VPC visibles sur nic0", "Pare-feu et exposition", "Copies du disque en Europe"]
       },

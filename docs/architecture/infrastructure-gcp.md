@@ -31,7 +31,7 @@ Le point d’entrée web est unique. Le serveur accepte aussi SSH pour Ops. Une 
 | chatisen.service, VM | Un processus Node.js 24.14.1 sous utilisateur Unix chatisen. Sert apps/web/public, route /api, publie WS/SSE et lit ou réécrit le document JSON. | systemctl is-active chatisen ; GET /readyz répond persistence=json-demo. |
 | Front et service worker, navigateur | HTML, CSS et app.js pour comptes, DM, groupes et appels. sw.js peut notifier quand l’onglet est fermé et ouvrir le fil. Les fichiers sont distribués par le serveur Node de la même VM. | SHA-256 du bundle ; parcours à 2–3 sessions ; test Web Push avec deux profils persistants. |
 | Stockage local, VM | /var/lib/chatisen/chatisen.json, propriétaire chatisen, mode 0600, répertoire 0700. Les références entre collections sont résolues par Node. | stat sur le chemin et findmnt sur le répertoire, sans lecture du contenu privé. |
-| Snapshots Compute Engine, multi-région eu | La politique default-schedule-1 attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération. | Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative. |
+| Snapshots Compute Engine, multi-région eu | La politique quotidienne de snapshots (nom expurgé) attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération. | Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative. |
 | Configuration de service, VM | /etc/chatisen/chatisen.env appartient à root, mode 0600 ; secrets CSRF et VAPID, origine et STUN. systemd lit l’environnement au démarrage. | Vérifier noms des paramètres du script de déploiement et modes, comparer l’origine et la configuration publique. |
 | OpenSSH et systemd, VM | Connexion de l’exploitant et supervision des unités caddy/chatisen. Les journaux hôte passent par journald/rsyslog. | ssh.service actif ; systemctl et journalctl avec privilèges d’exploitation autorisés. |
 | Google Cloud Ops Agent, VM | Sous-services Fluent Bit et collecteur OpenTelemetry actifs. Leurs ports de supervision locaux sont distincts du port du chat. Cloud Logging/Monitoring sont les destinations habituelles du produit ; la réception, le bucket et la rétention demandent une preuve côté console. | États systemd et processus propriétaires des sockets 20201/20202 ; rechercher une série et un journal datés dans le projet. |
@@ -58,7 +58,7 @@ Le point d’entrée web est unique. Le serveur accepte aussi SSH pour Ops. Une 
 | F12 · Exploitation | Poste Ops → IP publique de la VM → sshd → systemd/journaux | SSH TCP 22 par clé ; gestion locale des unités, certificats et checkout. Sorties de maintenance HTTPS pour Git, runtime et dépendances | Accès direct vérifié. Source autorisée par le VPC et droits sudo/IAM à distinguer. Dépôts, registres et ACME sont des dépendances d’exploitation. |
 | F13 · Administration | Admin infrastructure → console/API Google Cloud → projet et ressources | HTTPS TCP 443 vers Google ; inventaire, IAM, VPC et configuration des VM/disques, selon les droits | Aucun portail admin global dans le code de la démo. Le propriétaire d’un groupe suit F02/F05 avec son compte applicatif. |
 | F14 · Observabilité | Ops/jury → Caddy → Node ; agent hôte → services d’observabilité Google si configurés | /healthz, /readyz, /metrics ; séries utilisateurs/messages. Agent Fluent Bit et collecteur OpenTelemetry présents | Les deux premières sondes décrivent le processus. La sonde json-demo n’effectue pas de contrôle d’écriture disque. Confirmer l’ingestion et la rétention depuis le projet. |
-| F15 · Copie du disque | Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu | Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1. | Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier. |
+| F15 · Copie du disque | Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu | Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon politique quotidienne expurgée. | Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier. |
 
 ## Règles VPC visibles sur nic0
 
@@ -68,7 +68,7 @@ Ces huit règles IPv4 correspondent aux tags de l’instance ou à toutes les VM
 |---|---:|---|---|---|
 | default-allow-http | 1000 | 0.0.0.0/0 | TCP 80 | Tag http-server |
 | default-allow-https | 1000 | 0.0.0.0/0 | TCP 443 | Tag https-server |
-| allow-tcp-27028-instance | 1000 | 0.0.0.0/0 | TCP 27028 | Tag instance-27028-codex |
+| règle spécifique (nom expurgé) | 1000 | 0.0.0.0/0 | TCP 27028 | Tag tag spécifique (nom expurgé) |
 | default-allow-health-check | 1000 | 35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22 | TCP tous ports | Tag lb-health-check |
 | default-allow-ssh | 65534 | 0.0.0.0/0 | TCP 22 | Toutes les VM du VPC |
 | default-allow-rdp | 65534 | 0.0.0.0/0 | TCP 3389 | Toutes les VM du VPC |
@@ -105,7 +105,7 @@ Une règle distincte de health check IPv6 figure dans la console. L’interface 
 
 | Objet | Observation datée | Portée |
 |---|---|---|
-| Politique default-schedule-1 | Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée. | Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique. |
+| Politique de snapshots (nom expurgé) | Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée. | Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique. |
 | Snapshot du 23 novembre 2026 | Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés | Multi-région eu, source disque de la VM du site, nom expurgé. |
 | Snapshot du 24 novembre 2026 | Création à 22:03:17 UTC · standard, planifié, prêt · 200,78 Mo affichés | Même disque source et multi-région eu. Tailles ponctuelles de la console. Le stockage facturé sur un mois dépend aussi de leur durée de conservation. |
 
@@ -119,14 +119,14 @@ Pour le dossier RGPD, relever responsable, finalités, durées de conservation r
 |---|---|---|
 | Compute Engine E2 custom | 4 vCPU et 6 Gio en europe-west4 ; H = heures facturables | H × (4 × prix vCPU/h + 6 × prix Gio RAM/h) en prenant les SKU custom et la devise du compte, ou H × prix complet de la VM. Une seule de ces deux méthodes. |
 | Disque et snapshots | Un disque pd-balanced zonal de 10 Go affichés, deux snapshots standards multi-région eu (1,13 Go et 200,78 Mo affichés) | Proratiser la capacité provisionnée et appliquer le tarif régional pd-balanced. Calculer les snapshots selon l’usage facturé dans le temps et le SKU applicable. |
-| IPv4 publique | Une adresse statique Standard réservée dans europe-west4 et attachée à la VM | Heures d’adresse attachée × tarif applicable. Une autre IPv4 réservée et inutilisée dans us-central1 figure au projet. Son coût éventuel relève du projet jusqu’à attribution. |
+| IPv4 publique | Une adresse statique Standard réservée dans europe-west4 et attachée à la VM | Heures d’adresse attachée × tarif applicable. Une autre adresse IPv4 réservée et inutilisée figure au projet. Sa région et son association restent à vérifier. |
 | Trafic | Octets sortants facturables de la VM, ventilés par destination ; HTTPS/WS, Push et signalisation | Somme des Gio par tranche et destination × tarif correspondant. Le média P2P circule entre les postes ; un futur relais média changerait le calcul. |
 | Télémétrie et DNS | Logs ingérés et conservés, séries payantes, DNS éventuellement facturé au gestionnaire de zone | Quantités facturées × tarifs applicables. Imputer les ressources dont l’usage pour ChatISEN est établi. |
 | Exploitation et total | Heures de maintenance et de restauration, tarif interne ; période et devise communes | TCO = infrastructure + coûts d’exploitation. Présenter brut, remises, crédits, taxes et net séparément. Les consommations réelles viennent de Billing. |
 
-Exemple de dimensionnement **pour un mois hypothétique de 730 h continues** : 2 920 vCPU·h, 4 380 Gio RAM·h, un disque provisionné pour le mois et jusqu’à 730 h d’IPv4 attachée. Le bandeau de la console affichait 266,57 € de crédit d’essai restant. Seul un rapport Billing daté permettra de publier une dépense brute ou nette. Laisser les prix et l’egress inconnus en cases à renseigner. [Prix Compute Engine](https://cloud.google.com/compute/vm-instance-pricing) · [Disques et adresses](https://cloud.google.com/compute/disks-image-pricing) · [Prix réseau](https://cloud.google.com/vpc/network-pricing) · [Calculatrice Google Cloud](https://cloud.google.com/products/calculator)
+Exemple de dimensionnement **pour un mois hypothétique de 730 h continues** : 2 920 vCPU·h, 4 380 Gio RAM·h, un disque provisionné pour le mois et jusqu’à 730 h d’IPv4 attachée. La console signalait un crédit d’essai restant. Son montant n’est pas repris ici. Seul un rapport Billing daté permettra de publier une dépense brute ou nette. Laisser les prix et l’egress inconnus en cases à renseigner. [Prix Compute Engine](https://cloud.google.com/compute/vm-instance-pricing) · [Disques et adresses](https://cloud.google.com/compute/disks-image-pricing) · [Prix réseau](https://cloud.google.com/vpc/network-pricing) · [Calculatrice Google Cloud](https://cloud.google.com/products/calculator)
 
-**Périmètre financier.** L’adresse inutilisée `34.61.228.109` se trouve en `us-central1`. Son association à ChatISEN n’a pas été établie. Le coût éventuel de cette réservation est à vérifier au niveau projet. Les forwarding rules et backends, Cloud NAT, Cloud SQL et les buckets Cloud Storage n’ont pas été inventoriés. [Adresses IP du projet](https://console.cloud.google.com/networking/addresses/list)
+**Périmètre financier.** Une autre adresse IPv4 réservée, valeur et région expurgées, reste inutilisée au niveau projet. Son association à ChatISEN n’a pas été établie. Le coût éventuel de cette réservation est à vérifier au niveau projet. Les forwarding rules et backends, Cloud NAT, Cloud SQL et les buckets Cloud Storage n’ont pas été inventoriés. [Adresses IP du projet](https://console.cloud.google.com/networking/addresses/list)
 
 ## Reproduire sur un environnement isolé
 
@@ -144,6 +144,7 @@ Avec un compte lecteur du projet, ces consultations identifient le périmètre q
 P=PROJECT_ID
 Z=europe-west4-a
 VM=CHATISEN_VM
+POLICY=SNAPSHOT_POLICY
 gcloud compute instances list --project="$P" --format='table(name,zone.basename(),status,machineType.basename())'
 gcloud compute instances describe "$VM" --zone="$Z" --project="$P" --format='yaml(networkInterfaces[].name,networkInterfaces[].subnetwork,disks[].source,scheduling.provisioningModel)'
 gcloud compute instances network-interfaces get-effective-firewalls "$VM" --project="$P" --zone="$Z" --network-interface=nic0
@@ -158,7 +159,7 @@ gcloud compute routers list --project="$P"
 # Pour chaque routeur pertinent : gcloud compute routers nats list --project="$P" --router=NOM --region=REGION
 gcloud sql instances list --project="$P"
 gcloud storage buckets list --project="$P" --format='table(name,location,storageClass)'
-gcloud compute resource-policies describe default-schedule-1 --region=europe-west4 --project="$P" --format='yaml(snapshotSchedulePolicy)'
+gcloud compute resource-policies describe "$POLICY" --region=europe-west4 --project="$P" --format='yaml(snapshotSchedulePolicy)'
 gcloud compute disks describe "$VM" --zone="$Z" --project="$P" --format='yaml(type,sizeGb,sourceImage,resourcePolicies,diskEncryptionKey.kmsKeyName)'
 gcloud compute snapshots list --project="$P" --format='table(name,sourceDisk.basename(),storageLocations,status)'
 ```
