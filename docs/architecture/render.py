@@ -15,6 +15,25 @@ def run(*args):
     subprocess.run(args, check=True)
 
 
+def inventory_tables(document, requested):
+    """Embed the named inventory tables in the offline reader."""
+    tables = {}
+    for section in re.split(r"^## ", document, flags=re.M)[1:]:
+        title, _, body = section.partition("\n")
+        if title not in requested:
+            continue
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in body.splitlines() if line.startswith("|")
+        ]
+        if len(rows) < 3 or any(len(row) != len(rows[0]) for row in rows):
+            raise ValueError(f"Invalid inventory table: {title}")
+        tables[title] = [rows[0], *rows[2:]]
+    if set(tables) != requested:
+        raise ValueError(f"Unknown inventory tables: {requested - set(tables)}")
+    return tables
+
+
 def sequence_source(source, title):
     """Map the Structurizr sequence export to PlantUML participants and steps."""
     participants = {}
@@ -149,7 +168,10 @@ def render(cli, plantuml):
             svg = source.with_suffix(".svg")
             (output / svg.name).write_bytes(svg.read_bytes())
         # A classic script works from file:// in Safari and Chromium, without fetch or a local server.
-        viewer_data = {"views": catalogue, "migrations": migrations, "contractGaps": contract_gaps}
+        requested = {name for record in records for name in record.get("tables", [])}
+        tables = inventory_tables((folder / "infrastructure-gcp.md").read_text(encoding="utf-8"), requested)
+        viewer_data = {"views": catalogue, "migrations": migrations, "contractGaps": contract_gaps,
+                       "inventory": tables}
         (folder / "lecteur.js").write_text("const architecture = " + json.dumps(
             viewer_data, ensure_ascii=False, indent=2) + ";\n", encoding="utf-8")
 

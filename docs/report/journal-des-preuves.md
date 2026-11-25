@@ -309,3 +309,13 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 ## Réception Mandatory au 25 novembre 2026 avant correction du groupe
 
 Sur le commit `e2ae3537f122b0408216809f0432d1ba0f51911b`, l'audit a observé que trois comptes pouvaient discuter dans un groupe créé par API, mais que la création manquait sur le site. Cette observation historique et les autres critères figurent dans la [fiche de réception](recette-mandatory-2026-11-25.md). Le parcours de création a ensuite été ajouté et rejoué sur le site : voir [E29](#e29--création-de-groupe-depuis-le-site) et [E30](#e30--recette-de-groupe-sur-le-site-déployé).
+
+## Inventaire de la VM et du trajet public · 25 novembre 2026
+
+Entre 13 h 43 et 13 h 46 UTC, le DNS A du domaine a rendu l’IPv4 externe de la VM. Une connexion SSH par clé d’hôte connue a permis de lire son nom, sa zone `europe-west4-a`, son VPC, son interface, ses services et le montage du fichier applicatif. Le checkout déployé est `9b08996` et l’empreinte du JavaScript servi a été comparée au dépôt. Le service Caddy relaie vers un unique processus Node sur loopback. Le site public conserve son état sur le disque de cette VM. L’inventaire distingue métadonnées d’instance, accès testés et observations du plan de contrôle, dont la lecture directe était refusée au compte de la VM. [Inventaire et contrôles reproductibles](../architecture/infrastructure-gcp.md) · [Quatre vues du lecteur](../architecture/index.html#01-contexte)
+
+## Inventaire console et vérification DNS · 25 novembre 2026
+
+Le relevé de console transmis par l’équipe vers 13 h 47 UTC compte une seule VM et un seul disque attaché, de type pd-balanced. Il recense huit règles VPC IPv4 ciblant son interface et deux snapshots planifiés en multi-région `eu`. La consultation des associations de politiques héritées a échoué faute du droit `compute.organizations.listAssociations`. Le tableau de l’inventaire conserve les noms, sources, cibles, priorités et limites du relevé. [Inventaire consolidé](../architecture/infrastructure-gcp.md#règles-vpc-visibles-sur-nic0)
+
+Depuis le poste externe à 14 h 03 UTC, `dig +noall +answer ia-pple.isen.fedyna.fr A` a donné `900 IN A [adresse expurgée]` ; les requêtes AAAA et CNAME n’ont retourné aucune réponse dans la section ANSWER. La sonde HTTPS a retourné `HTTP 200, remote_ip=IPv4 publique réservée, ssl_verify_result=0, persistence=json-demo`. La réponse correspond à l’adresse régionale Standard réservée et attachée à nic0. Les ports d’écoute et le SHA identifiés précédemment par SSH complètent cette mesure. [Entrée et placement](../architecture/infrastructure-gcp.md#placement-et-points-dentrée)

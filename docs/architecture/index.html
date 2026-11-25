@@ -131,6 +131,9 @@
       pointer-events: none;
     }
     [hidden] { display: none !important; }
+    .inventory-scroll { overflow-x: auto; }
+    .inventory-scroll table { border-collapse: collapse; width: 100%; }
+    .inventory-scroll th, .inventory-scroll td { padding: .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
     .record {
       max-height: 49vh;
       overflow: auto;
@@ -319,7 +322,31 @@
       return panel;
     }
 
-    function makeNotes({build, check, links, steps, stepsTitle, wire, contract, sql}) {
+    function makeInventoryPanel(title) {
+      const panel = makePanel(title);
+      const scroll = document.createElement('div');
+      scroll.className = 'inventory-scroll';
+      const table = document.createElement('table');
+      table.setAttribute('aria-label', title);
+      const [headers, ...rows] = architecture.inventory[title];
+      const heading = table.createTHead().insertRow();
+      for (const text of headers) {
+        const cell = document.createElement('th');
+        cell.scope = 'col';
+        cell.textContent = text;
+        heading.append(cell);
+      }
+      const body = table.createTBody();
+      for (const values of rows) {
+        const row = body.insertRow();
+        for (const value of values) row.insertCell().textContent = value;
+      }
+      scroll.append(table);
+      panel.append(scroll);
+      return panel;
+    }
+
+    function makeNotes({build, check, links, steps, stepsTitle, wire, contract, sql, tables = []}) {
       const notes = byId('notes-template').content.cloneNode(true);
       notes.querySelector('.build-note').textContent = build;
       notes.querySelector('.check-note').textContent = check;
@@ -332,6 +359,7 @@
         link.rel = 'noopener';
         sources.append(link);
       }
+      for (const title of tables) notes.append(makeInventoryPanel(title));
       if (steps) notes.append(makeTextPanel(stepsTitle || 'Commandes du banc de test', steps));
       if (wire) notes.append(makeTextPanel('Exemple complet sur le réseau', wire));
       if (contract) notes.append(makeTextPanel('Opérations OpenAPI encore à raccorder', architecture.contractGaps));

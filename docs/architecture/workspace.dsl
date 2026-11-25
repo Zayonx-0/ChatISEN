@@ -1,8 +1,8 @@
 workspace extends c4.dsl {
     views {
-        image repo "04-code" {
+        image localChat "04-code" {
             title "04 · Code et données"
-            description "Implémentation de l’envoi durable et du rattrapage d’un message v1."
+            description "Relations entre les collections JSON du site GCP et trajet du message dans le code."
             image svg/04-code.svg
         }
     }
