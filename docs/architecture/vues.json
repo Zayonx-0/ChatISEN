@@ -131,7 +131,7 @@
         "links": [["Admission et signature", "../../apps/api/src/calls/postgres-routes.ts"], ["Test de signature", "../../tests/security/livekit-token.test.ts"], ["Test avec PostgreSQL", "../../tests/integration/calls/postgres-calls.test.ts"], ["Preuve E19", "../report/journal-des-preuves.md#e19--admission-média-expérimentale-et-contrôles-associés"]]
       }
     ],
-    "tables": ["Règles VPC visibles sur nic0", "Pare-feu et exposition", "Flux nommés", "Services et responsabilités"]
+    "tables": ["Authentification User", "Règles VPC visibles sur nic0", "Pare-feu et exposition", "Flux nommés", "Services et responsabilités"]
   },
   {
     "id": "04-code",
@@ -216,10 +216,10 @@
     "title": "Architecture globale",
     "build": "Pour la soutenance, partir des navigateurs à gauche, suivre le VPC et Caddy jusqu’à Node, puis montrer les flux qui sortent de la VM. User utilise l’application, Ops exploite Debian et Admin passe par le plan de contrôle IAM.",
     "check": "Suivre un message jusqu’au disque puis à l’autre navigateur. Pour l’appel, suivre la signalisation jusqu’à Node et le média entre les navigateurs. Terminer avec le parcours de livraison et la copie du disque.",
-    "links": [["Inventaire GCP et preuves", "infrastructure-gcp.md"], ["Configuration Caddy", "../../ops/gcp/Caddyfile.template"], ["Service systemd", "../../ops/gcp/chatisen.service"], ["Workflow GitHub Actions", "../../.github/workflows/r01.yml"]],
+    "links": [["Inventaire GCP et preuves", "infrastructure-gcp.md"], ["Authentification User", "infrastructure-gcp.md#authentification-user"], ["Configuration Caddy", "../../ops/gcp/Caddyfile.template"], ["Service systemd", "../../ops/gcp/chatisen.service"], ["Workflow GitHub Actions", "../../.github/workflows/r01.yml"]],
     "stepsTitle": "Fil conducteur de soutenance",
-    "steps": ["1. F01–F03 · Le DNS dirige les navigateurs vers l’IPv4 réservée. Le VPC filtre. Caddy termine TLS et relaie vers Node sur loopback.", "2. F04–F07 · Node vérifie la session locale et l’appartenance, écrit le JSON, puis diffuse le message aux membres.", "3. F08–F11 · Node relaie la signalisation. STUN aide à établir la liaison et les pistes WebRTC circulent entre deux navigateurs. Le fournisseur Web Push joint le service worker.", "4. F12–F15 · Ops entre par SSH, Admin via IAM. Les sondes vérifient l’application. Compute Engine copie le disque zonal en multi-région eu.", "5. F16–F17 · GitHub Actions vérifie les commits. Ops choisit puis déploie un SHA de main sur la VM."],
+    "steps": ["1. F01–F03 · Le DNS dirige les navigateurs vers l’IPv4 réservée. Le VPC filtre. Caddy termine TLS et relaie vers Node sur loopback.", "2. F04 · Node gère l’identité locale. Il vérifie le mot de passe, enregistre l’empreinte de la session dans le JSON et pose le cookie. Après connexion, le navigateur réutilise ce cookie. Les écritures gardées présentent aussi le jeton CSRF.", "3. F05–F07 · Node vérifie l’appartenance au fil, écrit le JSON puis diffuse le message aux membres.", "4. F08–F11 · Node relaie la signalisation. STUN aide à établir la liaison et les pistes WebRTC circulent entre deux navigateurs. Le fournisseur Web Push joint le service worker.", "5. F12–F15 · Ops entre par SSH, Admin via IAM. Les sondes vérifient l’application. Compute Engine copie le disque zonal en multi-région eu.", "6. F16–F17 · GitHub Actions vérifie les commits. Ops choisit puis déploie un SHA de main sur la VM."],
     "details": [],
-    "tables": ["Flux nommés", "Règles VPC visibles sur nic0", "Pare-feu et exposition", "Copies du disque en Europe", "Calcul du coût"]
+    "tables": ["Authentification User", "Flux nommés", "Règles VPC visibles sur nic0", "Pare-feu et exposition", "Copies du disque en Europe", "Calcul du coût"]
   }
 ]

@@ -450,6 +450,7 @@ const architecture = {
         }
       ],
       "tables": [
+        "Authentification User",
         "Règles VPC visibles sur nic0",
         "Pare-feu et exposition",
         "Flux nommés",
@@ -737,6 +738,10 @@ const architecture = {
           "infrastructure-gcp.md"
         ],
         [
+          "Authentification User",
+          "infrastructure-gcp.md#authentification-user"
+        ],
+        [
           "Configuration Caddy",
           "../../ops/gcp/Caddyfile.template"
         ],
@@ -752,13 +757,15 @@ const architecture = {
       "stepsTitle": "Fil conducteur de soutenance",
       "steps": [
         "1. F01–F03 · Le DNS dirige les navigateurs vers l’IPv4 réservée. Le VPC filtre. Caddy termine TLS et relaie vers Node sur loopback.",
-        "2. F04–F07 · Node vérifie la session locale et l’appartenance, écrit le JSON, puis diffuse le message aux membres.",
-        "3. F08–F11 · Node relaie la signalisation. STUN aide à établir la liaison et les pistes WebRTC circulent entre deux navigateurs. Le fournisseur Web Push joint le service worker.",
-        "4. F12–F15 · Ops entre par SSH, Admin via IAM. Les sondes vérifient l’application. Compute Engine copie le disque zonal en multi-région eu.",
-        "5. F16–F17 · GitHub Actions vérifie les commits. Ops choisit puis déploie un SHA de main sur la VM."
+        "2. F04 · Node gère l’identité locale. Il vérifie le mot de passe, enregistre l’empreinte de la session dans le JSON et pose le cookie. Après connexion, le navigateur réutilise ce cookie. Les écritures gardées présentent aussi le jeton CSRF.",
+        "3. F05–F07 · Node vérifie l’appartenance au fil, écrit le JSON puis diffuse le message aux membres.",
+        "4. F08–F11 · Node relaie la signalisation. STUN aide à établir la liaison et les pistes WebRTC circulent entre deux navigateurs. Le fournisseur Web Push joint le service worker.",
+        "5. F12–F15 · Ops entre par SSH, Admin via IAM. Les sondes vérifient l’application. Compute Engine copie le disque zonal en multi-région eu.",
+        "6. F16–F17 · GitHub Actions vérifie les commits. Ops choisit puis déploie un SHA de main sur la VM."
       ],
       "details": [],
       "tables": [
+        "Authentification User",
         "Flux nommés",
         "Règles VPC visibles sur nic0",
         "Pare-feu et exposition",
@@ -1013,6 +1020,38 @@ const architecture = {
         "Ops via F12, puis VM → dépôt GitHub privé",
         "Récupération Git puis sélection d’un SHA de main dans /opt/chatisen/app. Une modification des dessins devient lisible via Caddy.",
         "Livraison déclenchée par Ops. Vérifier la provenance du SHA, les fichiers publics et la disponibilité."
+      ]
+    ],
+    "Authentification User": [
+      [
+        "Étape",
+        "Requête ou donnée",
+        "Contrôle ou résultat"
+      ],
+      [
+        "Inscrire ou connecter",
+        "POST /api/auth/register ou POST /api/auth/login, avec identifiant et mot de passe dans le corps HTTPS.",
+        "Node conserve un hash scrypt salé dans users[].passwordHash à l’inscription et le vérifie à la connexion. Un mauvais identifiant ou mot de passe renvoie 401 à la connexion."
+      ],
+      [
+        "Ouvrir la session",
+        "Node génère un jeton aléatoire opaque de 32 octets. Le JSON conserve son SHA-256 dans sessions[].tokenHash, lié à userId avec expiration à 24 h.",
+        "Le jeton est renvoyé au navigateur par Set-Cookie __Host-chatisen. Attributs Secure, HttpOnly, SameSite=Lax et Path=/. La réponse JSON fournit le profil et le jeton CSRF calculé par HMAC."
+      ],
+      [
+        "Retrouver le profil",
+        "GET /api/auth/me. Le navigateur transmet le cookie automatiquement.",
+        "Node recherche l’empreinte de la session, vérifie son expiration et sa révocation. Sans session valide, la route renvoie 401."
+      ],
+      [
+        "Autoriser une action",
+        "Le client ajoute x-csrf-token aux écritures gardées. Pour le fil privé, Node vérifie l’appartenance active.",
+        "Une session identifie le compte. L’appartenance au fil détermine ses droits. WebSocket vérifie aussi l’origine et les droits de souscription."
+      ],
+      [
+        "Déconnecter",
+        "POST /api/auth/logout.",
+        "Node renseigne revokedAt si la session est active et efface le cookie. Le jeton révoqué doit ensuite être rejeté par /api/auth/me."
       ]
     ],
     "Règles VPC visibles sur nic0": [
