@@ -1,12 +1,10 @@
 # Reconstruire ChatISEN depuis ses diagrammes
 
-**[Ouvrir la visionneuse en ligne](https://ia-pple.isen.fedyna.fr/architecture/)** · [Copie locale](index.html#01-contexte). Elle suit les quatre niveaux C4, du contexte jusqu’au code et aux données. Sous chaque diagramme, ouvrir **Détails, tests et sources** pour retrouver les valeurs exactes, les commandes de test et les schémas complémentaires. Les fiches SQL donnent accès aux deux migrations exécutables dans la page.
+**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG 16:9](svg/05-architecture-globale.svg). La vue d’accueil rassemble les acteurs, le réseau, les services et les 17 flux du déploiement. Les touches `1` à `4` ouvrent les niveaux C4 et `5` ramène à la planche. Sous la planche, ouvrir **Guide de présentation, flux et sources** pour retrouver le fil conducteur, les règles VPC et les tableaux de données et de coût. Les fiches SQL des vues C4 donnent accès aux deux migrations exécutables dans la page.
 
-**Référence R01** · 25 novembre 2026 · `bf1cd6029de69598c9d0c035b5abeb6dedc06fbd` sur `rev/01-socle-j1`. Ce repère comprend les appels locaux de `91add83` et la correction du banc Chromium de `4bbbbcb`. La dernière livraison taguée du projet est `v1.0.0`. [Code du repère](https://github.com/Zayonx-0/ChatISEN/tree/bf1cd6029de69598c9d0c035b5abeb6dedc06fbd) · [Preuve CI du banc corrigé](../report/preuves/45583168142/extrait.txt)
+**Site du jury vérifié le 25 novembre 2026.** Le SHA déployé est `9b08996`. DNS et métadonnées d’instance rattachent l’entrée HTTPS à une VM Compute Engine, dans la zone `europe-west4-a` du VPC `default`. Caddy, le serveur Node appelé standalone et le disque JSON y sont cohébergés. Le relevé console de 13 h 47 UTC compte une seule VM dans tout le projet. Sous « Composants », déplier les huit règles VPC IPv4 visibles sur nic0, leurs sources et leurs cibles. Le flux F15 situe les copies quotidiennes du disque zonal en multi-région européenne. [Inventaire, flux, pare-feu, localisation et coûts](infrastructure-gcp.md) · [Version déployée](https://github.com/Zayonx-0/ChatISEN/tree/9b08996060c52700b035d646bf6ac64075ef3ea6)
 
-**Démo Google Cloud** · système standalone documenté au déploiement `ab465a3`. Les niveaux Contexte et Composants montrent le domaine ISEN et le chemin jusqu’aux modules du serveur. La vue Code et données détaille la messagerie PostgreSQL du profil de recette R01. [Lot GCP](https://github.com/Zayonx-0/ChatISEN/pull/2) · [Sondes du domaine ISEN](https://ia-pple.isen.fedyna.fr/readyz)
-
-Pour rejouer la reconstruction, garder ce dossier de diagrammes ouvert à côté du clone de référence. La révision documentaire est postérieure au SHA de l’application qu’elle décrit. [Contrôles de la reconstruction](../report/journal-des-preuves.md#e25--reconstruction-depuis-les-diagrammes)
+**Laboratoire R01.** Les vues dépliables conservent la pile React/Fastify/PostgreSQL/LiveKit du repère historique `bf1cd60`. Les commandes de laboratoire ci-dessous concernent ce profil. [Banc R01](svg/08-compose.svg) · [Recette du déploiement GCP](infrastructure-gcp.md#reproduire-sur-un-environnement-isolé)
 
 ## Quelle application obtient-on ?
 
@@ -20,10 +18,10 @@ Le sujet classe les comptes, la messagerie privée et de groupe, l’historique,
 
 | Niveau | Ce qu’il faut reproduire | Diagramme |
 |---|---|---|
-| 1. Contexte | Membres, enseignant, équipe, accès public et administration privée. | [Contexte](svg/01-contexte.svg) |
-| 2. Conteneurs | Caddy, client et serveur standalone et stockage JSON pour la démo. React, Nginx, Fastify, PostgreSQL, LiveKit et supervision pour la recette R01. | [Conteneurs](svg/02-conteneurs.svg) |
+| 1. Contexte | User, Ops et Admin, domaines de confiance et accès distincts. | [Contexte](svg/01-contexte.svg) |
+| 2. Conteneurs | Navigateur, VPC, frontal Caddy, système, serveur Node et fichier de la seule VM du site. | [Conteneurs](svg/02-conteneurs.svg) |
 | 3. Composants | Compute Engine et Debian 13, Caddy, Node.js sous systemd, identité, messagerie, JSON et signalisation WebRTC. Fastify est détaillé dans un volet de recette. | [Composants](svg/03-composants-api.svg) |
-| 4. Code et données | Sur la pile de recette R01, du `clientId` de React à `appendMessage`, puis au commit PostgreSQL et à la livraison WebSocket. | [Code et données](svg/04-code.svg) |
+| 4. Code et données | Collections du JSON en production, cardinalités, identités, ordre et diffusion. La transaction PostgreSQL est dépliable. | [Code et données](svg/04-code.svg) |
 
 En bleu figurent les composants applicatifs, en gris la configuration, en ambre l’admission expérimentale et en violet la cible réseau ou média à éprouver. Les séquences se lisent de haut en bas. Sur les schémas physiques, `PK` désigne la clé primaire, `FK` la clé étrangère et `UQ` l’unicité.
 
@@ -73,6 +71,7 @@ Le lecteur fonctionne hors ligne. Utiliser `1` à `4` pour changer de niveau, la
 <details>
 <summary>Détails du code et des données</summary>
 
+- [Transaction PostgreSQL du banc R01](svg/24-code-postgres.svg)
 - [Envoi d’un message privé](svg/05-message-prive.svg)
 - [Rattrapage après coupure](svg/06-reconnexion.svg)
 - [HTTP des comptes et groupes](svg/14-http-identite-groupes.svg)
@@ -87,7 +86,7 @@ Le lecteur fonctionne hors ligne. Utiliser `1` à `4` pour changer de niveau, la
 
 ### Base commune
 
-Depuis un dossier neuf avec accès au dépôt, utiliser **Node.js 24** et **pnpm 10.20.0**. Les versions effectivement résolues sont dans le verrou. Elles incluent **React 19.3.1**, **Vite 6.4.6**, **Fastify 5.12.8**, **pg 8.23.1**, **argon2 0.41.1**, **ws 8.23.0** et **prom-client 15.1.3**. Les handlers v1 valident leurs entrées en TypeScript. Le catalogue HTTP/WS est en JSON Schema. Le brouillon d’architecture proposait TypeBox. [Manifeste](../../package.json) · [Verrou](../../pnpm-lock.yaml) · [Contrats](../../packages/contracts/src/index.mjs)
+Pour le **laboratoire R01 au repère bf1cd60**, depuis un dossier neuf avec accès au dépôt, utiliser **Node.js 24** et **pnpm 10.20.0**. Les versions effectivement résolues sont dans le verrou. Elles incluent **React 19.3.1**, **Vite 6.4.6**, **Fastify 5.12.8**, **pg 8.23.1**, **argon2 0.41.1**, **ws 8.23.0** et **prom-client 15.1.3**. Les handlers v1 valident leurs entrées en TypeScript. Le catalogue HTTP/WS est en JSON Schema. Le brouillon d’architecture proposait TypeBox. [Manifeste](../../package.json) · [Verrou](../../pnpm-lock.yaml) · [Contrats](../../packages/contracts/src/index.mjs)
 
 ```sh
 git clone https://github.com/Zayonx-0/ChatISEN.git ChatISEN
@@ -155,7 +154,7 @@ pnpm exec playwright test -c tests/e2e/playwright.config.mjs
 
 ### Démonstration déployée sur Google Cloud
 
-L’enseignant ouvre **`https://ia-pple.isen.fedyna.fr/`**. Le frontal redirige HTTP vers HTTPS. [Sondes publiques](https://ia-pple.isen.fedyna.fr/readyz)
+La reconstruction de l’environnement en service commence par le [relevé de la VM, du réseau et du stockage](infrastructure-gcp.md). L’enseignant ouvre **`https://ia-pple.isen.fedyna.fr/`**. Le frontal redirige HTTP vers HTTPS. [Sondes publiques](https://ia-pple.isen.fedyna.fr/readyz)
 
 Caddy termine le TLS sur la VM Debian 13 et transmet HTTP et l’Upgrade WebSocket vers `127.0.0.1:3000`. L’unité systemd `chatisen.service` lance `apps/standalone/server.mjs` sous Node.js 24.14.1 et écrit sous `/var/lib/chatisen/chatisen.json`. Les navigateurs découvrent des adresses candidates avec STUN et s’échangent directement les pistes. Le profil Compose associé à J1 garde React, Fastify, PostgreSQL et LiveKit. [Diagramme du déploiement](svg/04-deploiement-gcp.svg) · [Fichiers du lot GCP](https://github.com/Zayonx-0/ChatISEN/tree/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp) · [Mandat J1](../revisions/R01-socle-j1.md)
 
@@ -163,7 +162,7 @@ Caddy termine le TLS sur la VM Debian 13 et transmet HTTP et l’Upgrade WebSock
 
 ## Mettre à jour les diagrammes
 
-Le workspace **Structurizr** ouvre les quatre niveaux. Les trois premiers sont des vues natives du DSL. Le quatrième est un diagramme PlantUML rattaché à `PostgresRepository`. Les séquences et le déploiement utilisent le même modèle DSL. Les autres détails sont produits en PlantUML, dont les schémas de données tirés des migrations. Le lecteur rattache chaque détail à son niveau C4. [Workspace à ouvrir dans Structurizr](workspace.dsl) · [Modèle C4](c4.dsl) · [Sources des détails](details/) · [Catalogue des fiches](vues.json)
+Le workspace **Structurizr** ouvre les quatre niveaux. Les trois premiers sont des vues natives du DSL. Le quatrième est un diagramme PlantUML rattaché au composant de messagerie du serveur Node. Les séquences et le déploiement utilisent le même modèle DSL. Les autres détails sont produits en PlantUML, dont les schémas de données tirés des migrations. Le lecteur rattache chaque détail à son niveau C4. [Workspace à ouvrir dans Structurizr](workspace.dsl) · [Modèle C4](c4.dsl) · [Sources des détails](details/) · [Catalogue des fiches](vues.json)
 
 Depuis la racine du dépôt, exécuter la commande suivante avec Python 3.9+, Java, Structurizr CLI `v2025.11.09` et PlantUML `1.2025.10`. Les rendus de ce dossier utilisent Java 25.
 
@@ -171,4 +170,6 @@ Depuis la racine du dépôt, exécuter la commande suivante avec Python 3.9+, Ja
 python3 docs/architecture/render.py /chemin/structurizr.sh /chemin/plantuml-1.2025.10.jar
 ```
 
-Le rendu valide le DSL, contrôle la liste des tables, compare les planches HTTP v1 aux handlers Fastify et calcule l’écart avec OpenAPI. Il vérifie les liens, les quatre clés du workspace et le rattachement de chaque SVG au catalogue. Versionner ensemble les sources du dessin, `vues.json`, les SVG et le fichier généré `lecteur.js`. Pour la lecture, ouvrir `index.html` dans la copie locale. [Générateur](render.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
+Le rendu valide le DSL, compare les planches HTTP v1 aux handlers Fastify, calcule l’écart avec OpenAPI et vérifie les quatre clés C4 dans Structurizr. La planche de soutenance provient de `global_view.py`. Le rendu compare ses identifiants de flux avec ceux de l’inventaire GCP. Versionner ensemble les sources, `vues.json`, les SVG et le fichier généré `lecteur.js`. [Générateur](render.py) · [Source de la planche](global_view.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
+
+La planche reprend le logo du client ChatISEN et embarque les marques Google Cloud, Caddy, Node.js et GitHub depuis Simple Icons pour permettre l’affichage hors ligne. [Client ChatISEN](../../apps/web/public/app.js) · [Simple Icons](https://github.com/simple-icons/simple-icons)

@@ -64,6 +64,7 @@
       text-decoration: none;
     }
     .sidebar a:hover { background: #eaf0f6; }
+    .sidebar li:last-child { margin-top: .55rem; padding-top: .55rem; border-top: 1px solid var(--line); }
     .sidebar a[aria-current] {
       background: #dceafa;
       color: #174775;
@@ -131,6 +132,9 @@
       pointer-events: none;
     }
     [hidden] { display: none !important; }
+    .inventory-scroll { overflow-x: auto; }
+    .inventory-scroll table { border-collapse: collapse; width: 100%; }
+    .inventory-scroll th, .inventory-scroll td { padding: .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
     .record {
       max-height: 49vh;
       overflow: auto;
@@ -196,11 +200,11 @@
   </header>
 
   <nav class="sidebar" aria-labelledby="c4-label">
-    <h2 id="c4-label">Niveaux C4</h2>
+    <h2 id="c4-label">Vues d’architecture</h2>
     <ol id="views"></ol>
   </nav>
   <div class="compact-nav">
-    <label for="view-picker">Niveau C4</label>
+    <label for="view-picker">Vue</label>
     <select id="view-picker"></select>
   </div>
 
@@ -208,8 +212,8 @@
     <header class="controls">
       <h2 id="view-title" aria-live="polite"></h2>
       <div class="tools" aria-label="Navigation et zoom">
-        <button type="button" id="previous" aria-label="Niveau précédent" title="Niveau précédent">←</button>
-        <button type="button" id="next" aria-label="Niveau suivant" title="Niveau suivant">→</button>
+        <button type="button" id="previous" aria-label="Vue précédente" title="Vue précédente">←</button>
+        <button type="button" id="next" aria-label="Vue suivante" title="Vue suivante">→</button>
         <button type="button" id="minus" aria-label="Réduire la vue" title="Réduire la vue">−</button>
         <output id="zoom" class="zoom-value" aria-label="Niveau de zoom">—</output>
         <button type="button" id="plus" aria-label="Agrandir la vue" title="Agrandir la vue">+</button>
@@ -225,7 +229,7 @@
     <div id="canvas" class="canvas" role="region" tabindex="0" aria-label="Diagramme. Molette pour zoomer, glisser ou utiliser les flèches pour déplacer.">
       <img id="diagram" alt="" draggable="false" hidden>
       <p id="message" class="canvas-message" role="status">Chargement…</p>
-      <noscript><p>Activez JavaScript ou <a href="svg/01-contexte.svg">ouvrez le diagramme de contexte</a>.</p></noscript>
+      <noscript><p>Activez JavaScript ou <a href="svg/05-architecture-globale.svg">ouvrez le diagramme global</a>.</p></noscript>
     </div>
     <details class="record" id="record">
       <summary id="record-title">Détails de ce niveau</summary>
@@ -243,6 +247,7 @@
   <script src="lecteur.js"></script>
   <script>
     const views = architecture.views;
+    const defaultView = views.length - 1;
     const byId = (id) => document.getElementById(id);
     const viewer = byId('viewer');
     const canvas = byId('canvas');
@@ -319,7 +324,31 @@
       return panel;
     }
 
-    function makeNotes({build, check, links, steps, stepsTitle, wire, contract, sql}) {
+    function makeInventoryPanel(title) {
+      const panel = makePanel(title);
+      const scroll = document.createElement('div');
+      scroll.className = 'inventory-scroll';
+      const table = document.createElement('table');
+      table.setAttribute('aria-label', title);
+      const [headers, ...rows] = architecture.inventory[title];
+      const heading = table.createTHead().insertRow();
+      for (const text of headers) {
+        const cell = document.createElement('th');
+        cell.scope = 'col';
+        cell.textContent = text;
+        heading.append(cell);
+      }
+      const body = table.createTBody();
+      for (const values of rows) {
+        const row = body.insertRow();
+        for (const value of values) row.insertCell().textContent = value;
+      }
+      scroll.append(table);
+      panel.append(scroll);
+      return panel;
+    }
+
+    function makeNotes({build, check, links, steps, stepsTitle, wire, contract, sql, tables = []}) {
       const notes = byId('notes-template').content.cloneNode(true);
       notes.querySelector('.build-note').textContent = build;
       notes.querySelector('.check-note').textContent = check;
@@ -332,6 +361,7 @@
         link.rel = 'noopener';
         sources.append(link);
       }
+      for (const title of tables) notes.append(makeInventoryPanel(title));
       if (steps) notes.append(makeTextPanel(stepsTitle || 'Commandes du banc de test', steps));
       if (wire) notes.append(makeTextPanel('Exemple complet sur le réseau', wire));
       if (contract) notes.append(makeTextPanel('Opérations OpenAPI encore à raccorder', architecture.contractGaps));
@@ -398,7 +428,7 @@
     function showView() {
       const [key, detailKey] = location.hash.slice(1).split('/');
       const index = views.findIndex(({id}) => id === key);
-      const selected = index < 0 ? (parents.get(key) ?? 0) : index;
+      const selected = index < 0 ? (parents.get(key) ?? defaultView) : index;
       const level = views[selected];
       const detail = level.details.find(({id}) => id === (index < 0 ? key : detailKey));
       const changedLevel = current !== selected;
@@ -423,7 +453,9 @@
       }
       record.open = !detail && openRecord;
       if (detail) byId('level-details').querySelector('[data-detail="' + detail.id + '"]').open = true;
-      byId('record-title').textContent = 'Détails, tests et sources (' + level.details.length + ')';
+      byId('record-title').textContent = level.details.length
+        ? 'Détails, tests et sources (' + level.details.length + ')'
+        : 'Guide de présentation, flux et sources';
       byId('detail-path').hidden = !detail;
       byId('detail-title').textContent = detail?.title || '';
       byId('back-to-level').href = '#' + level.id;
@@ -522,7 +554,7 @@
         return;
       }
       if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('select, pre')) return;
-      if (/^[1-4]$/.test(event.key)) goTo(Number(event.key) - 1);
+      if (/^[1-5]$/.test(event.key)) goTo(Number(event.key) - 1);
       else if (event.key.toLowerCase() === 'f') fit();
       else if (event.key === '+' || event.key === '=') zoomBy(1.25);
       else if (event.key === '-') zoomBy(1 / 1.25);

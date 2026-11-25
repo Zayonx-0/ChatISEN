@@ -1,0 +1,68 @@
+@startuml
+!pragma layout smetana
+!include style.iuml
+skinparam classBackgroundColor #E6F2FA
+skinparam classBorderColor #49799A
+allowmixing
+hide circle
+title Recette R01 · écriture transactionnelle d’un message v1
+
+class "main.tsx · Client React" as browser {
+  send(event)
+  api<T>(path, RequestInit) : Promise<T>
+  upsert(messages, incoming) : Message[]
+  --
+  pending[conversationId] garde le clientId du même brouillon.
+  Après 201/200 ou message.created, fusion par id et tri BigInt(seq).
+}
+
+class "chat/postgres-routes.ts · HTTP" as route {
+  registerPostgresChat(app, repo)
+  mutation(req, reply)
+  messageDto(PostgresMessage)
+  --
+  POST /api/v1/conversations/{id}/messages, {clientId,text}
+  Session, Origin exact, x-csrf-token, membre actif, UUID valides.
+  Fil inconnu ou non autorisé : 404. Texte vide ou > 4 000 : 400.
+  201 si created, 200 si répétition identique, 409 si texte différent.
+}
+
+class "repositories/postgres.ts · PostgresRepository" as repository {
+  pool : pg.Pool
+  isMember(conversationId, userId) : Promise<boolean>
+  appendMessage(conversationId, senderId, text, clientId)
+  résultat : {message: PostgresMessage, created: boolean}
+  transaction(fn) : Promise
+  --
+  BEGIN sur un client du pool. FOR UPDATE dans cet ordre :
+  1. conversations, fil ouvert. 2. conversation_members, membre actif.
+  Cherche (conversation_id, sender_id, client_id).
+  Si même texte : renvoie la ligne. Autre texte : idempotency_conflict.
+  Sinon : incrémente last_seq, INSERT event puis INSERT message.
+  COMMIT ou ROLLBACK, et libère la connexion.
+}
+
+database "<b>PostgreSQL · 001_initial.sql</b>\n\nconversations : PK id, last_seq bigint\nconversation_members : PK (conversation_id, user_id)\nconversation_events : PK (conversation_id, seq)\nmessages : FK (conversation_id, seq) vers l’événement\nUNIQUE (conversation_id, sender_id, client_id)" as journal #EDF3F7
+
+class "chat/postgres-websocket.ts · WS v1" as websocket {
+  registerPostgresWebsocket(app, repo)
+  authorized(subscription) : Promise<boolean>
+  drain(subscription) : Promise<void>
+  --
+  /api/v1/ws reçoit subscribe(conversationId, afterSeq).
+  Reprend avec seq > curseur, ordre croissant, lots de 100.
+  Vérifie session et appartenance avant lecture et chaque envoi.
+  Le serveur envoie seq en chaîne et remplace data.messageId par data.id.
+}
+
+browser -right-> route : JSON + cookie\n+ X-CSRF-Token
+route -down-> repository : appendMessage(cid, uid, body.text, body.clientId)
+repository -left-> journal : verrouille, écrit et rend durable\navec un seul COMMIT
+journal -left-> websocket : NOTIFY après COMMIT\nchatisen_conversation_events
+websocket -up-> browser : événement message.created\nReact avance le curseur à réception
+
+legend bottom
+  <b>Test de référence</b>   Deux requêtes identiques → un seul ID, un message, un événement et une seule incrémentation.
+  Contrôle de reprise : après 15 s hors ligne, retrouver les 20 messages manqués une seule fois et dans l’ordre.
+endlegend
+@enduml

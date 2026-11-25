@@ -2,11 +2,11 @@
 
 ChatISEN est un projet académique de communication temps réel en cours de révision. Le socle J1 n’est pas encore reçu : la messagerie du profil cible utilise PostgreSQL, mais les appels audio/vidéo réels et la recette complète restent à démontrer. Voir [le bilan R01](docs/report/r01.md).
 
-Les diagrammes de reconstruction relient chaque profil aux écrans, aux contrats, aux données et aux tests attendus. [Ouvrir la visionneuse locale](docs/architecture/index.html#07-profils) · [Consulter les diagrammes sur GitHub](docs/architecture/README.md)
+Les diagrammes de reconstruction relient chaque profil aux écrans, aux contrats, aux données et aux tests attendus. [Ouvrir la visionneuse locale](docs/architecture/index.html#01-contexte) · [Consulter les diagrammes sur GitHub](docs/architecture/README.md)
 
-Le dépôt contient deux profils :
+Le site du jury et le banc de recette correspondent à deux modes d’exécution. [Inventaire de la VM GCP et des flux](docs/architecture/infrastructure-gcp.md)
 
-- **standalone** : serveur Node 24 sans dépendance réseau, prévu pour une installation vierge et la démonstration locale. Il persiste les données dans `data/chatisen.json`, expose HTTP, SSE et WebSocket natif, et sert le client responsive dans `apps/web/public/`.
+- **standalone** : serveur Node 24 qui sert également le site du jury sur une VM GCP. Caddy lui relaie HTTPS et le module Web Push contacte les fournisseurs des navigateurs. Il persiste les données dans `data/chatisen.json`, expose HTTP, SSE et WebSocket natif, et sert le client responsive dans `apps/web/public/`.
 - **compose** : profil cible de l’architecture, avec PostgreSQL 17, API Fastify/TypeScript, client React/Vite, LiveKit, Nginx, Prometheus et Grafana. Il se lance quand Docker et les images sont disponibles.
 
 ## Démarrage rapide
