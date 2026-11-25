@@ -1,0 +1,32 @@
+@startuml
+!include style.iuml
+title 20 · Les interfaces /api non versionnées
+legend
+  |= Route relative à /api |= Serveur standalone · fichier JSON |= Fastify historique · Maps en RAM |
+  | POST /auth/register et /auth/login | 200 {user,csrf}, scrypt, session 24 h | 201 inscription / 200 connexion, Argon2id |
+  | GET /auth/me · POST /auth/logout | {user,csrf} / {ok:true} | {user,csrf} / {ok:true} |
+  | GET /users/search?q=… | Sous-chaîne du handle ou du nom, 20 max | Même recherche, 20 max |
+  | GET /conversations | {conversations} avec membres et lastMessage | {conversations} avec membres et lastMessage |
+  | POST /conversations | {type,memberIds,title?}. Direct existant → 200 | Crée aussi groupes et directs, réponse 201 |
+  | GET /conversations/{id}/messages | {messages}, derniers limit (50, max 100) | {messages,nextBefore}, accepte before |
+  | POST /conversations/{id}/messages | {text,clientMessageId}, 201 {message} | Même nom de clé, réponse 201 {message} |
+  | DELETE /conversations/{id}/members/{uid} | owner · écrit leftAt | owner · écrit leftAt et diffuse |
+  | POST /conversations/{id}/members | Route absente | {userId} · owner · 200 {ok:true} |
+  | GET /ws avec Upgrade | {subscribe:"conversation:"+id}, tous les fils connus | Même trame d’abonnement, mémoire Fastify |
+  | GET /events?conversationId=… | SSE par conversation · utilisateur et membre | Route absente |
+  | POST /conversations/{id}/calls | {kind} direct à deux → 201 {call} | {kind} → 201 {call,token} de démonstration |
+  | GET /calls/incoming | {calls} en sonnerie du destinataire | Route absente |
+  | POST /calls/{id}/answer · POST …/end | {action:accept ou decline} / fin → {call} | {call,token} / fin → {ok:true} |
+  | POST /calls/{id}/signal | {type:offer ou answer ou ice,data} → {ok:true} | Route absente |
+  | GET /calls/{id}/token | Route absente | {token,roomName,serverUrl}, jeton demo.* |
+  | POST /conversations/{id}/attachments | Route absente | Multipart, un fichier ≤ 5 Mio, stocké en RAM |
+  | GET /attachments/{id} | Données base64 préexistantes, contrôle par conversation | Buffer du fichier, contrôle par message |
+
+  <b>Stockage standalone</b>   users[], sessions[], conversations[], members[], messages[], calls[], attachments[].
+  Conversation porte pair (UUID triés) et lastSeq numérique. Message porte conversationId, senderId, clientMessageId.
+  Call porte initiatorId, recipientId et leurs IDs de session. publicCall retire ces IDs de session du DTO.
+  Cookie local chatisen en HTTP, __Host-chatisen avec COOKIE_SECURE=true. Les erreurs utilisent {error:{code,message}}.
+  Chat v1, standalone et historique ont des identités et des magasins indépendants. Les identifiants clientId et
+  clientMessageId appartiennent à des contrats distincts. La liste des routes v1 figure dans les vues 14 et 15.
+endlegend
+@enduml

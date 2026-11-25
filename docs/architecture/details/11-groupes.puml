@@ -1,0 +1,32 @@
+@startuml
+!include style.iuml
+title 11 · Qui peut modifier un groupe ?
+hide footbox
+participant "Client v1" as client
+participant "Routes chat\npostgres-routes.ts" as routes
+participant "GroupOperations /\nPostgresRepository" as group
+database "PostgreSQL 17" as db
+client -> routes : POST /conversations/groups\n{title, memberIds, clientId} sur /api/v1
+routes -> routes : Session + Origin + CSRF. Titre élagué 1–120.\n1–99 UUID distincts, existants, hors créateur.
+routes -> group : createGroupIdempotent
+group -> db : BEGIN · advisory_xact_lock sur (ownerId:clientId)\nSHA-256 du JSON {title,members} aux membres triés
+alt Clé neuve
+  group -> db : Groupe last_seq=1 + owner + membres + événement\nconversation.created + group_creation_commands. COMMIT.
+  routes --> client : 201 ConversationDetail
+else Même clé et mêmes données
+  routes --> client : 200 même groupe si l’auteur en est toujours membre actif
+else Même clé et données différentes
+  routes --> client : 409 IDEMPOTENCY_CONFLICT
+end
+client -> routes : PATCH titre · POST/DELETE membre · POST transfer ou leave
+routes -> group : Une transaction par commande
+group -> db : FOR UPDATE sur conversation ouverte puis membre actif.\nTiers → 404. Action propriétaire par un membre → 403.
+group -> db : Renommer, ajouter/réactiver, retirer ou transférer.\nIncrémenter last_seq et insérer l’événement si l’état change.
+note over group, db
+  Ajout déjà actif → 200. Plafond à l’ajout = 1 000 membres actifs.
+  Retrait de soi par le propriétaire → 409. Transfert à un membre actif.
+  Départ du propriétaire avec d’autres membres → 409 jusqu’au transfert.
+  Départ du dernier propriétaire → left_at, conversation.closed et closed_at.
+end note
+routes --> client : Détail actualisé ou 204 selon la route (vue 14)
+@enduml

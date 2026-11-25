@@ -249,3 +249,11 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** le run 45583168142 est vert ; 17 tests réussis sans échec ni ignoré et trois parcours Chromium réussis, dont les appels. Le résultat corrige le banc de l'essai précédent E23.
 - **Limite :** l'autorisation et les appareils sont synthétiques ; le test ne couvre ni périphérique physique, ni réseaux distincts, ni LiveKit/Compose.
 - **Sources :** [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45583168142), [extrait expurgé](preuves/45583168142/extrait.txt), [échec précédent E23](#e23--échec-du-banc-média-github-et-correction-tentée).
+
+## E25 — Reconstruction depuis les diagrammes
+
+Le 25 novembre 2026, les vues ont été recalées sur le code `bf1cd6029de69598c9d0c035b5abeb6dedc06fbd`. Une copie vierge extraite de ce SHA a installé les 233 paquets du verrou depuis le cache local. Le contrôle de types, les deux builds et huit tests ciblés de contrat et de signature ont réussi. Les deux builds retrouvent le serveur compilé et les ressources React attendues. [Reconstruction du snapshot](../architecture/README.md#reconstruire-le-snapshot) · [Extrait des contrôles](preuves/architecture-bf1cd60/extrait.txt)
+
+Les 22 vues sont présentes dans l’export du workspace Structurizr et dans le lecteur hors ligne. Le contrôle du SVG retrouve les 103 colonnes des 14 tables. Les planches HTTP correspondent aux 21 handlers v1, et les huit exemples de messages et de trames passent les schémas du dépôt. Une seconde génération donne les mêmes SHA-256 pour les 22 SVG et les données du lecteur. [Workspace](../architecture/workspace.dsl) · [Générateur](../architecture/render.py) · [Ouvrir le lecteur](../architecture/index.html#07-profils)
+
+Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromium. Après correction du comportement au changement de largeur, le JavaScript a également été exercé à 390 et 1 440 px avec un DOM simulé. La revue d’autorisation a bloqué la relance locale de PostgreSQL et la capture finale du navigateur mobile. Les preuves applicatives sur PostgreSQL 17 et les appels entre deux navigateurs synthétiques restent celles du run E24. [Preuve E24](#e24--correction-du-banc-média-github) · [Extrait des contrôles](preuves/architecture-bf1cd60/extrait.txt)

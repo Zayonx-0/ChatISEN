@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture · ChatISEN</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font: 15px/1.5 Inter, system-ui, sans-serif;
+      color: #182b3d;
+      background: #e9eef3;
+      --accent: #235a95;
+      --line: #d1dbe5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      display: grid;
+      grid-template: auto minmax(0, 1fr) / 15.5rem minmax(0, 1fr);
+    }
+    a { color: var(--accent); }
+    button, select { font: inherit; }
+    button, select, .svg-link {
+      padding: .37rem .65rem;
+      border: 1px solid var(--line);
+      border-radius: .4rem;
+      background: white;
+      color: #182b3d;
+    }
+    button:not(:disabled), select { cursor: pointer; }
+    button:disabled { opacity: .42; }
+    button:not(:disabled):hover, .svg-link:hover { background: #edf4fb; }
+    :focus-visible { outline: 2px solid #3378bf; outline-offset: 3px; }
+    h1, h2 { margin: 0; }
+    .masthead {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem 1.2rem;
+      color: #f4f8fc;
+      background: #17334d;
+    }
+    .masthead h1 { font-size: 1.1rem; font-weight: 650; }
+    .masthead a { color: #ddebf9; font-size: .88rem; }
+    .sidebar {
+      min-height: 0;
+      overflow: auto;
+      padding: .85rem .75rem;
+      border-right: 1px solid var(--line);
+      background: #f7f9fb;
+    }
+    .sidebar h2 { margin: 1rem .55rem .25rem; font-size: .82rem; color: #365570; }
+    .sidebar section:first-child h2 { margin-top: .1rem; }
+    .sidebar ol { list-style: none; padding: 0; margin: 0; }
+    .sidebar a {
+      display: block;
+      padding: .38rem .55rem;
+      border-radius: .4rem;
+      color: #233c54;
+      text-decoration: none;
+    }
+    .sidebar a:hover { background: #eaf0f6; }
+    .sidebar a[aria-current] {
+      background: #dceafa;
+      color: #174775;
+      font-weight: 650;
+    }
+    .compact-nav { display: none; }
+    main {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: #e9eef3;
+    }
+    main.expanded { position: fixed; inset: 0; z-index: 1; }
+    main:fullscreen { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    .controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .4rem .75rem;
+      padding: .65rem .85rem;
+      background: #f7f9fb;
+      border-bottom: 1px solid var(--line);
+    }
+    .controls h2 { flex: 1 1 12rem; font-size: .98rem; }
+    .tools { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+    .tools button[aria-label$="la vue"] { min-width: 2.3rem; }
+    .zoom-value { min-width: 3.4rem; text-align: center; font-variant-numeric: tabular-nums; }
+    .svg-link { text-decoration: none; }
+    .canvas {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+      background: #e9eef3;
+    }
+    .canvas:focus-visible { outline-offset: -3px; }
+    .canvas.dragging { cursor: grabbing; }
+    .canvas img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      pointer-events: none;
+      user-select: none;
+      transform-origin: center;
+      background: white;
+      box-shadow: 0 0 0 1px #c7d2dd;
+    }
+    .canvas-message {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      pointer-events: none;
+    }
+    [hidden] { display: none !important; }
+    .record {
+      max-height: 38vh;
+      overflow: auto;
+      padding: .42rem .95rem;
+      border-top: 1px solid var(--line);
+      background: white;
+      font-size: .88rem;
+    }
+    .record summary { cursor: pointer; color: #214d74; font-weight: 650; }
+    .record-body { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.2rem; margin: .4rem 0; }
+    .record p { margin: 0; }
+    .record h3 { margin: 0 0 .15rem; font-size: .85rem; }
+    .record nav { display: flex; gap: .3rem 1rem; flex-wrap: wrap; margin-top: .35rem; }
+    .record details { margin: .5rem 0; }
+    .record pre { overflow: auto; max-height: 20vh; background: #f2f5f8; padding: .75rem; }
+    @media (max-width: 850px) {
+      body { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
+      .sidebar { display: none; }
+      .compact-nav {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .4rem .6rem;
+        background: #f7f9fb;
+        border-bottom: 1px solid var(--line);
+      }
+      .compact-nav select { min-width: 0; flex: 1; }
+      .controls { padding: .4rem .6rem; }
+      .controls h2 { flex-basis: 100%; }
+      .masthead { padding: .55rem .6rem; }
+      .record-body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <h1>ChatISEN · Architecture</h1>
+    <a href="README.md" target="_blank" rel="noopener">Guide R01 · bf1cd60</a>
+  </header>
+
+  <nav class="sidebar" aria-label="Diagrammes">
+    <div id="views"></div>
+  </nav>
+  <div class="compact-nav">
+    <label for="view-picker">Vue</label>
+    <select id="view-picker"></select>
+  </div>
+
+  <main id="viewer" aria-label="Lecteur de diagrammes">
+    <header class="controls">
+      <h2 id="view-title" aria-live="polite"></h2>
+      <div class="tools" aria-label="Navigation et zoom">
+        <button type="button" id="previous" aria-label="Vue précédente" title="Vue précédente">←</button>
+        <button type="button" id="next" aria-label="Vue suivante" title="Vue suivante">→</button>
+        <button type="button" id="minus" aria-label="Réduire la vue" title="Réduire la vue">−</button>
+        <output id="zoom" class="zoom-value" aria-label="Niveau de zoom">—</output>
+        <button type="button" id="plus" aria-label="Agrandir la vue" title="Agrandir la vue">+</button>
+        <button type="button" id="fit" title="Ajuster le diagramme à la fenêtre (F)">Ajuster</button>
+        <button type="button" id="fullscreen">Plein écran</button>
+        <a id="svg-link" class="svg-link" download>Télécharger le SVG</a>
+      </div>
+    </header>
+    <div id="canvas" class="canvas" role="region" tabindex="0" aria-label="Diagramme. Molette pour zoomer, glisser ou utiliser les flèches pour déplacer.">
+      <img id="diagram" alt="" draggable="false" hidden>
+      <p id="message" class="canvas-message" role="status">Chargement…</p>
+      <noscript><p>Activez JavaScript ou <a href="README.md">ouvrez les fichiers SVG depuis l’index</a>.</p></noscript>
+    </div>
+    <details class="record" id="record">
+      <summary>Fiche de reconstruction, test et sources</summary>
+      <div class="record-body">
+        <div><h3>À reproduire</h3><p id="build-note"></p></div>
+        <div><h3>Contrôle attendu</h3><p id="check-note"></p></div>
+      </div>
+      <nav id="sources" aria-label="Sources et tests de cette vue"></nav>
+      <details id="steps-panel" hidden>
+        <summary id="steps-title">Commandes du banc de test</summary>
+        <pre id="steps-text" tabindex="0"></pre>
+      </details>
+      <details id="wire-panel" hidden>
+        <summary>Exemple complet sur le réseau</summary>
+        <pre id="wire-text" tabindex="0"></pre>
+      </details>
+      <details id="contract-panel" hidden>
+        <summary>Opérations OpenAPI encore à raccorder</summary>
+        <pre id="contract-gaps"></pre>
+      </details>
+      <details id="sql-panel" hidden>
+        <summary>Lire le SQL exécutable dans cette page</summary>
+        <label for="migration">Migration</label>
+        <select id="migration"></select>
+        <pre id="sql-text" tabindex="0"></pre>
+      </details>
+    </details>
+  </main>
+  <script src="lecteur.js"></script>
+  <script>
+    const views = architecture.views;
+    const byId = (id) => document.getElementById(id);
+    const viewer = byId('viewer');
+    const canvas = byId('canvas');
+    const diagram = byId('diagram');
+    const message = byId('message');
+    const picker = byId('view-picker');
+    const previous = byId('previous');
+    const next = byId('next');
+    const minus = byId('minus');
+    const plus = byId('plus');
+    const fullscreen = byId('fullscreen');
+    const padding = 14;
+    const maxZoom = 12;
+    let current = -1;
+    let zoom = 1;
+    let x = 0;
+    let y = 0;
+    let drag = null;
+    const groups = new Map();
+    const links = views.map(({id, title, group}) => {
+      if (!groups.has(group)) {
+        const section = document.createElement('section');
+        const heading = document.createElement('h2');
+        const list = document.createElement('ol');
+        const options = document.createElement('optgroup');
+        heading.textContent = group;
+        options.label = group;
+        section.append(heading, list);
+        byId('views').append(section);
+        picker.append(options);
+        groups.set(group, {list, options});
+      }
+      const {list, options} = groups.get(group);
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = '#' + id;
+      link.textContent = title;
+      item.append(link);
+      list.append(item);
+      options.append(new Option(title, id));
+      return link;
+    });
+    const roomForRecord = window.matchMedia('(min-width: 851px) and (min-height: 640px)');
+    const sizeRecord = () => { byId('record').open = roomForRecord.matches; };
+    roomForRecord.addEventListener('change', sizeRecord);
+    sizeRecord();
+    for (const name of Object.keys(architecture.migrations)) {
+      byId('migration').add(new Option(name, name));
+    }
+    function showMigration() {
+      byId('sql-text').textContent = architecture.migrations[byId('migration').value];
+    }
+    byId('migration').addEventListener('change', showMigration);
+    showMigration();
+    byId('contract-gaps').textContent = architecture.contractGaps.join('\n');
+
+    const fitScale = () => Math.min(
+      Math.max(1, canvas.clientWidth - 2 * padding) / diagram.naturalWidth,
+      Math.max(1, canvas.clientHeight - 2 * padding) / diagram.naturalHeight,
+    );
+
+    function paint() {
+      if (diagram.hidden || !diagram.naturalWidth) return;
+      const scale = fitScale() * zoom;
+      const boundX = Math.max(0, (diagram.naturalWidth * scale - canvas.clientWidth) / 2 + padding);
+      const boundY = Math.max(0, (diagram.naturalHeight * scale - canvas.clientHeight) / 2 + padding);
+      x = Math.max(-boundX, Math.min(x, boundX));
+      y = Math.max(-boundY, Math.min(y, boundY));
+      diagram.style.transform = 'translate(-50%, -50%) translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')';
+      byId('zoom').value = Math.max(1, Math.round(scale * 100)) + ' %';
+      minus.disabled = zoom <= 1;
+      plus.disabled = zoom >= maxZoom;
+    }
+
+    function fit() {
+      zoom = 1;
+      x = 0;
+      y = 0;
+      paint();
+    }
+
+    function zoomBy(factor, anchorX = 0, anchorY = 0) {
+      if (diagram.hidden) return;
+      const value = Math.max(1, Math.min(maxZoom, zoom * factor));
+      if (value === 1) {
+        fit();
+        return;
+      }
+      const ratio = value / zoom;
+      x = anchorX - (anchorX - x) * ratio;
+      y = anchorY - (anchorY - y) * ratio;
+      zoom = value;
+      paint();
+    }
+
+    function showView() {
+      const index = views.findIndex(({id}) => '#' + id === location.hash);
+      const selected = index < 0 ? 0 : index;
+      if (current === selected) return;
+      current = selected;
+      const {id, title, build, check, links: sources, sql, steps, wire} = views[selected];
+      const src = 'svg/' + id + '.svg';
+      previous.disabled = selected === 0;
+      next.disabled = selected === views.length - 1;
+      links.forEach((link, i) => {
+        if (i === selected) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
+      picker.value = id;
+      byId('view-title').textContent = title;
+      byId('build-note').textContent = build;
+      byId('check-note').textContent = check;
+      byId('sources').replaceChildren(...sources.map(([label, path]) => {
+        const link = document.createElement('a');
+        link.textContent = label;
+        link.href = path;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        return link;
+      }));
+      byId('sql-panel').hidden = !sql;
+      byId('sql-panel').open = false;
+      byId('contract-panel').hidden = id !== '15-http-flux-appels';
+      byId('contract-panel').open = false;
+      byId('steps-panel').hidden = !steps;
+      byId('steps-panel').open = false;
+      byId('steps-title').textContent = id === '07-profils' ? 'Reconstruire depuis un dossier neuf' : 'Commandes du banc de test';
+      byId('steps-text').textContent = (steps || []).join('\n');
+      byId('wire-panel').hidden = !wire;
+      byId('wire-panel').open = false;
+      byId('wire-text').textContent = (wire || []).join('\n');
+      byId('svg-link').href = src;
+      document.title = title + ' · ChatISEN';
+      diagram.hidden = true;
+      message.hidden = false;
+      message.textContent = 'Chargement…';
+      byId('zoom').value = '—';
+      diagram.alt = title;
+      diagram.src = src;
+    }
+
+    function goTo(index) {
+      if (views[index]) location.hash = views[index].id;
+    }
+
+    diagram.addEventListener('load', () => {
+      diagram.style.width = diagram.naturalWidth + 'px';
+      diagram.style.height = diagram.naturalHeight + 'px';
+      diagram.hidden = false;
+      message.hidden = true;
+      fit();
+    });
+    diagram.addEventListener('error', () => {
+      message.textContent = 'Impossible de charger le SVG. Vérifiez que le dossier svg accompagne cette page.';
+    });
+    window.addEventListener('hashchange', showView);
+    new ResizeObserver(paint).observe(canvas);
+    picker.addEventListener('change', () => { location.hash = picker.value; });
+    previous.addEventListener('click', () => goTo(current - 1));
+    next.addEventListener('click', () => goTo(current + 1));
+    minus.addEventListener('click', () => zoomBy(1 / 1.25));
+    plus.addEventListener('click', () => zoomBy(1.25));
+    byId('fit').addEventListener('click', fit);
+    function updateFullscreenButton() {
+      const expanded = document.fullscreenElement === viewer || viewer.classList.contains('expanded');
+      fullscreen.textContent = expanded ? 'Quitter le plein écran' : 'Plein écran';
+      fullscreen.setAttribute('aria-pressed', String(expanded));
+    }
+
+    function expandViewer(expanded) {
+      viewer.classList.toggle('expanded', expanded);
+      updateFullscreenButton();
+    }
+
+    fullscreen.addEventListener('click', async () => {
+      if (document.fullscreenElement === viewer) {
+        await document.exitFullscreen();
+      } else if (viewer.classList.contains('expanded')) {
+        expandViewer(false);
+      } else {
+        if (document.fullscreenEnabled && viewer.requestFullscreen) {
+          try {
+            await viewer.requestFullscreen();
+            return;
+          } catch {
+            // Local files and embedded browsers may decline native fullscreen.
+          }
+        }
+        expandViewer(true);
+      }
+    });
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    updateFullscreenButton();
+
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12,
+        event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2);
+    }, { passive: false });
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || drag || zoom === 1) return;
+      drag = { id: event.pointerId, clientX: event.clientX, clientY: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add('dragging');
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (drag?.id !== event.pointerId) return;
+      x += event.clientX - drag.clientX;
+      y += event.clientY - drag.clientY;
+      drag.clientX = event.clientX;
+      drag.clientY = event.clientY;
+      paint();
+    });
+    canvas.addEventListener('lostpointercapture', () => {
+      drag = null;
+      canvas.classList.remove('dragging');
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && viewer.classList.contains('expanded')) {
+        expandViewer(false);
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('select')) return;
+      if (/^[1-9]$/.test(event.key)) goTo(views.findIndex(({id}) => Number(id.slice(0, 2)) === Number(event.key)));
+      else if (event.key.toLowerCase() === 'f') fit();
+      else if (event.key === '+' || event.key === '=') zoomBy(1.25);
+      else if (event.key === '-') zoomBy(1 / 1.25);
+      else if (event.target === canvas && event.key.startsWith('Arrow')) {
+        if (event.key === 'ArrowLeft') x += 55;
+        if (event.key === 'ArrowRight') x -= 55;
+        if (event.key === 'ArrowUp') y += 55;
+        if (event.key === 'ArrowDown') y -= 55;
+        paint();
+      } else if (event.key === 'ArrowLeft') goTo(current - 1);
+      else if (event.key === 'ArrowRight') goTo(current + 1);
+      else return;
+      event.preventDefault();
+    });
+    showView();
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+@startuml
+!include style.iuml
+title 22 · Refaire le parcours et reconnaître le résultat attendu
+legend
+  <b>Deux navigateurs indépendants pour Alice et Bob. Un troisième compte, Ève, reste extérieur au fil.</b>
+  |= Parcours du sujet |= Réalisation au SHA bf1cd60 |= Observation qui tranche |
+  | Compte et direct | React → v1 → PostgreSQL | Cookie Secure, 401 après révocation, un seul ID de direct |
+  | Texte privé et groupe | v1, transaction + journal + WebSocket | Un seul ID après retry, 409 si contenu différent, tiers → 404 |
+  | Historique et coupure | React reprend depuis seq, garde les brouillons en RAM | Bob hors ligne 15 s, 20 messages uniques, relecture après redémarrage API |
+  | Rôles du groupe | Routes v1 de gestion, UI de création | Transfert puis départ, un seul owner actif, fermeture du dernier membre |
+  | Audio / vidéo du profil local | WebRTC direct, deux pairs sur une machine | Octets audio et images décodées de chaque côté, refus et raccrochage |
+  | Audio / vidéo Compose | Admission v1 expérimentale, SFU configurée | À établir : pistes distantes, mute/caméra et révocation sur pile HTTPS |
+  | Déploiement et supervision | Compose local + provisioning Grafana | À établir : profil vierge, navigation HTTPS, métriques v1 et courbes UTC |
+  | Accès du jury sur GCP | DNS, IP statique, entrée TCP 27028 en cible | À établir hors tailnet : TLS, WSS et deux réseaux recevant le média |
+
+  <b>Extensions et investigation du mandat</b>
+  |= Objet |= Point d’ancrage actuel |= Preuve à produire |
+  | Conférence, partage d’écran | Cible LiveKit · client React à raccorder | 3 participants, piste écran distante, départ et arrêt du partage |
+  | Partage de fichiers v1 | Table attachments, OpenAPI /files, upload volatil historique | Envoi et relecture après redémarrage, hash identique, tiers refusé |
+  | Qualité, étude et IA | quality_samples, analyse CSV dans analysis/study.py | Jeux réels de getStats, méthode, résultats et évaluation du PoC |
+  | Pannes, charge et restauration | Journal PG, sondes, procédure pg_dump + age | Deux processus, mesures sous charge, restauration et RPO/RTO mesurés |
+  J1 exige le parcours intégré sur Compose. Les tests sur loopback et l’admission signée ont leurs propres preuves.
+endlegend
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+!include style.iuml
+title 17 · Un appel à deux dans le profil standalone
+hide footbox
+participant "Alice\napp.js" as alice
+participant "Node\nserver.mjs" as node
+participant "Bob\napp.js" as bob
+alice -> alice : getUserMedia({audio:true, video:kind==='video'})
+alice -> node : POST /api/conversations/{cid}/calls {kind}\ncookie + x-csrf-token
+node -> node : Direct à deux, membre actif, un seul appel ouvert.\nSauve ringing et initiatorSessionId dans le JSON.
+node --> alice : 201 {call}
+node -> bob : WS call.invitation. Repli : GET /api/calls/incoming\nau chargement et à l’actualisation toutes les 3 s.
+alt Bob refuse
+  bob -> node : POST /api/calls/{id}/answer {action:"decline"}
+  node --> alice : call.updated · ended / declined
+else Bob accepte
+  bob -> bob : Obtient micro et, en vidéo, caméra
+  bob -> node : POST /api/calls/{id}/answer {action:"accept"}
+  node -> node : Persiste active et recipientSessionId
+  node --> alice : call.updated · active
+  alice -> node : POST /api/calls/{id}/signal {type:"offer",data:SDP}
+  node -> bob : WS call.signal à la seule session de Bob
+  bob -> node : POST …/signal {type:"answer",data:SDP}
+  node -> alice : WS call.signal à la seule session d’Alice
+  alice <-> node : POST …/signal et livraison WS des ICE, dans les deux sens
+  node <-> bob : ICE mis en attente tant que remoteDescription manque
+  alice <-> bob : RTCPeerConnection({iceServers:[]}) · DTLS-SRTP\nAudio et vidéo entre pairs. ontrack alimente le lecteur distant.
+  note over alice,bob
+    Micro et caméra basculent track.enabled. La réception se contrôle sur chaque navigateur
+    par inbound-rtp.bytesReceived (audio) et inbound-rtp.framesDecoded (vidéo).
+  end note
+  bob -> node : POST /api/calls/{id}/end
+  node --> alice : call.updated · ended. Les deux clients ferment\nle peer et arrêtent les pistes locales.
+end
+legend bottom
+  Une invitation de plus de 60 s expire au prochain contrôle des appels. Une session WS déconnectée
+  sans reconnexion pendant 10 s clôt son appel. Au redémarrage du serveur, ringing et active deviennent ended.
+  SDP et ICE circulent en mémoire. Le fichier contient les métadonnées d’appel. Essais E22 (local) et E24 (CI).
+endlegend
+@enduml

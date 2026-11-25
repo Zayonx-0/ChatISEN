@@ -2,6 +2,8 @@
 
 ChatISEN est un projet académique de communication temps réel en cours de révision. Le socle J1 n’est pas encore reçu : la messagerie du profil cible utilise PostgreSQL, mais les appels audio/vidéo réels et la recette complète restent à démontrer. Voir [le bilan R01](docs/report/r01.md).
 
+Les diagrammes de reconstruction relient chaque profil aux écrans, aux contrats, aux données et aux tests attendus. [Ouvrir la visionneuse locale](docs/architecture/index.html#07-profils) · [Consulter les diagrammes sur GitHub](docs/architecture/README.md)
+
 Le dépôt contient deux profils :
 
 - **standalone** : serveur Node 24 sans dépendance réseau, prévu pour une installation vierge et la démonstration locale. Il persiste les données dans `data/chatisen.json`, expose HTTP, SSE et WebSocket natif, et sert le client responsive dans `apps/web/public/`.
