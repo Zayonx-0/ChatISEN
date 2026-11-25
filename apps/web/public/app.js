@@ -13,7 +13,7 @@ const conversationName = c => (c?.type==='direct' ? c.members?.find(x=>x.id!==st
 function showError(error){const el=$('#app-error');if(el){el.textContent=error instanceof Error?error.message:String(error);el.hidden=false;}}
 function notify(title,body){
   const notice=$('#notice');if(notice){notice.textContent=`${title} : ${body}`;notice.hidden=false;clearTimeout(notificationTimer);notificationTimer=setTimeout(()=>{if($('#notice'))$('#notice').hidden=true},5000);}
-  if(document.hidden && 'Notification' in window && Notification.permission==='granted'){try{new Notification(title,{body,tag:'chatisen'})}catch{/* L'alerte dans l'application reste disponible. */}}
+  if(document.hidden && !state.pushEnabled && 'Notification' in window && Notification.permission==='granted'){try{new Notification(title,{body,tag:'chatisen'})}catch{/* L'alerte dans l'application reste disponible. */}}
 }
 const icons = {
   brand:'M12 2c1.8 5.5 4.5 8.2 10 10-5.5 1.8-8.2 4.5-10 10C10.2 16.5 7.5 13.8 2 12c5.5-1.8 8.2-4.5 10-10Z',
@@ -94,13 +94,7 @@ function render(){
     '<div id="notice" class="notice" role="status" hidden></div><dialog id="modal" class="card call" aria-labelledby="call-title"></dialog></div>';
 
   $('#logout').onclick=logout;
-  $('#enable-notifications').onclick=async()=>{
-    try{
-      if(!('Notification' in window))throw Error('Les notifications navigateur ne sont pas disponibles.');
-      const permission=await Notification.requestPermission();
-      notify('Notifications',permission==='granted'?'activées':permission==='denied'?'refusées par le navigateur':'non activées');
-    }catch(error){notify('Notifications',error.message);}
-  };
+  $('#enable-notifications').onclick=togglePushNotifications;
   $('#compose').onsubmit=send;
   $('#text').oninput=()=>{if(state.selected)drafts.set(state.selected.id,$('#text').value);syncComposer();};
   $('#search').oninput=search;
@@ -119,6 +113,7 @@ async function logout(){
   try{
     if(state.call)await endCall();
     await api('/api/auth/logout',mutate({}));
+    await removeBrowserSubscription();
     authVersion++;
     selectionVersion++;
     searchVersion++;
@@ -147,11 +142,17 @@ async function load(){
   state.convs=result.conversations;
   for(const conversation of state.convs)if(conversation.lastMessage)state.seen.add(conversation.lastMessage.id);
   render();
+  updatePushButton();
+  void restorePushNotifications();
   connectSocket();
   clearInterval(refreshTimer);
   refreshTimer=setInterval(refreshConversations,3000);
   const previous=state.convs.find(conversation=>conversation.id===sessionStorage.getItem('chatisen:thread:'+state.user.id));
-  if(previous)await select(previous);
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('conversation');
+  const target=state.convs.find(conversation=>conversation.id===requested)||previous;
+  if(target)await select(target);
+  if(requested){params.delete('conversation');history.replaceState(null,'',location.pathname+(params.size?'?'+params:'')+location.hash);}
   await checkIncoming().catch(showError);
 }
 
@@ -391,6 +392,109 @@ async function send(event){
   }catch(error){if(version===authVersion)showError(error);}
   finally{state.sending=false;syncComposer();}
 }
+function updatePushButton(message) {
+  const button=$('#enable-notifications');
+  if(!button)return;
+  const label=message || (state.pushEnabled?'Désactiver les notifications':'Activer les notifications');
+  button.title=label;
+  button.setAttribute('aria-label',label);
+  button.setAttribute('aria-pressed',String(Boolean(state.pushEnabled)));
+}
+
+async function removeBrowserSubscription() {
+  if(!('serviceWorker' in navigator))return;
+  try {
+    const registration=await navigator.serviceWorker.getRegistration('/');
+    const subscription=await registration?.pushManager.getSubscription();
+    if(subscription)await subscription.unsubscribe();
+  } catch {
+    // Server-side revocation on logout remains authoritative.
+  }
+  state.pushEnabled=false;
+}
+
+function applicationServerKey(encoded) {
+  const padding='='.repeat((4-encoded.length%4)%4);
+  return Uint8Array.from(atob((encoded+padding).replace(/-/g,'+').replace(/_/g,'/')),character=>character.charCodeAt(0));
+}
+
+async function enablePushNotifications() {
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)) {
+    throw Error('Les notifications en arrière-plan ne sont pas prises en charge par ce navigateur.');
+  }
+  const config=await api('/api/push/config');
+  if(!config.available||!config.publicKey)throw Error('Les notifications sont momentanément indisponibles.');
+  const registration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+  await navigator.serviceWorker.ready;
+  let subscription=await registration.pushManager.getSubscription();
+  const key=applicationServerKey(config.publicKey);
+  if(subscription && subscription.options.applicationServerKey) {
+    const current=new Uint8Array(subscription.options.applicationServerKey);
+    if(current.length!==key.length||current.some((byte,index)=>byte!==key[index])) {
+      await subscription.unsubscribe();
+      subscription=null;
+    }
+  }
+  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  await api('/api/push/subscriptions',mutate(subscription.toJSON()));
+  state.pushEnabled=true;
+  updatePushButton();
+}
+
+async function restorePushNotifications() {
+  state.pushEnabled=false;
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const version=authVersion;
+  try {
+    await enablePushNotifications();
+    if(version!==authVersion)state.pushEnabled=false;
+  } catch {
+    if(version===authVersion)updatePushButton('Réessayer les notifications');
+  }
+}
+
+async function togglePushNotifications() {
+  const button=$('#enable-notifications');
+  if(!button||button.disabled)return;
+  button.disabled=true;
+  try {
+    if(state.pushEnabled) {
+      const registration=await navigator.serviceWorker.getRegistration('/');
+      const subscription=await registration?.pushManager.getSubscription();
+      if(subscription) {
+        await api('/api/push/subscriptions',{method:'DELETE',headers:{'x-csrf-token':state.csrf},body:JSON.stringify({endpoint:subscription.endpoint})});
+        await subscription.unsubscribe();
+      }
+      state.pushEnabled=false;
+      updatePushButton();
+      notify('Notifications','désactivées');
+      return;
+    }
+    if(!('Notification' in window))throw Error('Les notifications ne sont pas disponibles dans ce navigateur.');
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')throw Error(permission==='denied'?'Autorisez les notifications pour ce site dans les réglages du navigateur.':'Autorisation des notifications non accordée.');
+    await enablePushNotifications();
+    notify('Notifications','activées');
+  } catch(error) {
+    updatePushButton('Réessayer les notifications');
+    const denied=error.name==='NotAllowedError'||/permission denied/i.test(error.message||'');
+    notify('Notifications',denied?'Le navigateur a refusé l’abonnement. Vérifiez ses autorisations et utilisez une fenêtre normale.':error.message||'Activation impossible.');
+  } finally {
+    button.disabled=false;
+  }
+}
+
+async function openNotificationConversation(conversationId) {
+  if(!state.user||typeof conversationId!=='string')return;
+  let conversation=state.convs.find(item=>item.id===conversationId);
+  if(!conversation){await refreshConversations();conversation=state.convs.find(item=>item.id===conversationId);}
+  if(conversation)await select(conversation,{focus:true});
+}
+
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',event=>{
+  if(event.data?.type==='open-conversation')void openNotificationConversation(event.data.conversationId).catch(showError);
+});
+
 async function checkIncoming(){if(!state.user)return;const result=await api('/api/calls/incoming');if(state.user&&!state.call&&result.calls[0])incomingCall(result.calls[0]);}
 function incomingCall(call){if(state.call||call.initiatorId===state.user?.id)return;state.call=call;state.callError='';drawCall();notify('Appel entrant',callContact(call));}
 async function handleEvent(event){

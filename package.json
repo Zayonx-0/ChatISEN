@@ -30,5 +30,8 @@
       "argon2",
       "esbuild"
     ]
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
   }
 }

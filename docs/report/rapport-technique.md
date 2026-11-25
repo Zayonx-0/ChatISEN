@@ -99,3 +99,9 @@ L'équipe doit ensuite vérifier l'admission expérimentale auprès de LiveKit e
 Le [run 45203593069](journal-des-preuves.md#e18--contrôle-de-la-tête-documentaire-b56ac97) confirme ensuite les contrôles disponibles sur la tête `b56ac97` : **15 tests réussis, aucun échec ni ignoré**, et **un scénario Chromium réussi**. Le job est vert ; sa portée reste celle du banc décrit ci-dessus et ne constitue pas la réception J1.
 
 La PR R01 reste donc un travail intermédiaire. Le tag de livraison suivant ne pourra être créé qu'après passage des critères du [mandat R01](../revisions/R01-socle-j1.md), vérification sur le code intégré et publication des preuves. Le journal conserve les observations initiales même si un essai ultérieur conduit à modifier une décision.
+
+## Notifications après fermeture de l’onglet
+
+La première notification reposait sur la connexion WebSocket de la page : une fois l’onglet fermé, aucun code ne pouvait recevoir le message. Le profil standalone utilise désormais Web Push et un service worker. Après autorisation explicite, le navigateur enregistre un abonnement associé à la session ; le serveur envoie une alerte aux seuls membres autorisés, sans inclure le contenu du message. Un clic permet de retrouver la conversation. La déconnexion révoque l’abonnement et l’expiration de la session suspend les envois jusqu’à une nouvelle connexion.
+
+Un essai avec deux profils Chromium persistants a confirmé la réception d’un push réel après fermeture de l’onglet. Les contrôles d’accès et de persistance ont également été testés ; les limites de l’essai en arrière-plan et du mode privé sont consignées dans [E27](journal-des-preuves.md#e27--notifications-lorsque-longlet-est-fermé). La livraison dépend des autorisations du navigateur et du système ainsi que de leur capacité à fonctionner en arrière-plan.
