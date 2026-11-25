@@ -257,3 +257,11 @@ Le 25 novembre 2026, les vues ont été recalées sur le code `bf1cd6029de69598c
 Les 22 vues sont présentes dans l’export du workspace Structurizr et dans le lecteur hors ligne. Le contrôle du SVG retrouve les 103 colonnes des 14 tables. Les planches HTTP correspondent aux 21 handlers v1, et les huit exemples de messages et de trames passent les schémas du dépôt. Une seconde génération donne les mêmes SHA-256 pour les 22 SVG et les données du lecteur. [Workspace](../architecture/workspace.dsl) · [Générateur](../architecture/render.py) · [Ouvrir le lecteur](../architecture/index.html#07-profils)
 
 Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromium. Après correction du comportement au changement de largeur, le JavaScript a également été exercé à 390 et 1 440 px avec un DOM simulé. La revue d’autorisation a bloqué la relance locale de PostgreSQL et la capture finale du navigateur mobile. Les preuves applicatives sur PostgreSQL 17 et les appels entre deux navigateurs synthétiques restent celles du run E24. [Preuve E24](#e24--correction-du-banc-média-github) · [Extrait des contrôles](preuves/architecture-bf1cd60/extrait.txt)
+
+## E26 — Arrivée et navigation dans la messagerie
+
+- **Date UTC** 2026-11-25. **Lots et IDs** F01, F02, F04, F06, F07 et F13 en partie.
+- **Incident** sans fil sélectionné, la zone de saisie et le bouton d’envoi occupaient une part excessive de l’écran. La grille redistribuait l’espace quand la zone d’erreur était masquée et les actions restaient visibles sans destinataire.
+- **Correction** l’accueil oriente vers la recherche d’un contact. Le fil dispose de sa propre zone de défilement et la saisie n’apparaît qu’une fois une conversation ouverte. Sur mobile, un retour donne accès à la liste et conserve le brouillon. Le client React propose aussi une action de recherche depuis l’accueil.
+- **Vérification** typecheck et build du client React, 17 tests avec PostgreSQL 16.15 jetable et trois parcours Chromium sur macOS. Le scénario standalone vérifie l’état vide, la recherche, l’envoi et le retour mobile. Le scénario d’appels utilise des périphériques synthétiques. Le parcours React couvre les échanges, les groupes et le rattrapage.
+- **Sources** [tests standalone](../../tests/e2e/standalone.spec.ts) et [test React](../../tests/e2e/chat.spec.ts).

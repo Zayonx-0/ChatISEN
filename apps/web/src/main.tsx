@@ -46,7 +46,76 @@ function App(){
   if(loading)return <main className="empty">Chargement de votre session…</main>;
   if(!user)return <Auth initialError={error} onAuthenticated={profile=>{setError('');setUser(profile);void loadConversations().catch(e=>setError(e.message));}}/>;
   const pageError=error&&<div className="error inline" role="alert">{error}<button onClick={()=>setError('')} aria-label="Fermer">×</button></div>;const members=selected?.members||[];const authors=new Map(members.map(m=>[m.user.id,m.user.displayName]));
-  return <div className="shell"><header><div className="brand"><span className="logo small">✦</span><b>ChatISEN</b></div><div className="status"><span className="dot"/>{selected?(connection==='online'?'Connecté':connection==='connecting'?'Connexion…':'Reconnexion…'):'Connecté'} · {user.displayName}<button className="ghost" onClick={()=>void logout()}>Déconnexion</button></div></header><div className={`layout ${showList?'show-list':'show-chat'}`}><aside>{showList&&pageError}<div className="side-title"><h2>Conversations</h2></div><form className="contact-search" onSubmit={findContact}><label htmlFor="handle-search">Rechercher un identifiant exact</label><div><input id="handle-search" className="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ex. bob"/><button className="icon" aria-label="Rechercher">⌕</button></div></form>{contact&&<div className="results"><strong>{contact.displayName} · @{contact.handle}</strong><button onClick={()=>void direct()}>Ouvrir une conversation</button><button onClick={()=>void createGroup()}>Créer un groupe avec ce contact</button></div>}<div className="conversation-list">{conversations.map(c=><button className={'conversation '+(selected?.id===c.id?'active':'')} key={c.id} onClick={()=>void select(c)}><span className="avatar">{displayName(c,user.id).slice(0,1).toUpperCase()}</span><span><b>{displayName(c,user.id)}</b><small>{c.type==='group'?'Groupe':'Conversation privée'}</small></span></button>)}</div></aside><main className="chat"><div className="chat-head"><div><button className="mobile-back" onClick={()=>setShowList(true)}>← Conversations</button><h2>{selected?displayName(selected,user.id):'Sélectionnez une conversation'}</h2><small>{selected?`${members.length} participant(s)`:'Recherchez un identifiant pour commencer.'}</small></div></div><div className="messages">{selected?<>{before&&<button className="history" onClick={()=>void history()}>Charger les messages précédents</button>}{messages.map(m=><article className={'message '+(m.senderId===user.id?'mine':'')} key={m.id}><div className="bubble"><div className="meta"><b>{authors.get(m.senderId)||'Membre'}</b><time>{new Date(m.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</time></div><p>{m.text}</p></div></article>)}</>:<div className="empty">Choisissez une conversation pour commencer.</div>}</div>{!showList&&pageError}{selected&&<form className="composer" onSubmit={send}><input value={draft} onChange={e=>{drafts.current[selected.id]=e.target.value;setDraft(e.target.value);}} placeholder="Écrire un message…" aria-label="Message" maxLength={4000}/><button className="primary" disabled={sendBusy}>{sendBusy?'Envoi…':'Envoyer'}</button></form>}</main></div></div>;
+  return (
+    <div className="shell">
+      <header>
+        <div className="brand"><span className="logo small">✦</span><b>ChatISEN</b></div>
+        <div className="status">
+          <span className="dot"/>
+          <span className="account-status">{selected?(connection==='online'?'Connecté':connection==='connecting'?'Connexion…':'Reconnexion…'):'Connecté'} · {user.displayName}</span>
+          <button className="ghost" onClick={()=>void logout()}>Déconnexion</button>
+        </div>
+      </header>
+      <div className={`layout ${showList?'show-list':'show-chat'}`}>
+        <aside>
+          {showList&&pageError}
+          <div className="side-title"><h2>Conversations</h2></div>
+          <form className="contact-search" onSubmit={findContact}>
+            <label htmlFor="handle-search">Rechercher un identifiant exact</label>
+            <div>
+              <input id="handle-search" className="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ex. bob" autoComplete="off"/>
+              <button className="icon" aria-label="Rechercher" disabled={!search.trim()}>⌕</button>
+            </div>
+          </form>
+          {contact&&<div className="results">
+            <strong>{contact.displayName} · @{contact.handle}</strong>
+            <button onClick={()=>void direct()}>Ouvrir une conversation</button>
+            <button onClick={()=>void createGroup()}>Créer un groupe avec ce contact</button>
+          </div>}
+          <nav className="conversation-list" aria-label="Vos conversations">
+            {!conversations.length&&<p className="side-note">Vos conversations apparaîtront ici.</p>}
+            {conversations.map(c=>(
+              <button className={'conversation '+(selected?.id===c.id?'active':'')} aria-current={selected?.id===c.id||undefined} key={c.id} onClick={()=>void select(c)}>
+                <span className="avatar" aria-hidden="true">{displayName(c,user.id).slice(0,1).toUpperCase()}</span>
+                <span><b>{displayName(c,user.id)}</b><small>{c.type==='group'?'Groupe':'Conversation privée'}</small></span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <main className="chat">
+          {selected?<>
+            <div className="chat-head">
+              <div>
+                <button className="mobile-back" onClick={()=>setShowList(true)}>← Conversations</button>
+                <h2>{displayName(selected,user.id)}</h2><small>{members.length} participant(s)</small>
+              </div>
+            </div>
+            <div className="messages">
+              {before&&<button className="history" onClick={()=>void history()}>Charger les messages précédents</button>}
+              {!messages.length&&<p className="empty">Aucun message. Écrivez le premier !</p>}
+              {messages.map(m=>(
+                <article className={'message '+(m.senderId===user.id?'mine':'')} key={m.id}>
+                  <div className="bubble">
+                    <div className="meta"><b>{authors.get(m.senderId)||'Membre'}</b><time>{new Date(m.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</time></div>
+                    <p>{m.text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {!showList&&pageError}
+            <form className="composer" onSubmit={send}>
+              <input value={draft} onChange={e=>{drafts.current[selected.id]=e.target.value;setDraft(e.target.value);}} placeholder="Écrire un message…" aria-label="Message" maxLength={4000}/>
+              <button className="primary" disabled={sendBusy||!draft.trim()}>{sendBusy?'Envoi…':'Envoyer'}</button>
+            </form>
+          </>:<section className="welcome">
+            <h2>{conversations.length?'Reprenez une conversation':'Commencez une conversation'}</h2>
+            <p>Ouvrez un fil ou recherchez un contact par son identifiant pour lui écrire.</p>
+            <button className="primary" onClick={()=>document.getElementById('handle-search')?.focus()}>Rechercher un contact</button>
+          </section>}
+        </main>
+      </div>
+    </div>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(<App/>);
