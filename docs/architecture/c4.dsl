@@ -9,7 +9,8 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         pushProvider = softwareSystem "Service push du navigateur" "FCM, Mozilla ou autre fournisseur accepté par push.mjs. Livre au service worker."
         peerBrowser = softwareSystem "Navigateur du correspondant" "Terminaison du média audio et vidéo pendant un appel direct."
         control = softwareSystem "Plan de contrôle GCP" "Console et API Compute Engine, VPC, IAM et observabilité. Autorisations distinctes de ChatISEN."
-        perimeter = softwareSystem "Pare-feu VPC default · NIC de la VM" "europe-west4 · 10.164.0.0/20. IP 35.214.178.128 vers 10.164.0.2. Entrées observées : TCP 22, 80 et 443."
+        perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard 35.214.178.128. Règles web TCP 80/443 (P1000), SSH 22 (P65534). TCP 27028 permis, sans écoute. Voir les huit règles IPv4 et la limite IAM."
+        snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "default-schedule-1 copie le disque chaque jour. Deux snapshots standards prêts au relevé du 25 novembre."
         bench = softwareSystem "Client de test v1" "Exerce les routes d’admission de Fastify par injection HTTP."
         chat = softwareSystem "ChatISEN" "Comptes, messagerie et appels directs. Démonstration standalone en HTTPS sur Google Compute Engine." {
             group "Navigateur web" {
@@ -71,7 +72,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                     localPush = component "Notifications hors onglet" "push.mjs vérifie la session et le membre destinataire. Envoi Web Push chiffré, VAPID, puis sw.js affiche la notification." "web-push / Push API"
                     localStatus = component "Sondes et compteurs" "/healthz, /readyz et /metrics. Compte utilisateurs et messages sur la copie en mémoire." "HTTP GET"
                 }
-                localFile = container "Stockage JSON standalone" "Sur GCP, /var/lib/chatisen/chatisen.json. Comptes, sessions, fils, membres, messages, appels, abonnements Push et pièces préexistantes." "Fichier sur disque" {
+                localFile = container "Fichier JSON · disque de démarrage" "/var/lib/chatisen/chatisen.json sur ext4. Comptes, sessions, membres, fils, messages et appels." "pd-balanced · 10 Go · europe-west4-a" {
                     tags "Database"
                 }
             }
@@ -151,15 +152,16 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         student -> web "Utilise le client du banc R01"
         localBrowser -> dns "F01 · Résout le domaine du jury" "DNS"
         localBrowser -> perimeter "F02 · Demande le site et le flux temps réel" "HTTP 80, HTTPS/WSS 443"
-        perimeter -> caddy "F02 · Achemine le trafic public à Caddy" "TCP 80 et 443"
+        perimeter -> caddy "F02 · default-allow-http / https" "TCP 80 et 443"
         operator -> perimeter "F12 · Ouvre la session de maintenance" "SSH 22"
-        perimeter -> os "F12 · Remet la connexion à sshd" "TCP 22"
+        perimeter -> os "F12 · default-allow-ssh vers sshd" "TCP 22"
         os -> local "F12 · Supervise chatisen.service" "systemd"
         os -> caddy "F12 · Supervise caddy.service" "systemd"
         localBrowser -> stun "F08 · Découvre les adresses candidates" "STUN 19302"
         localBrowser -> peerBrowser "F09 · Échange audio et vidéo" "ICE / DTLS-SRTP"
         caddy -> local "F03 · Transmet pages, API et Upgrade" "HTTP / WS 127.0.0.1:3000"
         caddy -> localRouter "F03 · Termine TLS puis relaie" "HTTP / WS 127.0.0.1:3000"
+        localFile -> snapshots "F15 · GCE capture le disque de démarrage" "Snapshot standard quotidien"
         local -> localFile "F06 · Charge puis réécrit le document" "Système de fichiers ext4"
         local -> pushProvider "F10 · Transmet une notification chiffrée" "HTTPS 443"
         pushProvider -> localBrowser "F11 · Réveille le service worker" "Web Push"
@@ -192,17 +194,21 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                 peer = infrastructureNode "Pair WebRTC" "Exécute le même client web."
             }
             schoolDns = deploymentNode "DNS public" "Résolution du domaine de démo." "DNS" {
-                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Pointe vers le frontal HTTPS."
+                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Enregistrement A : 35.214.178.128. IPv4 statique régionale, niveau Standard."
             }
             stunHost = deploymentNode "Service externe STUN" "Aide à la découverte des candidats ICE." "STUN" {
                 stunEndpoint = infrastructureNode "stun.l.google.com:19302" "Service observé dans GET /api/config."
             }
-            cloud = deploymentNode "Google Cloud · projet ChatISEN" "Projet détenant la VM publique." "Compute Engine" {
+            cloud = deploymentNode "Google Cloud · projet ChatISEN" "Une VM en fonctionnement dans la liste du projet." "Compute Engine" {
+                eu = deploymentNode "Multi-région eu" "Stockage des copies standard du disque." "Google Cloud" {
+                    savedDisks = infrastructureNode "Snapshots standards" "Deux copies prêtes, datées des 23 et 24 novembre 2026." "Compute Engine"
+                }
                 vpc = deploymentNode "VPC default · global" "Région du sous-réseau : europe-west4." "Google Cloud VPC" {
-                    subnet = deploymentNode "europe-west4 · Pays-Bas" "Sous-réseau 10.164.0.0/20, passerelle 10.164.0.1." "Sous-réseau régional" {
-                        firewall = infrastructureNode "F02/F12 · Filtrage VPC" "Cible : interface de la VM. Les règles effectives sont détaillées dans la fiche réseau." "Pare-feu VPC"
+                    subnet = deploymentNode "Sous-réseau default · europe-west4 · 10.164.0.0/20" "10.164.0.0/20 (P0), passerelle 10.164.0.1. Route Internet 0.0.0.0/0 (P1000)." "Sous-réseau régional" {
+                        firewall = infrastructureNode "F02/F12 · Filtrage VPC vers nic0" "8 règles IPv4 visibles. Web TCP 80/443 à P1000, SSH à P65534. Destination nic0 : 10.164.0.2 (éphémère)." "Pare-feu VPC"
                         zone = deploymentNode "europe-west4-a" "Unique zone observée pour le service du jury." "Zone GCE" {
-                            vm = deploymentNode "instance-20261123-141011" "IPv4 externe 35.214.178.128, interne 10.164.0.2. Caddy, Node et données cohébergés." "e2-custom-4-6144 · Debian 13" {
+                            bootDisk = infrastructureNode "Disque de démarrage · 10 Go" "Disque persistant équilibré attaché à la VM." "pd-balanced zonal"
+                            vm = deploymentNode "instance-20261123-141011" "nic0 : IPv4 statique Standard 35.214.178.128, interne éphémère 10.164.0.2. Caddy et Node sur cet hôte." "e2-custom-4-6144 · Debian 13" {
                                 manager = infrastructureNode "systemd" "Supervise les services caddy et chatisen." "Debian"
                                 caddyInstance = containerInstance caddy
                                 standaloneInstance = containerInstance local
@@ -212,6 +218,8 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                     }
                 }
             }
+            jsonInstance -> bootDisk "F06 · Héberge le fichier sur /dev/sda1" "ext4"
+            bootDisk -> savedDisks "F15 · Capture quotidienne du disque" "default-schedule-1"
             clientInstance -> dnsRecord "Résout le domaine ISEN" "DNS"
             clientInstance -> firewall "Charge le site et ouvre /api/ws" "HTTP :80 / HTTPS et WSS :443"
             firewall -> caddyInstance "Achemine le trafic Web" "TCP 80 et 443"
@@ -230,12 +238,12 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         }
         container chat "02-conteneurs" "Une seule VM applicative dans europe-west4-a. Le client s’exécute sur le poste." {
             title "02 · Conteneurs — site GCP en service"
-            include localBrowser perimeter caddy os local localFile operator pushProvider peerBrowser stun
+            include localBrowser perimeter caddy os local localFile operator pushProvider peerBrowser stun snapshots
             autoLayout tb
         }
         component local "03-composants-api" "Trajet réseau, modules de chatisen.service, sorties et disque sur la VM de europe-west4-a." {
             title "03 · Composants — VM GCP · europe-west4-a"
-            include student operator admin os perimeter caddy localRouter localAuth localChat localChannels localCalls localPush localStatus localFile pushProvider
+            include student operator admin os perimeter caddy localRouter localAuth localChat localChannels localCalls localPush localStatus localFile pushProvider snapshots
             autoLayout tb
         }
         styles {
