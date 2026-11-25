@@ -1,0 +1,30 @@
+@startuml
+!include style.iuml
+title 15 · Contrat v1 — messages, événements et appels
+legend
+  <b>Base /api/v1</b>     S = session valide. M = S + Origin exact + x-csrf-token. Fil = membre actif.
+  |= Méthode |= Chemin |= Garde et entrée |= Succès |
+  | GET | /conversations/{id}/messages | S + fil · ?beforeSeq&limit | 200 {items: Message[],nextBeforeSeq} |
+  | POST | /conversations/{id}/messages | M + fil · {clientId,text} | 201 Message, 200 répétition identique |
+  | GET | /conversations/{id}/events | S + fil · ?afterSeq&limit | 200 {items: Event[],nextAfterSeq,hasMore} |
+  | GET | /ws | S + Origin exact + Upgrade | 101, puis ready |
+  | POST | /conversations/{id}/calls | M + fil · {clientId,mode} | 201 Appel, 200 répétition identique |
+  | POST | /calls/{id}/join | M + fil · session et appel valides | 200 {callId,serverUrl,token,expiresAt} |
+  | POST | /calls/{id}/end | M + fil · initiateur ou owner | 204 |
+
+  <b>Pagination</b>   limit de 1 à 100, défaut 50. beforeSeq exclusif, page renvoyée en ordre croissant.
+  nextBeforeSeq = première seq si la page est pleine, sinon null. afterSeq exclusif, défaut "0".
+  nextAfterSeq = dernière seq livrée ou null. hasMore est calculé avec une ligne supplémentaire.
+  <b>Message</b>   {id,conversationId,seq,senderId,clientId,createdAt,text}. UUID client, 1–4 000 caractères, texte non blanc.
+  <b>Event</b>   {v:1,type:"event",conversationId,seq,at,event,data}. Pour message.created, data contient
+  id, conversationId, senderId, clientId et text. Les curseurs sont des chaînes décimales non négatives (int64).
+  <b>Appel</b>   {id,conversationId,initiatorId,mode,state,roomName,createdAt,endedAt?}. mode = audio ou video.
+  Le drapeau CHATISEN_EXPERIMENTAL_CALLS vaut false par défaut. Les trois POST d’appel répondent alors 503.
+
+  <b>WebSocket JSON</b>   Client → subscribe(conversationId,afterSeq) / unsubscribe(conversationId) / ping / ack(conversationId,seq).
+  Serveur → ready(heartbeatSeconds:30) / subscribed(conversationId,snapshotSeq) / event / pong / error(error) /
+  resync_required(conversationId,fromSeq). Toutes les trames portent v:1 et type. ack valide est accepté sans écriture.
+  > 4 096 octets entrants → error BAD_REQUEST. Tampon sortant > 1 Mio → resync_required et désabonnement.
+  React traite event et reprend sur fermeture. Le traitement client de resync_required et error reste ouvert.
+endlegend
+@enduml

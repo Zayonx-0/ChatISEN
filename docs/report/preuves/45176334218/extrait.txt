@@ -1,0 +1,9 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45176334218
+SHA de la branche testé : b703eb1d8a54b229080d741617aaeaaf562281f4
+Événement : pull_request, PR #1
+Environnement : GitHub Actions Ubuntu, Node 24, pnpm 10.20.0, service PostgreSQL 17
+Job : Builds, tests et configuration Compose — success
+Étapes réussies : installation verrouillée, configuration Compose, typecheck, builds API/web, tests et résumé de portée.
+Résultat observé : 11 tests réussis, 0 échec, 0 ignoré.
+Portée : le workflow vérifie les contrôles disponibles ; il rappelle que la persistance métier, les médias reçus, le navigateur intégré et Grafana restent des preuves J1 ouvertes.
+Aucune donnée personnelle, cookie ou secret n’est conservé dans cet extrait.

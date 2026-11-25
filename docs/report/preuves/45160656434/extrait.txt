@@ -1,0 +1,25 @@
+Run: https://github.com/Zayonx-0/ChatISEN/actions/runs/45160656434
+SHA de tête de PR: 8bd6ec3d4556c0ef890110ed1dd16bedcd29cad6
+Checkout de fusion temporaire testé: a1804a601c9b60e87eaf9ac5556b53f7ed856826
+Base de PR: a3241a92f4efe2781213914df29794e2513d1a23
+Créé UTC: 2026-11-23T10:56:48Z
+Résultat du job verify: failure
+Étape Validate Compose configuration: success (métadonnées GitHub Actions)
+Environnement: ubuntu-latest, PostgreSQL image 17, Node 24, pnpm 10.20.0 (workflow associé au SHA)
+verify	UNKNOWN STEP	2026-11-23T10:57:09.5379014Z HEAD is now at a1804a6 Merge 8bd6ec3d4556c0ef890110ed1dd16bedcd29cad6 into a3241a92f4efe2781213914df29794e2513d1a23
+verify	UNKNOWN STEP	2026-11-23T10:57:13.4272303Z ##[group]Run docker compose -f infra/compose/docker-compose.yml config --quiet
+verify	UNKNOWN STEP	2026-11-23T10:57:15.6934095Z apps/web typecheck: Done
+verify	UNKNOWN STEP	2026-11-23T10:57:16.3224732Z apps/api typecheck: Done
+verify	UNKNOWN STEP	2026-11-23T10:57:18.9553347Z apps/api build: Done
+verify	UNKNOWN STEP	2026-11-23T10:57:19.0059955Z apps/web build: Done
+verify	UNKNOWN STEP	2026-11-23T10:57:19.4649265Z ✔ migration runner executes two passes when DATABASE_URL is provided (81.212726ms)
+verify	UNKNOWN STEP	2026-11-23T10:57:19.9782407Z ✔ S01 S02 Fastify refuses outsiders and revocation stops realtime delivery (171.493903ms)
+verify	UNKNOWN STEP	2026-11-23T10:57:24.0086387Z ✔ standalone WS and SSE enforce origin, session and current membership (3945.447977ms)
+verify	UNKNOWN STEP	2026-11-23T10:57:24.1996207Z ✔ standalone API core (123.95589ms)
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2286592Z ℹ tests 11
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2287831Z ℹ pass 11
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2288170Z ℹ fail 0
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2289174Z ℹ skipped 0
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2471107Z Recette core incomplète : les scénarios R01 sur Compose, PostgreSQL, navigateurs et média ne sont pas encore automatisés. Aucun résultat de réception ne peut être déclaré.
+verify	UNKNOWN STEP	2026-11-23T10:57:24.2783700Z ##[error]Process completed with exit code 2.
+Extraits expurgés du journal du job:

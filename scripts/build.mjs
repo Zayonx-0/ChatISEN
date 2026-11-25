@@ -1,3 +1,4 @@
-import {mkdir,copyFile} from 'node:fs/promises';
-await mkdir('dist', {recursive:true});
-console.log('ChatISEN standalone build: static client in apps/web/public, API in apps/standalone/server.mjs');
+import { spawnSync } from 'node:child_process';
+const result = spawnSync('pnpm', ['-r', '--if-present', 'build'], { stdio: 'inherit' });
+if (result.error) throw result.error;
+process.exitCode = result.status ?? 1;

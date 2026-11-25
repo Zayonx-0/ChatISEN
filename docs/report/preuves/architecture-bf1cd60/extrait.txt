@@ -1,0 +1,44 @@
+ChatISEN · contrôle local du dossier de reconstruction · 2026-11-25
+Code de référence  bf1cd6029de69598c9d0c035b5abeb6dedc06fbd
+Environnement      macOS arm64, Node 24.14.1, pnpm 10.20.0, Java 25.0.1
+Rendu              Structurizr CLI v2025.11.09 et PlantUML 1.2025.10
+
+Copie de travail isolée par git archive du SHA, sans node_modules initial.
+pnpm install --offline --frozen-lockfile, à partir d’une copie du cache local
+  Lockfile is up to date, resolution step is skipped
+  Packages: +233
+  Progress: resolved 233, reused 233, downloaded 0, added 233, done
+pnpm typecheck
+  apps/api typecheck: Done
+  apps/web typecheck: Done
+pnpm build
+  apps/api build: Done
+  dist/index.html                   0.43 kB
+  dist/assets/index-CFOs3I8Q.css    6.15 kB
+  dist/assets/index-Dur93BKz.js   234.74 kB
+  apps/web build: Done
+
+Tests sans service externe, sélection explicite des tests de schémas,
+de fixtures, d’organisation des migrations et de signature du jeton.
+  tests 8 / pass 8 / fail 0 / skipped 0
+
+Vérifications des sources et des sorties
+  Workspace : 11 vues C4 + 11 images SVG intégrées, contenu identique aux fichiers.
+  SVG/XML, liens et Compose : 22 vues, 14 tables, 103 colonnes vérifiées dans les SVG, 8 services.
+  Registre v1 : 21 couples méthode/chemin, dont le handshake GET /ws, 7 opérations OpenAPI restantes.
+  8 exemples JSON des vues validés contre les schémas HTTP/WS.
+  23 fichiers comparés (22 SVG + lecteur.js), sommes SHA-256 identiques après une seconde génération.
+
+Lecteur
+  Premier passage Chromium sur file:// à 1440 x 900 : 22 vues chargées et ajustées,
+  fiches, sources, SQL, historique, zoom et plein écran exercés.
+  Redimensionnement à 390 px : une fiche ouverte sur ordinateur restait ouverte.
+  Correction : le lecteur écoute désormais le changement de breakpoint.
+  JS du lecteur, DOM simulé : 22 sélections x 2 tailles, ajustement, seuil responsive,
+  commandes, 7 écarts, exemples et 2 DDL identiques.
+
+La tentative de base neuve locale a été bloquée par shmget dans le bac à sable.
+La revue automatique d’autorisation a atteint sa limite avant le démarrage hors
+bac à sable de cette base et avant la nouvelle capture Chromium mobile. Les tests
+PostgreSQL 17 et les trois parcours applicatifs Chromium proviennent du run E24
+45583168142. Le déploiement GCP et la recette Compose HTTPS restent ouverts.

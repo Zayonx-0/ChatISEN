@@ -1,0 +1,67 @@
+name: R01 — contrôles automatisés
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    name: Builds, tests et configuration Compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: chatisen
+          POSTGRES_PASSWORD: chatisen
+          POSTGRES_DB: chatisen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chatisen -d chatisen_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://chatisen:chatisen@localhost:5432/chatisen_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Installer les dépendances verrouillées
+        run: pnpm install --frozen-lockfile
+      - name: Valider la configuration Compose
+        run: docker compose -f infra/compose/docker-compose.yml config --quiet
+      - name: Vérifier les types
+        run: pnpm typecheck
+      - name: Compiler les applications
+        run: pnpm build
+      - name: Exécuter les tests disponibles
+        run: pnpm test
+      - name: Installer Chromium pour Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Parcours navigateur v1 sur PostgreSQL
+        run: pnpm test:e2e
+      - name: Conserver les traces navigateur synthétiques
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r01-playwright-traces
+          path: artifacts/playwright-results/
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Préciser la portée des contrôles
+        if: always()
+        run: |
+          {
+            echo '## Portée des contrôles R01'
+            echo 'Ce workflow vérifie uniquement les builds, les tests disponibles et la configuration Compose.'
+            echo 'La recette J1 reste ouverte : les médias reçus, le parcours complet Compose/HTTPS et Grafana ne sont pas démontrés.'
+            echo 'La publication v1.1.0 reste soumise à make verify LEVEL=core et aux critères du mandat R01.'
+          } >> "$GITHUB_STEP_SUMMARY"

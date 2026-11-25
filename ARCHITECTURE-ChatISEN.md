@@ -35,6 +35,8 @@ La page 12 présente les extensions comme un choix de l’équipe. J2 retient ce
 
 ## 2. Architecture retenue
 
+**Pour reconstruire l’application de R01**, partir du lecteur de diagrammes au commit `bf1cd60`. Il associe les points d’entrée, les contrats HTTP et WebSocket, le schéma SQL, les écrans et les configurations à un test pour chaque vue. Le dessin ci-dessous présente la cible du mandat. [Ouvrir la visionneuse](docs/architecture/index.html#07-profils) · [Procédure de reconstruction](docs/architecture/README.md)
+
 Un serveur Linux héberge l’application web, l’API, PostgreSQL et le serveur média LiveKit dans Docker Compose. L’API décide **qui a le droit** de lire une conversation ou de rejoindre une salle. PostgreSQL conserve **ce qui doit survivre** à un redémarrage. LiveKit transporte **ce qui doit arriver immédiatement** pendant un appel. Une panne du serveur média laisse donc la messagerie utilisable.
 
 ```mermaid

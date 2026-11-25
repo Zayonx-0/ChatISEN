@@ -1,0 +1,33 @@
+@startuml
+!pragma layout smetana
+!include style.iuml
+title 08 · Construire la pile Compose locale
+rectangle "Navigateur\nhttps://localhost" as browser #E6F2FA
+node "Réseau Compose · projet chatisen" {
+  rectangle "<b>nginx</b>   nginx:1.27-alpine\n80 → 308 HTTPS · 443/TLS\nnginx.conf et certificats montés en lecture seule" as edge #EDF3F7
+  rectangle "<b>web</b>   nginx:1.27-alpine\nnode:24-bookworm-slim + pnpm + Vite\ndist → /usr/share/nginx/html" as web #E6F2FA
+  rectangle "<b>api</b>   node:24-bookworm-slim\npnpm + tsc → apps/api/dist/server.js\nCORS_ORIGIN=https://localhost" as api #E6F2FA
+  rectangle "<b>livekit</b>   livekit/livekit-server:v1.8.4\n--dev --bind 0.0.0.0\n7880/TCP · 7881/TCP · 7882/UDP publiés" as livekit #FFF4DB
+  rectangle "<b>migrate</b>   image de l’API\nnode db/migrate.mjs\nun seul job · restart: no" as migrate #EDF3F7
+  database "<b>postgres</b>   postgres:17-alpine\n5432 interne · base chatisen\npgdata → /var/lib/postgresql/data" as pg #E6F2FA
+  rectangle "<b>prometheus</b>   prom/prometheus:v3.1.0\n9090:9090 · scrape_interval 15s" as prom #EDF3F7
+  rectangle "<b>grafana</b>   grafana/grafana:12.0.0\n3001:3000 · provisioning monté en lecture seule" as graf #EDF3F7
+}
+browser --> edge : hôte 80:80 / 443:443
+edge --> web : / → web:80
+edge --> api : /api/ · /healthz · /metrics\nUpgrade sur /api/ws et /api/v1/ws
+edge --> livekit : /livekit/ → livekit:7880/\npréfixe retiré, Upgrade
+api --> pg : pg.Pool · TCP
+migrate --> pg : SQL dans l’ordre du nom de fichier
+graf --> prom : http://prometheus:9090
+prom --> api : /metrics sur api:3000
+legend bottom
+  <b>Ordre de démarrage déclaré dans docker-compose.yml</b>
+  postgres sain (pg_isready, 5 s / 3 s / 20 essais) → migrate sort avec 0 → api → web
+  web + api + livekit démarrés → nginx. api démarrée → prometheus → grafana.
+  DATABASE_URL vise postgres:5432/chatisen. La même image sert à migrate et api.
+  L’API lit CSRF_SECRET, LIVEKIT_API_KEY, LIVEKIT_API_SECRET et LIVEKIT_URL=wss://localhost/livekit.
+  Les clés LiveKit correspondent au service du laboratoire. Le drapeau d’appel expérimental est absent.
+  Les ports indiqués sont ceux du fichier local. La vue 04 décrit l’entrée publique GCP sur 27028.
+endlegend
+@enduml

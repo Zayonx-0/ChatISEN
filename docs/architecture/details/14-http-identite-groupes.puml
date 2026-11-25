@@ -1,0 +1,31 @@
+@startuml
+!include style.iuml
+title 14 · Contrat HTTP v1 — comptes et conversations
+legend
+  <b>Base /api/v1</b>     O = Origin égal à CORS_ORIGIN. S = session valide. M = S + O + x-csrf-token.
+  |= Méthode |= Chemin |= Garde et entrée |= Succès |
+  | POST | /auth/register | O · handle, displayName, password | 201 {user: Profil} + cookie |
+  | POST | /auth/login | O · handle, password | 200 {user: Profil} + cookie |
+  | GET | /me | S | 200 Profil |
+  | POST | /auth/logout | M | 204, suppression du cookie |
+  | GET | /users | S · ?handle exact normalisé | 200 Utilisateur |
+  | GET | /conversations | S · ?cursor=UUID&limit=50 | 200 {items: Résumé[], nextCursor} |
+  | GET | /conversations/{id} | S · membre actif | 200 Détail |
+  | POST | /conversations/direct | M · {peerId} différent de soi | 201 Détail ou 200 si la paire existe |
+  | POST | /conversations/groups | M · {title,memberIds,clientId} | 201 Détail ou 200 au retry |
+  | PATCH | /conversations/{id} | M · owner · {title} | 200 Détail |
+  | POST | /conversations/{id}/members/{userId} | M · owner | 201 Détail ou 200 si déjà actif |
+  | DELETE | /conversations/{id}/members/{userId} | M · owner | 204 |
+  | POST | /conversations/{id}/transfer | M · owner · {newOwnerId} | 200 Détail |
+  | POST | /conversations/{id}/leave | M · membre actif | 204 |
+
+  <b>Formats des réponses</b>
+  Utilisateur = {id,handle,displayName}. Profil ajoute createdAt et csrfToken.
+  Résumé = {id,type,title,lastSeq,role,updatedAt}. Détail ajoute members[{user: Utilisateur,role,joinedAt}].
+  Direct = deux UUID triés, titre null, deux rôles member. nextCursor = dernier ID de page ou null.
+  Dates ISO UTC. UUID JSON en chaînes. lastSeq décimal en chaîne. limit entier de 1 à 100.
+  Handle d’inscription normalisé en minuscules, [a-z0-9_] sur 3–32. Nom affiché élagué 1–80, mot de passe 12–128.
+  <b>Échec v1</b>   {code,message,requestId}. 400 saisie · 401 session · 403 Origin/CSRF/rôle · 404 ressource masquée
+  409 handle pris, état incompatible ou réemploi de clientId avec un autre contenu. Règles de groupe détaillées en vue 11.
+endlegend
+@enduml

@@ -6,3 +6,9 @@ dist/
 artifacts/**/*.json
 artifacts/**/*.log
 *.local
+infra/edge/certs/
+/data/
+
+/test-results/
+/artifacts/playwright-results/
+/artifacts/playwright-report/

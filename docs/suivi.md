@@ -1,16 +1,25 @@
-# Suivi pilote
+# Suivi de révision R01
 
-| Lot | État | Preuve | Dépendance |
-|---|---|---|---|
-| 0 contrats/migrations/fixtures | livré | `tests/contract`, commit `acf425d` | PostgreSQL réel requis pour l’essai DB |
-| I/C/X J1 API, UI, exécution locale | livré en profil standalone, Compose préparé | `tests/standalone`, `docs/report/validation.md` | daemon Docker et navigateur pour parcours UI |
-| M appels | API d’invitation livrée, adaptateur LiveKit Compose préparé | routes `/api/conversations/:id/calls` | accès LiveKit et deux navigateurs |
-| E collaboration | route/affichage de base livrés | limite 5 MiB dans API TypeScript | test multipart sur Compose |
-| Q qualité/données | scaffold `analysis/study.py` et métriques | run `make study` | export `getStats` humain |
-| R fiabilité/sécurité | contrôles et scripts livrés | `docs/security`, `tests/security` | VM/réseaux pour validation complète |
-| P performance | protocole documenté, aucune valeur inventée | `ARCHITECTURE-ChatISEN.md` P01–P04 | fenêtre dédiée et k6 |
-| V/T remise | README, spécification, rapport, conducteur livrés | `docs/` | répétition média et ACME |
+Base : `v1.0.0` / `a3241a92f4efe2781213914df29794e2513d1a23`. La branche `rev/01-socle-j1` et sa PR portent les travaux intermédiaires ; le jalon J1 et la version 1.1.0 restent non reçus.
 
-## Écarts justifiés
+| Lot | État | Preuve et reste à faire |
+|---|---|---|
+| A confidentialité | Partiel | Tests WS/SSE standalone et WS Fastify sur source mémoire ; sessions et appartenances PostgreSQL exercées sur WebSocket v1 ; matrice complète de réception, limitation des tentatives et révocation média à compléter. |
+| B construction | Partiel | Verrou pnpm, builds et typecheck Node 24 ; syntaxe Compose validée sur CI. Attributs du cookie vérifiés sous Chromium sur loopback ; démarrage Compose, seed, certificats et cookie sous HTTPS restent à tester. |
+| C identité et chat PostgreSQL | Partiel | Repository transactionnel, test de concurrence et identité, direct et historique `/api/v1` raccordés à PostgreSQL (`1b631bc`, CI 45193174450) ; rattrapage HTTP et WebSocket PostgreSQL (`b5fbe96`, CI 45195526535) ; groupes et gestion des membres ajoutés (`fd1f8bd`, CI 45197678830) ; interface et reprise après mise hors ligne simulée et redémarrage du processus API exercés en Chromium (E17) ; pile Compose et scénarios de panne complets restent à vérifier. |
+| D média | Ouvert | Admission signée expérimentale désactivée par défaut, testée sans serveur LiveKit (E19) ; révocation média, clients et réception audio/vidéo restent absents. |
+| E parcours/CI | Partiel | Parcours Chromium F01–F05/F13 vert sur les runs 45202274116 et 45203593069 ; la pile Compose HTTPS, métriques Grafana et média restent à réaliser. |
 
-Le mode standalone est ajouté pour rendre J1 exécutable sans registre npm ni daemon PostgreSQL. Il conserve l’API métier et la sécurité de session/CSRF mais remplace PostgreSQL/Argon2id par JSON/`crypto.scrypt`. Le profil Compose reste la cible architecturelle. Toute valeur non mesurée est marquée à exécuter.
+Résultats et SHA : [rapport R01](report/r01.md). Le [mandat](revisions/R01-socle-j1.md) définit la réception et les travaux restants.
+
+## Convention de rédaction et de preuves
+
+Cette convention s'applique à R01 et aux révisions suivantes jusqu'à la remise. Lorsqu'un lot se termine ou se trouve bloqué, son sous-agent transmet au pilote les changements, le SHA testé, l'environnement, les commandes ou protocoles, les résultats observés (échecs et essais ignorés compris), les limites et les liens vers les preuves. Une simple présence de fichier ou un test avec mocks ne vaut pas réception du scénario intégré.
+
+Le pilote vérifie les résultats sur le commit et le run correspondants, puis ajoute une entrée datée en UTC dans le [journal des preuves](report/journal-des-preuves.md), avec le lot, les IDs de recette, l'attendu, l'observé et sa portée. Il conserve par lien les artefacts existants et archive dans `docs/report/preuves/<id-du-run>/` un extrait CI court et expurgé des secrets, cookies et données personnelles. Une correction donne lieu à une nouvelle entrée qui renvoie à l'essai précédent ; le pilote distingue le SHA de tête de PR du SHA de fusion temporaire réellement testé par Actions.
+
+Après chaque entrée, le pilote met à jour les paragraphes concernés du [rapport technique](report/rapport-technique.md) et rattache chaque résultat chiffré à son entrée. Si une expérience infirme un choix, il garde la décision initiale et l'essai dans le journal, puis explique dans le rapport les observations qui motivent l'évolution. Les essais non réalisés restent explicitement ouverts. La publication d'une version demeure soumise aux critères de réception du mandat applicable ; cette convention documentaire ne les remplace pas.
+
+### Contrôles automatisés GitHub et réception
+
+Le workflow de PR exécute les vérifications disponibles (installation figée, configuration Compose, types, builds et tests avec PostgreSQL). Il ne joue pas la recette intégrée encore incomplète. Son résultat vert signifie seulement que ces contrôles passent ; le résumé du run rappelle les preuves J1 manquantes. `make verify LEVEL=core` conserve son échec explicite tant que les critères ne sont pas implémentés, et reste une condition de réception avant la publication de `v1.1.0`. Le workflow ne se déclenche qu'une fois par mise à jour de PR, plutôt que sur le push de la branche et sur la PR à la fois.

@@ -1,0 +1,41 @@
+@startsalt
+scale 1.15
+skinparam defaultFontName SansSerif
+title 21 · Écrans et actions visibles au commit bf1cd60
+{
+  {^"<b>React · connexion"
+    ChatISEN | <b>Se connecter</b>
+    Historique et groupes | { Identifiant | "alice             " }
+    Temps réel | { Mot de passe | "••••••••••••   " }
+    . | { [Entrer] | [Créer un compte] }
+  }
+  {^"<b>React · conversation ouverte sur ordinateur"
+    <b>ChatISEN</b> | { Connecté · Alice | [Déconnexion] }
+    { <b>Conversations</b>
+      Rechercher un identifiant exact
+      { "bob             " | [Rechercher] }
+      Bob · @bob
+      [Ouvrir une conversation]
+      [Créer un groupe avec ce contact]
+    } | { <b>Bob</b>
+          2 participant(s)
+          [Charger les messages précédents]
+          Bob · 10:01   Bonjour Alice
+          Alice · 10:02   Bonjour Bob
+          { "Écrire un message…                " | [Envoyer] }
+        }
+  }
+  {^"<b>Standalone · commandes supplémentaires dans le fil"
+    [Activer les notifications] | Barre supérieure · autorisation navigateur
+    { [Appel audio] | [Appel vidéo] } | En-tête du fil direct → invitation à Bob
+    { [Refuser] | [Accepter] } | Chez Bob pendant la sonnerie
+    { [Couper le micro] | [Couper la caméra] | [Raccrocher] } | Pistes actives pendant l’appel vidéo
+  }
+  {^"<b>Règles de mise en page"
+    Ordinateur | En-tête 70 px, liste 320 px, largeur du contenu ≤ 1 400 px.
+    React ≤ 800 px | Liste ou fil, retour « Conversations ». Envoi bleu #2e63e6.
+    Standalone ≤ 800 px | Liste au-dessus du fil, hauteur ≤ 35 vh. Envoi bleu #3166e8.
+    Messages | Alignement selon auteur, nom et heure locale, texte avec retours ligne.
+  }
+}
+@endsalt

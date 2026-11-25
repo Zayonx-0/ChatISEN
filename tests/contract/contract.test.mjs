@@ -73,7 +73,7 @@ test('fixtures contain the four deterministic demo identities', async () => {
 
 test('migration files are ordered and guarded for idempotent application', async () => {
   const files = await migrationFiles();
-  assert.deepEqual(files, ['001_initial.sql']);
+  assert.deepEqual(files, ['001_initial.sql', '002_group_commands.sql']);
   const sql = await readFile(join(project, 'db/migrations/001_initial.sql'), 'utf8');
   for (const table of ['users', 'sessions', 'conversations', 'conversation_members', 'conversation_events', 'messages', 'attachments', 'calls', 'call_participants', 'media_jobs', 'webhook_receipts', 'quality_samples']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
@@ -92,7 +92,8 @@ test('migration runner executes two passes when DATABASE_URL is provided', async
   try {
     const first = await applyMigrations(client);
     const second = await applyMigrations(client);
-    assert.ok(first.applied.length >= 0);
+    assert.ok([...first.applied, ...first.alreadyApplied].includes('001_initial.sql'), 'initial migration must be recorded');
+    assert.equal((await client.query("select to_regclass('public.users') as table_name")).rows[0].table_name, 'users');
     assert.equal(second.applied.length, 0);
   } finally { await client.end(); }
 });

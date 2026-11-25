@@ -1,0 +1,8 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45582451596
+Tête PR : 91add836cc81a3f68ebdbe3b2725d697e55d2ab1
+Fusion testée : 6ae4b6696c91fe0743f749fe63ef92b57171ae47
+Job : failure ; Ubuntu 24.04, PostgreSQL 17, Node 24 et Chromium headless
+2026-11-25T09:08:39Z tests 17, pass 17, fail 0, skipped 0
+2026-11-25T09:10:36Z Test timeout of 60000ms exceeded
+2026-11-25T09:10:36Z WebContentsDelegate::RequestMediaAccessPermission: Not supported
+2026-11-25T09:10:36Z 1 failed, 2 passed

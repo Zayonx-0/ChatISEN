@@ -1,0 +1,11 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45202274116
+Tête PR : b1067771f96e4e4155232511c497c2eca877c83b
+Job : success ; Ubuntu 24.04, PostgreSQL 17, Node 24, pnpm 10.20.0, Chromium Playwright
+Extraits expurgés :
+Extraits expurgés :
+Builds, tests et configuration Compose	Run actions/checkout@v4	2026-11-23T15:11:26.4661507Z HEAD is now at 72d2d4c Merge b1067771f96e4e4155232511c497c2eca877c83b into a3241a92f4efe2781213914df29794e2513d1a23
+Builds, tests et configuration Compose	Installer Chromium pour Playwright	2026-11-23T15:11:55.3440983Z ##[group]Run pnpm exec playwright install --with-deps chromium
+Builds, tests et configuration Compose	Parcours navigateur v1 sur PostgreSQL	2026-11-23T15:12:36.2023516Z ##[group]Run pnpm test:e2e
+Builds, tests et configuration Compose	Parcours navigateur v1 sur PostgreSQL	2026-11-23T15:12:38.3966185Z Running 1 test using 1 worker
+Builds, tests et configuration Compose	Parcours navigateur v1 sur PostgreSQL	2026-11-23T15:13:01.4471053Z   ✓  1 tests/e2e/chat.spec.ts:92:1 › F01 F02 F03 F04 F05 F13 : direct, groupe, reprise et historique après redémarrage (20.9s)
+Builds, tests et configuration Compose	Parcours navigateur v1 sur PostgreSQL	2026-11-23T15:13:01.5292793Z   1 passed (24.0s)

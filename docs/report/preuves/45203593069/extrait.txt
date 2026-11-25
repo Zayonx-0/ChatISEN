@@ -1,0 +1,11 @@
+Run : https://github.com/Zayonx-0/ChatISEN/actions/runs/45203593069
+Tête PR : b56ac973b6cbe9cf72a625daac87b872da1e25fc
+Fusion testée : 76dc80218401a303c46694f56d80ee9b6e410371
+Job : success ; Ubuntu 24.04, PostgreSQL 17, Node 24, pnpm 10.20.0, Chromium Playwright
+Extraits expurgés du journal :
+2026-11-23T15:18:04Z HEAD is now at 76dc802 Merge b56ac973b6cbe9cf72a625daac87b872da1e25fc into a3241a92f4efe2781213914df29794e2513d1a23
+2026-11-23T15:18:28Z ℹ tests 15
+2026-11-23T15:18:28Z ℹ pass 15
+2026-11-23T15:18:28Z ℹ fail 0
+2026-11-23T15:18:28Z ℹ skipped 0
+2026-11-23T15:19:40Z 1 passed (22.2s)
