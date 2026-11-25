@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 
 const dir = mkdtempSync(join(tmpdir(), 'chatisen-test-'));
 try {
-  const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/standalone.test.mjs', 'tests/contract/contract.test.mjs', 'tests/security/standalone-realtime.test.mjs', 'tests/security/fastify-realtime.test.ts', 'tests/security/livekit-token.test.ts', 'tests/integration/c/postgres-repository.test.ts', 'tests/integration/identity/postgres-identity.test.ts', 'tests/integration/chat/postgres-chat.test.ts', 'tests/integration/chat/postgres-websocket.test.ts', 'tests/integration/calls/postgres-calls.test.ts'], {
+  const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/standalone.test.mjs', 'tests/contract/contract.test.mjs', 'tests/security/standalone-realtime.test.mjs', 'tests/security/fastify-realtime.test.ts', 'tests/security/livekit-token.test.ts', 'tests/security/push.test.mjs', 'tests/security/push-api.test.mjs', 'tests/integration/c/postgres-repository.test.ts', 'tests/integration/identity/postgres-identity.test.ts', 'tests/integration/chat/postgres-chat.test.ts', 'tests/integration/chat/postgres-websocket.test.ts', 'tests/integration/calls/postgres-calls.test.ts'], {
     stdio: 'inherit', env: { ...process.env, CHATISEN_DATA_FILE: join(dir, 'data.json') }
   });
   if (result.error) throw result.error;

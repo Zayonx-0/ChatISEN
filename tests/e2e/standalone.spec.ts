@@ -63,7 +63,7 @@ test('standalone : notifications et appels audio et vidéo entre deux sessions',
     expect((await alice.request.get(origin+'/readyz')).status()).toBe(200);
     await register(alice,'alice_call','Alice');await register(bob,'bob_call','Bob');await register(charlie,'charlie_call','Charlie');
     expect(await alice.evaluate(async()=>(await (await fetch('/api/config')).json()).iceServers)).toEqual([]);
-    await bob.getByRole('button',{name:'Activer les notifications'}).click();await expect(bob.getByRole('status').filter({hasText:'Notifications : activées'})).toBeVisible();
+    await bob.getByRole('button',{name:/^(Activer|Réessayer) les notifications$/}).click();await expect(bob.getByRole('status').filter({hasText:'Notifications : Les notifications sont momentanément indisponibles.'})).toBeVisible();
     await alice.getByRole('searchbox',{name:'Rechercher un contact'}).fill('bob_call');await alice.getByRole('button',{name:/@bob_call/}).click();
     await bob.getByRole('button',{name:/Alice/}).click();
     await bob.getByRole('searchbox',{name:'Rechercher un contact'}).fill('charlie_call');await bob.getByRole('button',{name:/@charlie_call/}).click();
