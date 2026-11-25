@@ -115,7 +115,7 @@ text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font
     add(label(1229, 137, 'Compute Engine · Debian 13', 'small', 'end'))
     add(label(432, 183, 'VPC default → sous-réseau default · europe-west4 (Pays-Bas)', 'card'))
     add(label(1231, 183, '10.164.0.0/20 · passerelle 10.164.0.1', 'small', 'end'))
-    add(label(647, 228, 'europe-west4-a · instance-20261123-141011', 'section'))
+    add(label(647, 228, 'europe-west4-a · VM de démonstration', 'section'))
     add(label(647, 247, 'e2-custom-4-6144 · 4 vCPU / 6 Gio · IP privée 10.164.0.2', 'micro'))
     add(label(1325, 137, 'SERVICES ASSOCIÉS', 'section'))
 
@@ -153,7 +153,7 @@ text {{ font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font
     add(icon('shield', 449, 271, COLORS['admin']))
     add(label(482, 288, 'Pare-feu VPC', 'card'))
     add(label(447, 319, 'Entrée via nic0', 'small'))
-    add(label(447, 340, '35.214.178.128', 'card'))
+    add(label(447, 340, 'IPv4 publique (valeur expurgée)', 'card'))
     add(label(447, 359, 'IPv4 réservée · Standard', 'micro'))
     add(label(447, 388, 'TCP 443 → HTTPS/WSS', 'small'))
     add(label(447, 409, 'TCP 80 → redirection', 'small'))

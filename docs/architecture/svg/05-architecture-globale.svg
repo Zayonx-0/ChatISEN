@@ -32,7 +32,7 @@ text { font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font-
 <text x="1229" y="137" class="small" text-anchor="end">Compute Engine · Debian 13</text>
 <text x="432" y="183" class="card" text-anchor="start">VPC default → sous-réseau default · europe-west4 (Pays-Bas)</text>
 <text x="1231" y="183" class="small" text-anchor="end">10.164.0.0/20 · passerelle 10.164.0.1</text>
-<text x="647" y="228" class="section" text-anchor="start">europe-west4-a · instance-20261123-141011</text>
+<text x="647" y="228" class="section" text-anchor="start">europe-west4-a · VM de démonstration</text>
 <text x="647" y="247" class="micro" text-anchor="start">e2-custom-4-6144 · 4 vCPU / 6 Gio · IP privée 10.164.0.2</text>
 <text x="1325" y="137" class="section" text-anchor="start">SERVICES ASSOCIÉS</text>
 <text x="51" y="174" class="card" text-anchor="start">User · membre ou enseignant</text>
@@ -64,7 +64,7 @@ text { font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font-
 <g aria-hidden="true" transform="translate(449 271) scale(1.0416666666666667)"><g fill="none" stroke="#7438a8" stroke-width="1.65" stroke-linejoin="round" stroke-linecap="round"><path d="M12 2 4 5v6c0 5 3 8 8 11 5-3 8-6 8-11V5l-8-3Z"/><path d="m8 12 3 3 5-6"/></g></g>
 <text x="482" y="288" class="card" text-anchor="start">Pare-feu VPC</text>
 <text x="447" y="319" class="small" text-anchor="start">Entrée via nic0</text>
-<text x="447" y="340" class="card" text-anchor="start">35.214.178.128</text>
+<text x="447" y="340" class="card" text-anchor="start">IPv4 publique (valeur expurgée)</text>
 <text x="447" y="359" class="micro" text-anchor="start">IPv4 réservée · Standard</text>
 <text x="447" y="388" class="small" text-anchor="start">TCP 443 → HTTPS/WSS</text>
 <text x="447" y="409" class="small" text-anchor="start">TCP 80 → redirection</text>

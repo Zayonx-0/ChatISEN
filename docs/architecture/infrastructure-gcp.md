@@ -1,21 +1,21 @@
 # Google Cloud · inventaire et reconstruction de la démo ChatISEN
 
-Le site du jury repose sur **l’unique VM du projet**, `instance-20261123-141011`. Caddy termine TLS et transmet les requêtes à Node sur la même machine. Node sert le front, traite l’API et écrit sur le disque de démarrage. Le mot **standalone** est le nom de ce programme dans le dépôt. Le front s’exécute ensuite dans le navigateur de chaque participant. La pile Docker Compose R01 se reconstruit en laboratoire. [C4 hors ligne](index.html#03-composants-api) · [Service systemd](../../ops/gcp/chatisen.service)
+Le site du jury repose sur **l’unique VM du projet** (nom expurgé). Caddy termine TLS et transmet les requêtes à Node sur la même machine. Node sert le front, traite l’API et écrit sur le disque de démarrage. Le mot **standalone** est le nom de ce programme dans le dépôt. Le front s’exécute ensuite dans le navigateur de chaque participant. La pile Docker Compose R01 se reconstruit en laboratoire. [C4 hors ligne](index.html#03-composants-api) · [Service systemd](../../ops/gcp/chatisen.service)
 
 Contrôle du **25 novembre 2026, 13 h 43–13 h 46 UTC**. DNS et HTTPS depuis un poste externe, puis inventaire SSH de l’hôte, métadonnées Compute Engine, sockets et permissions de fichiers. Le checkout de la VM porte le SHA `9b08996060c52700b035d646bf6ac64075ef3ea6`. Le `main` vérifié ensuite à `09ed65a` ajoute uniquement des fichiers de rapport et de mandat par rapport à ce SHA. Le SHA-256 du JavaScript du domaine et du même fichier Git est `ef45b97f78e41d4ac93e59333fccfd00f8659b241b25e8a6c5baa43bb0aad3ca`. La source du code et la preuve de placement ont ainsi des références indépendantes. [Source déployée](https://github.com/Zayonx-0/ChatISEN/tree/9b08996060c52700b035d646bf6ac64075ef3ea6) · [Preuve Push sur le site](../report/journal-des-preuves.md#e28--push-sur-le-site-déployé)
 
-**Recoupement des sources.** Le relevé de console transmis par l’équipe, effectué le 25 novembre vers **13 h 47 UTC**, compte une instance en fonctionnement et attribue son IPv4 réservée à `nic0`. Depuis le poste externe à **14 h 03 UTC**, la réponse A a de nouveau donné `35.214.178.128` (TTL retourné 900 s). Aucun enregistrement AAAA ou CNAME n’a été retourné. La connexion HTTPS a joint cette même IPv4, validé le certificat et obtenu HTTP 200 sur `/readyz` avec `persistence=json-demo`. Le contrôle SSH antérieur établit le trajet sur l’hôte. [Instances du projet](https://console.cloud.google.com/compute/instances?project=project-fd23d3d9-a7e8-4002-a7a) · [Détails de la VM](https://console.cloud.google.com/compute/instancesDetail/zones/europe-west4-a/instances/instance-20261123-141011?project=project-fd23d3d9-a7e8-4002-a7a) · [Adresses IP](https://console.cloud.google.com/networking/addresses/list?project=project-fd23d3d9-a7e8-4002-a7a)
+**Recoupement des sources.** Le relevé de console transmis par l’équipe, effectué le 25 novembre vers **13 h 47 UTC**, compte une instance en fonctionnement et attribue son IPv4 réservée à `nic0`. Depuis le poste externe à **14 h 03 UTC**, la réponse A (valeur expurgée, TTL retourné 900 s) correspond à l’IPv4 réservée de `nic0`. Aucun enregistrement AAAA ou CNAME n’a été retourné. HTTPS a validé le certificat et obtenu HTTP 200 sur `/readyz` avec `persistence=json-demo`. Le contrôle SSH antérieur établit le trajet sur l’hôte. [Console Compute Engine](https://console.cloud.google.com/compute/instances) · [Console Réseau](https://console.cloud.google.com/networking/addresses/list)
 
 ## Placement et points d’entrée
 
 | Élément | Valeur | Portée et preuve |
 |---|---|---|
-| Projet et hôte | project-fd23d3d9-a7e8-4002-a7a · instance-20261123-141011 | Une seule instance listée dans le projet, en fonctionnement. Le nom et le projet correspondent aux métadonnées interrogées par SSH. |
+| Projet et hôte | Identifiants du projet et de l’instance expurgés | Une seule instance en fonctionnement observée dans le projet. Son rattachement a été recoupé avec les métadonnées lues par SSH. |
 | Région et zone | europe-west4 (Pays-Bas) · europe-west4-a | Zone de la VM. Un arrêt de la VM, de son disque ou de la zone interrompt le site. |
 | Calcul | e2-custom-4-6144 · 4 vCPU · 6 Gio configurés | Type issu des métadonnées, 4 CPU disponibles dans l’OS, Debian GNU/Linux 13. |
-| VPC et interface | VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR 10.164.0.0/20, passerelle 10.164.0.1, IP interne éphémère 10.164.0.2 | Concordance entre détails du sous-réseau dans la console, masque et adresse dans les métadonnées de la VM. |
-| Routes du VPC | 10.164.0.0/20 → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000. | Routes effectives visibles pour le VPC default dans europe-west4. Les priorités de routage et de filtrage appartiennent à des mécanismes distincts. |
-| DNS et entrée publique | ia-pple.isen.fedyna.fr → 35.214.178.128, IPv4 statique réservée et attachée à nic0, région europe-west4, niveau réseau Standard | Concordance entre DNS externe, adresse distante HTTPS, console et métadonnées de la VM. |
+| VPC et interface | VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR, passerelle et adresse privée expurgés | Concordance entre détails du sous-réseau dans la console, masque et adresse dans les métadonnées de la VM. |
+| Routes du VPC | CIDR du sous-réseau privé → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000. | Routes effectives visibles pour le VPC default dans europe-west4. Les priorités de routage et de filtrage appartiennent à des mécanismes distincts. |
+| DNS et entrée publique | ia-pple.isen.fedyna.fr → IPv4 statique réservée, valeur expurgée, attachée à nic0 dans europe-west4 | Concordance entre DNS externe, adresse distante HTTPS, console et métadonnées de la VM. |
 | Répartition de charge | Entrée directe sur l’IPv4 de la VM, puis un seul backend Caddy sur 127.0.0.1:3000 | Aucun LB sur ce trajet. La liste des health checks Compute du projet était vide. Les forwarding rules, backends et LB éventuels ailleurs dans le projet restent à inventorier. |
 | Disque et copies | Un disque de démarrage zonal Persistent Disk équilibré (pd-balanced), 10 Go affichés, europe-west4-a. /dev/sda1 en ext4 héberge /var/lib/chatisen | Seul disque attaché d’après la console. Deux snapshots standards prêts relevés en multi-région eu. |
 | Identités | User entre par HTTPS ; Ops par SSH TCP 22 ; Admin infrastructure par console/API GCP et IAM | SSH direct authentifié pendant le contrôle. IAM exprime le chemin d’administration cloud. Les rôles réellement attribués et les autres modes d’accès demandent une lecture du projet. Le rôle owner d’un groupe s’applique uniquement à cette conversation. |
@@ -27,11 +27,11 @@ Le point d’entrée web est unique. Le serveur accepte aussi SSH pour Ops. Une 
 | Service / emplacement | Responsabilité et état observé | Point de contrôle |
 |---|---|---|
 | DNS du domaine ISEN, externe | Publie l’enregistrement A du site. Le gestionnaire de la zone DNS reste à identifier dans l’inventaire de l’équipe. | dig A et AAAA puis comparaison à l’adresse externe de la NIC. |
-| Caddy 2.6.2, VM | TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif porte aussi le nom historique 35-214-178-128.sslip.io. | État systemd, domaines et validation HTTPS. Le template Git décrit le site principal. |
+| Caddy 2.6.2, VM | TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif conserve aussi une redirection historique de domaine. | État systemd, domaines et validation HTTPS. Le template Git décrit le site principal. |
 | chatisen.service, VM | Un processus Node.js 24.14.1 sous utilisateur Unix chatisen. Sert apps/web/public, route /api, publie WS/SSE et lit ou réécrit le document JSON. | systemctl is-active chatisen ; GET /readyz répond persistence=json-demo. |
 | Front et service worker, navigateur | HTML, CSS et app.js pour comptes, DM, groupes et appels. sw.js peut notifier quand l’onglet est fermé et ouvrir le fil. Les fichiers sont distribués par le serveur Node de la même VM. | SHA-256 du bundle ; parcours à 2–3 sessions ; test Web Push avec deux profils persistants. |
 | Stockage local, VM | /var/lib/chatisen/chatisen.json, propriétaire chatisen, mode 0600, répertoire 0700. Les références entre collections sont résolues par Node. | stat sur le chemin et findmnt sur le répertoire, sans lecture du contenu privé. |
-| Snapshots Compute Engine, multi-région eu | La politique default-schedule-1 attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération. | Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative. |
+| Snapshots Compute Engine, multi-région eu | La politique quotidienne de snapshots (nom expurgé) attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération. | Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative. |
 | Configuration de service, VM | /etc/chatisen/chatisen.env appartient à root, mode 0600 ; secrets CSRF et VAPID, origine et STUN. systemd lit l’environnement au démarrage. | Vérifier noms des paramètres du script de déploiement et modes, comparer l’origine et la configuration publique. |
 | OpenSSH et systemd, VM | Connexion de l’exploitant et supervision des unités caddy/chatisen. Les journaux hôte passent par journald/rsyslog. | ssh.service actif ; systemctl et journalctl avec privilèges d’exploitation autorisés. |
 | Google Cloud Ops Agent, VM | Sous-services Fluent Bit et collecteur OpenTelemetry actifs. Leurs ports de supervision locaux sont distincts du port du chat. Cloud Logging/Monitoring sont les destinations habituelles du produit ; la réception, le bucket et la rétention demandent une preuve côté console. | États systemd et processus propriétaires des sockets 20201/20202 ; rechercher une série et un journal datés dans le projet. |
@@ -58,26 +58,26 @@ Le point d’entrée web est unique. Le serveur accepte aussi SSH pour Ops. Une 
 | F12 · Exploitation | Poste Ops → IP publique de la VM → sshd → systemd/journaux | SSH TCP 22 par clé ; gestion locale des unités, certificats et checkout. Sorties de maintenance HTTPS pour Git, runtime et dépendances | Accès direct vérifié. Source autorisée par le VPC et droits sudo/IAM à distinguer. Dépôts, registres et ACME sont des dépendances d’exploitation. |
 | F13 · Administration | Admin infrastructure → console/API Google Cloud → projet et ressources | HTTPS TCP 443 vers Google ; inventaire, IAM, VPC et configuration des VM/disques, selon les droits | Aucun portail admin global dans le code de la démo. Le propriétaire d’un groupe suit F02/F05 avec son compte applicatif. |
 | F14 · Observabilité | Ops/jury → Caddy → Node ; agent hôte → services d’observabilité Google si configurés | /healthz, /readyz, /metrics ; séries utilisateurs/messages. Agent Fluent Bit et collecteur OpenTelemetry présents | Les deux premières sondes décrivent le processus. La sonde json-demo n’effectue pas de contrôle d’écriture disque. Confirmer l’ingestion et la rétention depuis le projet. |
-| F15 · Copie du disque | Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu | Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1. | Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier. |
+| F15 · Copie du disque | Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu | Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon la politique de snapshots (nom expurgé). | Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier. |
 | F16 · Intégration continue | Contributeur → dépôt GitHub privé → runner GitHub Actions | Déclenchement sur pull request et push sur main. Installation verrouillée, builds, contrôle de Compose, tests PostgreSQL et Chromium. | Consulter le résultat associé au SHA de la PR. Le workflow r01.yml valide le candidat et archive les traces des tests. |
 | F17 · Livraison sur la VM | Ops via F12, puis VM → dépôt GitHub privé | Récupération Git puis sélection d’un SHA de main dans /opt/chatisen/app. Une modification des dessins devient lisible via Caddy. | Livraison déclenchée par Ops. Vérifier la provenance du SHA, les fichiers publics et la disponibilité. |
 
 ## Règles VPC visibles sur nic0
 
-Ces huit règles IPv4 correspondent aux tags de l’instance ou à toutes les VM du VPC `default`. Elles ont toutes le sens **INGRESS**, l’action **ALLOW** et la journalisation **désactivée**. La console n’a pas pu afficher les associations de politiques héritées faute du droit `compute.organizations.listAssociations`. La lecture depuis le compte de la VM avait également échoué par manque de scopes. La politique effective complète, les règles de sortie et le filtrage local Debian restent à confirmer. [Règles VPC du projet](https://console.cloud.google.com/networking/firewalls/list?project=project-fd23d3d9-a7e8-4002-a7a) · [Sous-réseau régional](https://console.cloud.google.com/networking/subnetworks/details/europe-west4/default?project=project-fd23d3d9-a7e8-4002-a7a)
+Ces huit règles IPv4 correspondent aux tags de l’instance ou à toutes les VM du VPC `default`. Elles ont toutes le sens **INGRESS**, l’action **ALLOW** et la journalisation **désactivée**. La console n’a pas pu afficher les associations de politiques héritées faute du droit `compute.organizations.listAssociations`. La lecture depuis le compte de la VM avait également échoué par manque de scopes. La politique effective complète, les règles de sortie et le filtrage local Debian restent à confirmer. [Règles VPC du projet](https://console.cloud.google.com/networking/firewalls/list) · [Sous-réseau régional](https://console.cloud.google.com/networking/subnetworks/details/europe-west4/default)
 
 | Règle VPC · entrée autorisée, logs désactivés | Priorité | Source IPv4 | Protocole / ports | Cible |
 |---|---:|---|---|---|
 | default-allow-http | 1000 | 0.0.0.0/0 | TCP 80 | Tag http-server |
 | default-allow-https | 1000 | 0.0.0.0/0 | TCP 443 | Tag https-server |
-| allow-tcp-27028-instance | 1000 | 0.0.0.0/0 | TCP 27028 | Tag instance-27028-codex |
+| règle spécifique (nom expurgé) | 1000 | 0.0.0.0/0 | TCP 27028 | Tag tag spécifique (nom expurgé) |
 | default-allow-health-check | 1000 | 35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22 | TCP tous ports | Tag lb-health-check |
 | default-allow-ssh | 65534 | 0.0.0.0/0 | TCP 22 | Toutes les VM du VPC |
 | default-allow-rdp | 65534 | 0.0.0.0/0 | TCP 3389 | Toutes les VM du VPC |
 | default-allow-icmp | 65534 | 0.0.0.0/0 | ICMP | Toutes les VM du VPC |
 | default-allow-internal | 65534 | 10.128.0.0/9 | TCP et UDP 0–65535, ICMP | Toutes les VM du VPC |
 
-Une règle distincte de health check IPv6 figure dans la console. L’interface relevée est IPv4 uniquement. Le tag `lb-health-check` cible la VM même si la liste des vérifications d’état Compute Engine du projet est vide. [Vérifications d’état du projet](https://console.cloud.google.com/compute/healthChecks?project=project-fd23d3d9-a7e8-4002-a7a)
+Une règle distincte de health check IPv6 figure dans la console. L’interface relevée est IPv4 uniquement. Le tag `lb-health-check` cible la VM même si la liste des vérifications d’état Compute Engine du projet est vide. [Vérifications d’état du projet](https://console.cloud.google.com/compute/healthChecks)
 
 ## Pare-feu et exposition
 
@@ -107,11 +107,11 @@ Une règle distincte de health check IPv6 figure dans la console. L’interface 
 
 | Objet | Observation datée | Portée |
 |---|---|---|
-| Politique default-schedule-1 | Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée. | Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique. |
-| Snapshot du 23 novembre 2026 | Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés | Multi-région eu, source disque instance-20261123-141011. |
+| Politique de snapshots (nom expurgé) | Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée. | Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique. |
+| Snapshot du 23 novembre 2026 | Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés | Multi-région eu, source disque de la VM du site, nom expurgé. |
 | Snapshot du 24 novembre 2026 | Création à 22:03:17 UTC · standard, planifié, prêt · 200,78 Mo affichés | Même disque source et multi-région eu. Tailles ponctuelles de la console. Le stockage facturé sur un mois dépend aussi de leur durée de conservation. |
 
-Le relevé couvre les snapshots standards listés dans ce projet. Les dates de création sont en UTC. Le contenu exact des copies, les autres destinations de sauvegarde et le succès d’une restauration applicative restent à établir. [Instantanés Compute Engine](https://console.cloud.google.com/compute/snapshots?project=project-fd23d3d9-a7e8-4002-a7a)
+Le relevé couvre les snapshots standards listés dans ce projet. Les dates de création sont en UTC. Le contenu exact des copies, les autres destinations de sauvegarde et le succès d’une restauration applicative restent à établir. [Instantanés Compute Engine](https://console.cloud.google.com/compute/snapshots)
 
 Pour le dossier RGPD, relever responsable, finalités, durées de conservation réellement configurées, localisation des copies et des journaux, sous-traitants et procédure d’effacement. Une suppression applicative, la révocation d’une session et l’expiration d’une sauvegarde sont trois opérations différentes. [Relations et code de persistance](../../apps/standalone/server.mjs) · [Contenu transmis en Push](../../apps/standalone/push.mjs)
 
@@ -121,14 +121,14 @@ Pour le dossier RGPD, relever responsable, finalités, durées de conservation r
 |---|---|---|
 | Compute Engine E2 custom | 4 vCPU et 6 Gio en europe-west4 ; H = heures facturables | H × (4 × prix vCPU/h + 6 × prix Gio RAM/h) en prenant les SKU custom et la devise du compte, ou H × prix complet de la VM. Une seule de ces deux méthodes. |
 | Disque et snapshots | Un disque pd-balanced zonal de 10 Go affichés, deux snapshots standards multi-région eu (1,13 Go et 200,78 Mo affichés) | Proratiser la capacité provisionnée et appliquer le tarif régional pd-balanced. Calculer les snapshots selon l’usage facturé dans le temps et le SKU applicable. |
-| IPv4 publique | Une adresse statique Standard réservée dans europe-west4 et attachée à la VM | Heures d’adresse attachée × tarif applicable. Une autre IPv4 réservée et inutilisée dans us-central1 figure au projet. Son coût éventuel relève du projet jusqu’à attribution. |
+| IPv4 publique | Une adresse statique Standard réservée dans europe-west4 et attachée à la VM | Heures d’adresse attachée × tarif applicable. Une autre adresse IPv4 réservée et inutilisée figure au projet. Sa région et son association restent à vérifier. |
 | Trafic | Octets sortants facturables de la VM, ventilés par destination ; HTTPS/WS, Push et signalisation | Somme des Gio par tranche et destination × tarif correspondant. Le média P2P circule entre les postes ; un futur relais média changerait le calcul. |
 | Télémétrie et DNS | Logs ingérés et conservés, séries payantes, DNS éventuellement facturé au gestionnaire de zone | Quantités facturées × tarifs applicables. Imputer les ressources dont l’usage pour ChatISEN est établi. |
 | Exploitation et total | Heures de maintenance et de restauration, tarif interne ; période et devise communes | TCO = infrastructure + coûts d’exploitation. Présenter brut, remises, crédits, taxes et net séparément. Les consommations réelles viennent de Billing. |
 
-Exemple de dimensionnement **pour un mois hypothétique de 730 h continues** : 2 920 vCPU·h, 4 380 Gio RAM·h, un disque provisionné pour le mois et jusqu’à 730 h d’IPv4 attachée. Le bandeau de la console affichait 266,57 € de crédit d’essai restant. Seul un rapport Billing daté permettra de publier une dépense brute ou nette. Laisser les prix et l’egress inconnus en cases à renseigner. [Prix Compute Engine](https://cloud.google.com/compute/vm-instance-pricing) · [Disques et adresses](https://cloud.google.com/compute/disks-image-pricing) · [Prix réseau](https://cloud.google.com/vpc/network-pricing) · [Calculatrice Google Cloud](https://cloud.google.com/products/calculator)
+Exemple de dimensionnement **pour un mois hypothétique de 730 h continues** : 2 920 vCPU·h, 4 380 Gio RAM·h, un disque provisionné pour le mois et jusqu’à 730 h d’IPv4 attachée. La console signalait un crédit d’essai restant. Son montant n’est pas repris ici. Seul un rapport Billing daté permettra de publier une dépense brute ou nette. Laisser les prix et l’egress inconnus en cases à renseigner. [Prix Compute Engine](https://cloud.google.com/compute/vm-instance-pricing) · [Disques et adresses](https://cloud.google.com/compute/disks-image-pricing) · [Prix réseau](https://cloud.google.com/vpc/network-pricing) · [Calculatrice Google Cloud](https://cloud.google.com/products/calculator)
 
-**Périmètre financier.** L’adresse inutilisée `34.61.228.109` se trouve en `us-central1`. Son association à ChatISEN n’a pas été établie. Le coût éventuel de cette réservation est à vérifier au niveau projet. Les forwarding rules et backends, Cloud NAT, Cloud SQL et les buckets Cloud Storage n’ont pas été inventoriés. [Adresses IP du projet](https://console.cloud.google.com/networking/addresses/list?project=project-fd23d3d9-a7e8-4002-a7a)
+**Périmètre financier.** Une autre adresse IPv4 réservée, valeur et région expurgées, reste inutilisée au niveau projet. Son association à ChatISEN n’a pas été établie. Le coût éventuel de cette réservation est à vérifier au niveau projet. Les forwarding rules et backends, Cloud NAT, Cloud SQL et les buckets Cloud Storage n’ont pas été inventoriés. [Adresses IP du projet](https://console.cloud.google.com/networking/addresses/list)
 
 ## Reproduire sur un environnement isolé
 
@@ -143,9 +143,10 @@ Exemple de dimensionnement **pour un mois hypothétique de 730 h continues** : 2
 Avec un compte lecteur du projet, ces consultations identifient le périmètre qui n’est pas visible depuis la VM. Le relevé des règles doit conserver nom, sens, priorité, action, protocoles/ports, source/destination, cible, état, journalisation et origine de politique. Séparer les règles du VPC et les politiques hiérarchiques/régionales. Pour les prix réels, exporter les coûts agrégés du projet sur une période identifiée depuis Cloud Billing.
 
 ```sh
-P=project-fd23d3d9-a7e8-4002-a7a
+P=PROJECT_ID
 Z=europe-west4-a
-VM=instance-20261123-141011
+VM=CHATISEN_VM
+POLICY=SNAPSHOT_POLICY
 gcloud compute instances list --project="$P" --format='table(name,zone.basename(),status,machineType.basename())'
 gcloud compute instances describe "$VM" --zone="$Z" --project="$P" --format='yaml(networkInterfaces[].name,networkInterfaces[].subnetwork,disks[].source,scheduling.provisioningModel)'
 gcloud compute instances network-interfaces get-effective-firewalls "$VM" --project="$P" --zone="$Z" --network-interface=nic0
@@ -160,7 +161,7 @@ gcloud compute routers list --project="$P"
 # Pour chaque routeur pertinent : gcloud compute routers nats list --project="$P" --router=NOM --region=REGION
 gcloud sql instances list --project="$P"
 gcloud storage buckets list --project="$P" --format='table(name,location,storageClass)'
-gcloud compute resource-policies describe default-schedule-1 --region=europe-west4 --project="$P" --format='yaml(snapshotSchedulePolicy)'
+gcloud compute resource-policies describe "$POLICY" --region=europe-west4 --project="$P" --format='yaml(snapshotSchedulePolicy)'
 gcloud compute disks describe "$VM" --zone="$Z" --project="$P" --format='yaml(type,sizeGb,sourceImage,resourcePolicies,diskEncryptionKey.kmsKeyName)'
 gcloud compute snapshots list --project="$P" --format='table(name,sourceDisk.basename(),storageLocations,status)'
 ```

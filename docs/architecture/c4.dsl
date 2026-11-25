@@ -4,13 +4,13 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         student = person "User · membre ou enseignant" "Utilise le site public et les médias dans son navigateur."
         operator = person "Ops · exploitation" "Accès SSH à Debian. Suit les services, déploie le code et consulte les sondes."
         admin = person "Admin · infrastructure GCP" "Administre les ressources du projet via les API GCP avec une identité IAM autorisée."
-        dns = softwareSystem "DNS du domaine ISEN" "Le nom ia-pple.isen.fedyna.fr résout vers 35.214.178.128."
+        dns = softwareSystem "DNS du domaine ISEN" "Le nom ia-pple.isen.fedyna.fr résout vers l’adresse publique réservée de la VM."
         stun = softwareSystem "STUN Google" "Découverte ICE par les navigateurs sur stun.l.google.com:19302."
         pushProvider = softwareSystem "Service push du navigateur" "FCM, Mozilla ou autre fournisseur accepté par push.mjs. Livre au service worker."
         peerBrowser = softwareSystem "Navigateur du correspondant" "Terminaison du média audio et vidéo pendant un appel direct."
         control = softwareSystem "Plan de contrôle GCP" "Console et API Compute Engine, VPC, IAM et observabilité. Autorisations distinctes de ChatISEN."
-        perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard 35.214.178.128. Règles web TCP 80/443 (P1000), SSH 22 (P65534). TCP 27028 permis, sans écoute. Voir les huit règles IPv4 et la limite IAM."
-        snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "default-schedule-1 copie le disque chaque jour. Deux snapshots standards prêts au relevé du 25 novembre."
+        perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard réservée, valeur expurgée. Règles web TCP 80/443 (P1000), SSH 22 (P65534). TCP 27028 permis, sans écoute. Voir les huit règles IPv4 et la limite IAM."
+        snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "La politique quotidienne de snapshots, nom expurgé, copie le disque. Deux snapshots standards prêts au relevé du 25 novembre."
         bench = softwareSystem "Client de test v1" "Exerce les routes d’admission de Fastify par injection HTTP."
         chat = softwareSystem "ChatISEN" "Comptes, messagerie et appels directs. Démonstration standalone en HTTPS sur Google Compute Engine." {
             group "Navigateur web" {
@@ -194,7 +194,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                 peer = infrastructureNode "Pair WebRTC" "Exécute le même client web."
             }
             schoolDns = deploymentNode "DNS public" "Résolution du domaine de démo." "DNS" {
-                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Enregistrement A : 35.214.178.128. IPv4 statique régionale, niveau Standard."
+                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Enregistrement A vers l’IPv4 statique réservée de la démonstration, valeur expurgée."
             }
             stunHost = deploymentNode "Service externe STUN" "Aide à la découverte des candidats ICE." "STUN" {
                 stunEndpoint = infrastructureNode "stun.l.google.com:19302" "Service observé dans GET /api/config."
@@ -204,11 +204,11 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                     savedDisks = infrastructureNode "Snapshots standards" "Deux copies prêtes, datées des 23 et 24 novembre 2026." "Compute Engine"
                 }
                 vpc = deploymentNode "VPC default · global" "Région du sous-réseau : europe-west4." "Google Cloud VPC" {
-                    subnet = deploymentNode "Sous-réseau default · europe-west4 · 10.164.0.0/20" "10.164.0.0/20 (P0), passerelle 10.164.0.1. Route Internet 0.0.0.0/0 (P1000)." "Sous-réseau régional" {
-                        firewall = infrastructureNode "F02/F12 · Filtrage VPC vers nic0" "8 règles IPv4 visibles. Web TCP 80/443 à P1000, SSH à P65534. Destination nic0 : 10.164.0.2 (éphémère)." "Pare-feu VPC"
+                    subnet = deploymentNode "Sous-réseau default · europe-west4" "CIDR et passerelle privés, valeurs expurgées. Route Internet par défaut (P1000)." "Sous-réseau régional" {
+                        firewall = infrastructureNode "F02/F12 · Filtrage VPC vers nic0" "8 règles IPv4 visibles. Web TCP 80/443 à P1000, SSH à P65534. Destination nic0 : adresse privée éphémère, valeur expurgée." "Pare-feu VPC"
                         zone = deploymentNode "europe-west4-a" "Unique zone observée pour le service du jury." "Zone GCE" {
                             bootDisk = infrastructureNode "Disque de démarrage · 10 Go" "Disque persistant équilibré attaché à la VM." "pd-balanced zonal"
-                            vm = deploymentNode "instance-20261123-141011" "nic0 : IPv4 statique Standard 35.214.178.128, interne éphémère 10.164.0.2. Caddy et Node sur cet hôte." "e2-custom-4-6144 · Debian 13" {
+                            vm = deploymentNode "VM ChatISEN · nom expurgé" "nic0 : IPv4 statique Standard réservée et adresse privée éphémère, valeurs expurgées. Caddy et Node sur cet hôte." "e2-custom-4-6144 · Debian 13" {
                                 manager = infrastructureNode "systemd" "Supervise les services caddy et chatisen." "Debian"
                                 caddyInstance = containerInstance caddy
                                 standaloneInstance = containerInstance local
@@ -219,7 +219,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                 }
             }
             jsonInstance -> bootDisk "F06 · Héberge le fichier sur /dev/sda1" "ext4"
-            bootDisk -> savedDisks "F15 · Capture quotidienne du disque" "default-schedule-1"
+            bootDisk -> savedDisks "F15 · Capture quotidienne du disque" "nom de politique expurgé"
             clientInstance -> dnsRecord "Résout le domaine ISEN" "DNS"
             clientInstance -> firewall "Charge le site et ouvre /api/ws" "HTTP :80 / HTTPS et WSS :443"
             firewall -> caddyInstance "Achemine le trafic Web" "TCP 80 et 443"

@@ -96,7 +96,7 @@ const architecture = {
       "id": "02-conteneurs",
       "title": "Conteneurs",
       "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
       "links": [
         [
           "Inventaire GCP et reconstruction",
@@ -120,7 +120,7 @@ const architecture = {
             "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"
           ],
           "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
+          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne de snapshots (nom expurgé) dans les détails du déploiement.",
           "links": [
             [
               "Inventaire vérifié",
@@ -789,8 +789,8 @@ const architecture = {
       ],
       [
         "Projet et hôte",
-        "project-fd23d3d9-a7e8-4002-a7a · instance-20261123-141011",
-        "Une seule instance listée dans le projet, en fonctionnement. Le nom et le projet correspondent aux métadonnées interrogées par SSH."
+        "Identifiants du projet et de l’instance expurgés",
+        "Une seule instance en fonctionnement observée dans le projet. Son rattachement a été recoupé avec les métadonnées lues par SSH."
       ],
       [
         "Région et zone",
@@ -804,17 +804,17 @@ const architecture = {
       ],
       [
         "VPC et interface",
-        "VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR 10.164.0.0/20, passerelle 10.164.0.1, IP interne éphémère 10.164.0.2",
+        "VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR, passerelle et adresse privée expurgés",
         "Concordance entre détails du sous-réseau dans la console, masque et adresse dans les métadonnées de la VM."
       ],
       [
         "Routes du VPC",
-        "10.164.0.0/20 → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000.",
+        "CIDR du sous-réseau privé → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000.",
         "Routes effectives visibles pour le VPC default dans europe-west4. Les priorités de routage et de filtrage appartiennent à des mécanismes distincts."
       ],
       [
         "DNS et entrée publique",
-        "ia-pple.isen.fedyna.fr → 35.214.178.128, IPv4 statique réservée et attachée à nic0, région europe-west4, niveau réseau Standard",
+        "ia-pple.isen.fedyna.fr → IPv4 statique réservée, valeur expurgée, attachée à nic0 dans europe-west4",
         "Concordance entre DNS externe, adresse distante HTTPS, console et métadonnées de la VM."
       ],
       [
@@ -846,7 +846,7 @@ const architecture = {
       ],
       [
         "Caddy 2.6.2, VM",
-        "TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif porte aussi le nom historique 35-214-178-128.sslip.io.",
+        "TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif conserve aussi une redirection historique de domaine.",
         "État systemd, domaines et validation HTTPS. Le template Git décrit le site principal."
       ],
       [
@@ -866,7 +866,7 @@ const architecture = {
       ],
       [
         "Snapshots Compute Engine, multi-région eu",
-        "La politique default-schedule-1 attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération.",
+        "La politique quotidienne de snapshots (nom expurgé) attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération.",
         "Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative."
       ],
       [
@@ -999,7 +999,7 @@ const architecture = {
       [
         "F15 · Copie du disque",
         "Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu",
-        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1.",
+        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon la politique de snapshots (nom expurgé).",
         "Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier."
       ],
       [
@@ -1038,11 +1038,11 @@ const architecture = {
         "Tag https-server"
       ],
       [
-        "allow-tcp-27028-instance",
+        "règle spécifique (nom expurgé)",
         "1000",
         "0.0.0.0/0",
         "TCP 27028",
-        "Tag instance-27028-codex"
+        "Tag tag spécifique (nom expurgé)"
       ],
       [
         "default-allow-health-check",
@@ -1161,14 +1161,14 @@ const architecture = {
         "Portée"
       ],
       [
-        "Politique default-schedule-1",
+        "Politique de snapshots (nom expurgé)",
         "Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée.",
         "Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique."
       ],
       [
         "Snapshot du 23 novembre 2026",
         "Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés",
-        "Multi-région eu, source disque instance-20261123-141011."
+        "Multi-région eu, source disque de la VM du site, nom expurgé."
       ],
       [
         "Snapshot du 24 novembre 2026",
@@ -1195,7 +1195,7 @@ const architecture = {
       [
         "IPv4 publique",
         "Une adresse statique Standard réservée dans europe-west4 et attachée à la VM",
-        "Heures d’adresse attachée × tarif applicable. Une autre IPv4 réservée et inutilisée dans us-central1 figure au projet. Son coût éventuel relève du projet jusqu’à attribution."
+        "Heures d’adresse attachée × tarif applicable. Une autre adresse IPv4 réservée et inutilisée figure au projet. Sa région et son association restent à vérifier."
       ],
       [
         "Trafic",
