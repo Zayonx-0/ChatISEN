@@ -1,6 +1,6 @@
 # ChatISEN
 
-ChatISEN est un projet académique de communication temps réel en cours de révision. Le socle J1 n’est pas encore reçu : le profil cible n’a pas de persistance métier PostgreSQL ni d’appels audio/vidéo réels. Voir [le bilan R01](docs/report/r01.md).
+ChatISEN est un projet académique de communication temps réel en cours de révision. Le socle J1 n’est pas encore reçu : la messagerie du profil cible utilise PostgreSQL, mais les appels audio/vidéo réels et la recette complète restent à démontrer. Voir [le bilan R01](docs/report/r01.md).
 
 Le dépôt contient deux profils :
 
@@ -17,7 +17,7 @@ PORT=3000 make dev
 # ouvrir http://localhost:3000
 ```
 
-Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur standalone notifie les abonnés autorisés par WebSocket. Les appels affichés sont simulés ; le transport média LiveKit n’est pas encore intégré.
+Créer deux comptes dans deux fenêtres privées, rechercher le handle de l’autre, créer la conversation et envoyer un message. Le serveur standalone notifie les abonnés autorisés par WebSocket. Les appels audio et vidéo ne sont pas encore disponibles. Pour appliquer une mise à jour du serveur, arrêtez-le avec `Ctrl+C`, relancez `PORT=3000 make dev`, puis rechargez la page. Les données locales restent dans `data/chatisen.json`.
 
 ```sh
 make verify LEVEL=core    # échoue tant que les critères de recette R01 sont ouverts
@@ -33,4 +33,4 @@ Les schémas HTTP/WS v1, l’OpenAPI, les exemples valides/invalides et le catal
 
 ## Limites connues
 
-Le portable de préparation n’expose pas de daemon PostgreSQL, de DNS public, de second réseau ni de périphériques média. Le test de migration réelle, le relais TURN/TLS, le média LiveKit reçu, le renouvellement ACME, la sauvegarde chiffrée restaurée sur VM et les parcours Firefox restent à jouer sur le profil Compose/VM ; chaque dépendance est listée dans [`docs/report/validation.md`](docs/report/validation.md). Le profil standalone utilise `crypto.scrypt` pour ne pas dépendre d’un téléchargement npm ; le profil API TypeScript conserve l’implémentation Argon2id prévue.
+Les migrations et les écritures métier ont été testées sur PostgreSQL, sans constituer une recette complète de la pile Compose. Le relais TURN/TLS, le média LiveKit reçu, le renouvellement ACME, la sauvegarde chiffrée restaurée sur VM et les parcours Firefox restent à jouer sur le profil Compose/VM ; chaque dépendance est listée dans [`docs/report/validation.md`](docs/report/validation.md). Le profil standalone utilise `crypto.scrypt` pour ne pas dépendre d’un téléchargement npm ; le profil API TypeScript conserve l’implémentation Argon2id prévue.
