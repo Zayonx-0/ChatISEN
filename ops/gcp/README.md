@@ -13,3 +13,5 @@ curl -fsS https://chat.example.org/readyz
 Le script crée un compte système dédié, un secret CSRF local et un fichier d'environnement protégé par root, puis configure systemd et Caddy. Il conserve les données et le secret lors des réexécutions ; un domaine différent exige une modification explicite de la configuration. Caddy renouvelle le certificat automatiquement.
 
 La signalisation WebRTC utilise HTTPS/WSS et, dans ce profil, un serveur STUN public configurable via `CHATISEN_STUN_URL` dans `/etc/chatisen/chatisen.env`. Cette valeur est communiquée aux navigateurs : ne pas y placer de secrets. Il n'y a pas de relais TURN ; certains réseaux empêcheront les appels. Un certificat valide et les autorisations navigateur sont requis pour le microphone et la caméra. Le mode standalone est destiné à la démonstration : limitation de connexion, sauvegardes et exploitation sécurisée restent à compléter avant une utilisation de production.
+
+Le lecteur C4 est accessible sous `/architecture/`. Caddy sert le lecteur, son script et ses SVG depuis `docs/architecture/`. Les liens vers le guide et les fichiers sources s’ouvrent dans le dépôt.

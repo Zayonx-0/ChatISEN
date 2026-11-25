@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 17 · Un appel à deux dans le profil standalone
+title Un appel à deux dans le profil standalone
 hide footbox
 participant "Alice\napp.js" as alice
 participant "Node\nserver.mjs" as node

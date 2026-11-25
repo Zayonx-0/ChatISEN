@@ -1,7 +1,7 @@
 @startsalt
 scale 1.15
 skinparam defaultFontName SansSerif
-title 21 · Écrans et actions visibles au commit bf1cd60
+title Écrans et actions visibles au commit bf1cd60
 {
   {^"<b>React · connexion"
     ChatISEN | <b>Se connecter</b>

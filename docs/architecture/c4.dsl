@@ -1,95 +1,104 @@
-workspace "ChatISEN" "Architecture R01 au commit bf1cd60 et cible de démonstration Google Cloud" {
+workspace "ChatISEN" "Démonstration Google Cloud (déploiement ab465a3) et profil Compose R01 (repère bf1cd60)" {
     !impliedRelationships false
     model {
-        student = person "Membre de ChatISEN" "Échange des messages privés ou de groupe, rejoint un appel."
-        reviewer = person "Enseignant" "Ouvre l’URL de démonstration avec un navigateur standard."
-        operator = person "Équipe projet" "Déploie, surveille et dépanne la plateforme."
-        dns = softwareSystem "DNS du domaine ISEN" "Résout ia-pple.isen.fedyna.fr vers l’IPv4 externe réservée de la VM." {
-            tags "Cible"
-        }
-        tailscale = softwareSystem "Tailscale" "Accès privé d’administration retenu pour la cible." {
+        student = person "Membre de ChatISEN" "S’inscrit, recherche un contact, ouvre un fil privé ou de groupe et relit son historique."
+        reviewer = person "Enseignant" "Teste la démonstration depuis Internet avec un navigateur ordinaire."
+        operator = person "Équipe projet" "Déploie, consulte la santé des services et dépanne la VM."
+        dns = softwareSystem "DNS du domaine ISEN" "Résout le domaine du site vers le frontal HTTPS."
+        stun = softwareSystem "STUN Google" "stun.l.google.com:19302. Aide les navigateurs à découvrir leur adresse pour ICE."
+        tailscale = softwareSystem "Tailscale" "Réseau privé envisagé pour l’administration." {
             tags "Cible"
         }
         bench = softwareSystem "Client de test v1" "Exerce les routes d’admission de Fastify par injection HTTP."
-        chat = softwareSystem "ChatISEN" "Plateforme académique de communication temps réel." {
-            edge = container "nginx · frontal TLS" "Route la page, les requêtes API et les mises à niveau WebSocket." "nginx:1.27-alpine" {
-                tags "Configuration"
-            }
-            webHost = container "web · fichiers compilés" "Sert /usr/share/nginx/html depuis la sortie Vite." "nginx:1.27-alpine" {
-                tags "Configuration"
-            }
-            web = container "Client React" "apps/web/src/main.tsx dans le navigateur. Un fil actif et un curseur en mémoire." "React 19.3.1 / Vite 6.4.6" {
-                shell = component "App et Auth" "Au montage GET /me. Sinon formulaire login ou register. Le profil chargé contient csrfToken." "useState / useEffect"
-                lists = component "Liste et recherche" "loadConversations parcourt les pages puis charge chaque détail. Recherche exacte, création de direct ou groupe." "main.tsx"
-                thread = component "Fil et composition" "select charge détail et historique. send réutilise clientId au retry du même brouillon. upsert par ID et tri BigInt(seq)." "main.tsx"
-                socketEffect = component "Effet WebSocket" "Une socket par fil sélectionné. Reconnexion à 1 500 ms et reprise depuis cursor.current." "WebSocket du navigateur"
-                httpClient = component "api et mutation" "fetch sur /api/v1, credentials include. JSON, x-csrf-token sur mutations et prise en charge de 204." "Fetch API"
-            }
-            api = container "API applicative" "apps/api/dist/server.js. DATABASE_URL active les modules v1. Les anciennes routes sont aussi enregistrées." "Fastify 5.12.8 / Node.js 24" {
-                identity = component "Identité et sessions" "identity/postgres-routes.ts authentifie le cookie. security.ts fournit Argon2id et le HMAC CSRF." "TypeScript / argon2"
-                conversations = component "Routes de conversation" "chat/postgres-routes.ts monte les routes v1. group-operations.ts traite rôles et mutations sous verrou." "TypeScript / HTTP"
-                stream = component "Diffusion WebSocket v1" "chat/postgres-websocket.ts tient les abonnements en RAM. Le journal PostgreSQL permet la reprise." "@fastify/websocket / ws"
-                repo = component "Accès PostgreSQL" "repositories/postgres.ts fournit pg.Pool et transaction. Chat et appels exécutent aussi du SQL via ce pool." "pg 8.23.1"
-                calls = component "Admission d’appel" "Contrôle la session, l’appartenance et l’état de l’appel. Retourne un jeton signé limité à une salle." "TypeScript / JWT HS256" {
-                    tags "Experimental"
+        chat = softwareSystem "ChatISEN" "Comptes, messagerie et appels directs. Démonstration standalone en HTTPS sur Google Compute Engine." {
+            group "Navigateur web" {
+                web = container "Client React" "Interface web responsive sur ordinateur et mobile. Session par cookie, requêtes JSON et une socket par fil." "JavaScript / React 19.3.1" {
+                    shell = component "App et Auth" "Au montage GET /me. Sinon formulaire login ou register. Le profil chargé contient csrfToken." "useState / useEffect"
+                    lists = component "Liste et recherche" "loadConversations parcourt les pages puis charge chaque détail. Recherche exacte, création de direct ou groupe." "main.tsx"
+                    thread = component "Fil et composition" "select charge détail et historique. send réutilise clientId au retry du même brouillon. upsert par ID et tri BigInt(seq)." "main.tsx"
+                    socketEffect = component "Effet WebSocket" "Une socket par fil sélectionné. Reconnexion à 1 500 ms et reprise depuis cursor.current." "WebSocket du navigateur"
+                    httpClient = component "api et mutation" "fetch sur /api/v1, credentials include. JSON, x-csrf-token sur mutations et prise en charge de 204." "Fetch API"
                 }
-                metrics = component "Métriques API" "Expose compteurs HTTP, messages et connexions instrumentées." "prom-client" {
+                localBrowser = container "Client standalone" "HTML, CSS et app.js. Messages via WebSocket, pistes audio et vidéo directement entre les navigateurs." "HTML / JavaScript / WebRTC"
+            }
+            group "Serveur R01 · Docker Engine et Compose v2" {
+                edge = container "nginx · frontal TLS" "Pile Compose de recette. Hôte :80 → redirection, :443 → TLS." "nginx:1.27-alpine" {
                     tags "Configuration"
                 }
-                legacy = component "Routes historiques /api" "server.ts utilise les Maps de store.ts et les canaux de ws.ts. Comptes et fichiers volatils, jetons média de démo." "Fastify / RAM"
+                webHost = container "web · serveur statique" "Sert index.html et assets/ depuis /usr/share/nginx/html, après compilation Vite 6.4.6." "nginx:1.27-alpine" {
+                    tags "Configuration"
+                }
+                api = container "API applicative" "apps/api/dist/server.js sur node:24-bookworm-slim. DATABASE_URL active /api/v1 sur PostgreSQL. L’ancien /api utilise ses propres Maps." "Fastify 5.12.8 / Node.js 24" {
+                    entry = component "Montage Fastify" "server.ts monte cookie, CORS, multipart et WebSocket. DATABASE_URL initialise le repository et les handlers v1." "TypeScript / Fastify"
+                    identity = component "Identité et sessions" "identity/postgres-routes.ts. Cookie __Host-chatisen, session SQL 24 h, Argon2id et HMAC CSRF via security.ts." "TypeScript / argon2"
+                    conversations = component "Routes de conversation" "chat/postgres-routes.ts. Direct, groupes, messages et événements. group-operations.ts applique les droits de propriétaire." "TypeScript / HTTP"
+                    stream = component "Abonnements WebSocket" "chat/postgres-websocket.ts. Contrôle Origin et session puis abonnement au fil. Journal par afterSeq, 100 événements par lot." "@fastify/websocket / ws"
+                    repo = component "PostgresRepository" "repositories/postgres.ts. Pool pg, transactions, verrous et clé clientId. Les écritures alimentent le journal." "pg 8.23.1"
+                    calls = component "Admission d’appel" "calls/postgres-routes.ts. Drapeau expérimental, droits par fil et JWT HS256 pour une salle, valable au plus 300 s." "TypeScript / JWT HS256" {
+                        tags "Experimental"
+                    }
+                    metrics = component "Sondes et métriques" "server.ts et metrics.ts. /healthz, /readyz (ping SQL) et /metrics. Compteurs de chat alimentés par /api historique." "prom-client" {
+                        tags "Configuration"
+                    }
+                    legacy = component "Routes historiques /api" "server.ts utilise les Maps de store.ts et les canaux de ws.ts. Comptes et fichiers volatils, jetons média de démo." "Fastify / RAM"
+                }
+                db = container "postgres · base et journal" "14 tables. Comptes, membres, sessions, messages et événements ordonnés. Volume pgdata." "postgres:17-alpine" {
+                    tags "Database"
+                }
+                migration = container "migrate · migration SQL" "Job unique. Attend pg_isready. Applique les 2 fichiers sous transaction puis débloque l’API s’il sort avec 0." "node db/migrate.mjs" {
+                    tags "Configuration"
+                }
+                media = container "livekit · serveur média" "Déclaré dans Compose local. Connexion du client React et trajet WebRTC public à valider." "LiveKit 1.8.4 / SFU" {
+                    tags "Cible"
+                }
+                prom = container "prometheus · collecte" "Interroge api:3000/metrics toutes les 15 s." "Prometheus 3.1.0" {
+                    tags "Configuration"
+                }
+                grafana = container "grafana · tableaux" "Datasource Prometheus. Requêtes HTTP et messages historiques." "Grafana 12.0.0" {
+                    tags "Configuration"
+                }
             }
-            db = container "Base et journal" "Comptes, sessions, membres, messages et événements." "PostgreSQL 17" {
-                tags "Database"
-            }
-            migration = container "Migration au démarrage" "Applique le schéma sur la base saine avant le démarrage de l’API." "Node.js / SQL" {
-                tags "Configuration"
-            }
-            media = container "Serveur média" "Salle, signalisation et retransmission de pistes à chaque abonné." "LiveKit / SFU" {
-                tags "Cible"
-            }
-            prom = container "Collecte des métriques" "Interroge l’endpoint interne /metrics de l’API." "Prometheus" {
-                tags "Configuration"
-            }
-            grafana = container "Tableau de bord" "Consulte les séries Prometheus pour l’équipe projet." "Grafana" {
-                tags "Configuration"
-            }
-            localBrowser = container "Client standalone" "apps/web/public/index.html et app.js. Notifications et appels directs à deux." "JavaScript / DOM / WebRTC"
-            local = container "Serveur standalone" "pnpm dev lance apps/standalone/server.mjs. Un processus HTTP sert les fichiers et /api." "Node.js / node:http" {
-                localAuth = component "session et mutate" "scrypt, cookie de session, recherche du hash SHA-256 et contrôle du HMAC CSRF sur mutations métier." "node:crypto"
-                localChat = component "api et save" "Utilisateurs, directs, groupes et messages. Incrémente lastSeq et écrit le document JSON avant diffusion du message." "node:http / node:fs"
-                localChannels = component "Canaux en mémoire" "wsChannels et listeners indexés par conversation. WS et SSE revérifient la session et le membre à la livraison." "WebSocket / EventSource"
-                localCalls = component "Appels directs" "Invitation, réponse, fin et relais éphémère des offres SDP et candidats ICE vers la session du pair." "HTTP + WebSocket"
-            }
-            localFile = container "Fichier JSON local" "Sept collections. CHATISEN_DATA_FILE fixe le chemin. save réécrit le fichier, un seul processus." "Fichier sur disque" {
-                tags "Database"
+            group "Profil standalone" {
+                caddy = container "Caddy · entrée HTTPS sur GCP" "Sur la VM Debian 13. Redirige HTTP :80, termine TLS sur :443 et relaie HTTP et WebSocket sur loopback." "Caddy / TLS"
+                local = container "Serveur standalone" "apps/standalone/server.mjs. Sur la VM, systemd lance chatisen.service avec Node 24.14.1 en écoute sur 127.0.0.1:3000. En local, pnpm dev." "Node.js / node:http" {
+                    localRouter = component "Entrée du serveur" "server.mjs sert apps/web/public, oriente /api et accepte l’Upgrade sur /api/ws. GET /readyz rend json-demo." "node:http"
+                    localAuth = component "Identité et session" "scrypt, empreinte SHA-256 du jeton de session, HMAC CSRF. Cookie __Host-chatisen en HTTPS, Secure, HttpOnly et SameSite=Lax." "node:crypto"
+                    localChat = component "Messagerie et persistance" "Directs, groupes et messages. Vérifie l’appartenance, incrémente lastSeq et écrit le document JSON avant diffusion." "node:http / node:fs"
+                    localChannels = component "Abonnements WebSocket" "Canaux par conversation. Contrôle PUBLIC_ORIGIN, la session et le membre. Diffuse messages et signalisation de l’appel." "WS / SSE"
+                    localCalls = component "Signalisation des appels" "Invitations, réponses, SDP et ICE vers la session du pair. GET /api/config communique le serveur STUN aux navigateurs." "HTTP + WebSocket"
+                }
+                localFile = container "Stockage JSON standalone" "Sur GCP, /var/lib/chatisen/chatisen.json. Comptes, sessions, conversations, membres, messages, appels et pièces jointes." "Fichier sur disque" {
+                    tags "Database"
+                }
             }
         }
 
-        student -> chat "Utilise la messagerie et les appels"
-        reviewer -> chat "Accède à la démonstration"
-        operator -> chat "Déploie et exploite"
+        student -> chat "Échange des messages et passe des appels" "Navigateur web"
+        reviewer -> chat "Ouvre ia-pple.isen.fedyna.fr" "HTTPS / WSS :443"
         reviewer -> dns "Résout le nom de démonstration" "DNS"
-        operator -> tailscale "Accède à l’administration" "Tailnet"
-        student -> edge "Ouvre l’application" "HTTPS / WSS"
-        reviewer -> edge "Ouvre l’URL avec :27028" "HTTPS / WSS" {
+        chat -> stun "Découverte ICE par les navigateurs de la démonstration" "STUN"
+        operator -> tailscale "Ouvre une session privée d’administration" "Tailnet"
+        tailscale -> chat "Accès de l’équipe à la VM" "SSH / supervision, cible" {
             tags "Cible"
         }
-        web -> edge "Charge la page et appelle la même origine" "HTTPS / WSS"
+        student -> edge "Ouvre l’application" "HTTPS / WSS"
+        reviewer -> caddy "Ouvre le domaine ISEN" "HTTPS / WSS :443"
+        web -> edge "Charge l’interface et appelle la même origine" "HTTPS / WSS"
         edge -> webHost "Achemine / et /assets/" "HTTP web:80"
-        edge -> api "Achemine /api/v1 et /api/v1/ws" "HTTP / WS interne"
-        edge -> media "Achemine la signalisation /livekit/" "WebSocket" {
+        edge -> api "Achemine /api/, /healthz et /metrics. Upgrade sur /api/ws et /api/v1/ws." "HTTP / WS api:3000"
+        edge -> media "Route /livekit/ en retirant le préfixe" "WS livekit:7880" {
             tags "Cible"
         }
         web -> api "Utilise le contrat v1 via le proxy" "HTTPS / WSS"
         web -> media "Publie et reçoit les pistes" "WebRTC / ICE" {
             tags "Cible"
         }
-        api -> db "Lit et écrit les données métier" "SQL / TCP 5432"
+        api -> db "Lit et écrit. Relit le journal avec LISTEN / NOTIFY" "SQL postgres:5432"
         migration -> db "Applique 001_initial.sql puis 002_group_commands.sql" "SQL / TCP 5432"
         prom -> metrics "Collecte /metrics" "HTTP interne"
         prom -> api "Scrape /metrics toutes les 15 s" "HTTP api:3000"
         legacy -> metrics "Incrémente messages et sockets sur le parcours historique"
-        grafana -> prom "Interroge les séries" "PromQL / HTTP interne"
+        grafana -> prom "Interroge les séries" "HTTP prometheus:9090"
         operator -> grafana "Consulte les tableaux de bord" "Accès privé prévu" {
             tags "Cible"
         }
@@ -119,6 +128,13 @@ workspace "ChatISEN" "Architecture R01 au commit bf1cd60 et cible de démonstrat
         calls -> repo "Vérifie l’appartenance et enregistre l’admission" {
             tags "Experimental"
         }
+        web -> entry "Appelle /api/v1 via le frontal" "HTTPS / WSS"
+        entry -> identity "Monte /auth et /me"
+        entry -> conversations "Monte /users, groupes et messages"
+        entry -> stream "Monte /ws"
+        entry -> calls "Monte les POST d’appel"
+        entry -> legacy "Monte /api historique en mémoire"
+        entry -> metrics "Monte sondes et hook onResponse"
         shell -> httpClient "Charge la session et envoie le formulaire"
         shell -> lists "Charge la liste après authentification"
         lists -> httpClient "Recherche, liste, détail et création"
@@ -129,11 +145,20 @@ workspace "ChatISEN" "Architecture R01 au commit bf1cd60 et cible de démonstrat
         httpClient -> api "Envoie requête et cookie" "JSON / HTTP"
         student -> localBrowser "Utilise le profil pnpm dev"
         student -> web "Utilise le profil React"
-        localBrowser -> local "Charge le site et utilise /api et /api/ws" "HTTP / WS"
-        local -> localFile "Charge au démarrage et réécrit à chaque mutation durable"
+        localBrowser -> dns "Résout le domaine public" "DNS"
+        localBrowser -> caddy "Charge le site et appelle /api et /api/ws" "HTTPS / WSS :443"
+        localBrowser -> stun "Découvre les adresses candidates" "STUN :19302"
+        caddy -> local "Achemine HTTP et Upgrade WebSocket" "127.0.0.1:3000"
+        caddy -> localRouter "Relaie HTML, JSON et WebSocket" "HTTP / WS vers 127.0.0.1:3000"
+        localBrowser -> local "Charge le site et utilise /api et /api/ws" "HTTP / WS :3000"
+        local -> localFile "Lit au démarrage. Réécrit comptes, sessions, fils, messages et appels."
         localBrowser -> localChat "Recherche et écrit" "HTTP /api"
         localBrowser -> localChannels "Souscrit à tous les fils connus" "WS /api/ws"
         localBrowser -> localCalls "Crée, accepte et signale" "HTTP /api"
+        localRouter -> localAuth "Inscription, connexion et mutations"
+        localRouter -> localChat "Conversations et messages"
+        localRouter -> localChannels "Upgrade /api/ws"
+        localRouter -> localCalls "Appels et configuration ICE"
         localChat -> localAuth "Identifie le membre et contrôle la mutation"
         localCalls -> localAuth "Vérifie membre, utilisateur et session de signalisation"
         localChat -> localFile "Persiste avant émission"
@@ -142,159 +167,58 @@ workspace "ChatISEN" "Architecture R01 au commit bf1cd60 et cible de démonstrat
         localCalls -> localChannels "Diffuse invitation, état et signal ciblé"
         localChannels -> localAuth "Revérifie les droits"
 
-        deploymentEnvironment "Cible Google Cloud" {
-            clientHost = deploymentNode "Poste de l’enseignant" "Réseau extérieur." "Poste client" {
-                browser = infrastructureNode "Navigateur de l’enseignant" "Exécute React et se connecte depuis Internet." "Chromium ou Firefox"
-            }
-            schoolDns = deploymentNode "DNS de l’école" "Résolution du nom public." "DNS" {
-                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Enregistrement A vers l’IPv4 externe de la VM." {
-                    tags "Cible"
+        deploymentEnvironment "Démonstration Google Cloud" {
+            clientHost = deploymentNode "Poste du jury" "Connexion depuis Internet." "Ordinateur ou mobile" {
+                browser = deploymentNode "Navigateur web" "Exécute le client standalone." "Navigateur" {
+                    clientInstance = containerInstance localBrowser
                 }
             }
-            cloud = deploymentNode "Google Cloud Compute Engine" "Cible de déploiement à valider sur la VM." "VPC / VM Linux" {
-                firewall = infrastructureNode "Firewall VPC et IPv4 statique" "Entrée Web : TCP 27028. Ports publics 80 et 443 fermés." "Règles réseau GCP" {
-                    tags "Cible"
-                }
-                docker = deploymentNode "Docker Compose sur la VM" "Les services internes communiquent sur le réseau Docker." "Docker Engine" {
-                    proxyInstance = containerInstance edge
-                    staticFiles = containerInstance webHost
-                    apiInstance = containerInstance api
-                    migratorInstance = containerInstance migration
-                    dbInstance = containerInstance db
-                    sfInstance = containerInstance media
-                    promInstance = containerInstance prom
-                    grafanaInstance = containerInstance grafana
-                }
-                admin = infrastructureNode "Interface d’administration" "Accès privé prévu pour SSH et Grafana." "Tailscale" {
-                    tags "Cible"
-                }
-                mediaEntry = infrastructureNode "Chemin média public à valider" "Relais ou multiplexage compatible avec la contrainte 27028 à éprouver." "ICE / TURN" {
-                    tags "Cible"
+            peerHost = deploymentNode "Second navigateur" "Le pair reçoit les pistes WebRTC." "Navigateur" {
+                peer = infrastructureNode "Pair WebRTC" "Exécute le même client web."
+            }
+            schoolDns = deploymentNode "DNS public" "Résolution du domaine de démo." "DNS" {
+                dnsRecord = infrastructureNode "ia-pple.isen.fedyna.fr" "Pointe vers le frontal HTTPS."
+            }
+            stunHost = deploymentNode "Service externe STUN" "Aide à la découverte des candidats ICE." "STUN" {
+                stunEndpoint = infrastructureNode "stun.l.google.com:19302" "Service observé dans GET /api/config."
+            }
+            cloud = deploymentNode "Google Cloud" "Hébergement de démonstration." "VPC" {
+                firewall = infrastructureNode "Entrée réseau de la VM" "Redirige les requêtes HTTP vers HTTPS." "TCP / pare-feu VPC"
+                vm = deploymentNode "VM Compute Engine" "Debian 13. Le service Node écoute uniquement sur loopback." "Debian 13" {
+                    manager = infrastructureNode "systemd" "Démarre et supervise les services Caddy et chatisen." "chatisen.service"
+                    caddyInstance = containerInstance caddy
+                    standaloneInstance = containerInstance local
+                    jsonInstance = containerInstance localFile
                 }
             }
-            browser -> dnsRecord "Résout le nom" "DNS" {
-                tags "Cible"
-            }
-            browser -> firewall "Accède au site et à la signalisation" "HTTPS / WSS :27028" {
-                tags "Cible"
-            }
-            firewall -> proxyInstance "Transmet HTTPS et WSS" "TCP 27028" {
-                tags "Cible"
-            }
-            browser -> mediaEntry "Trajet audio/vidéo à valider" "WebRTC / ICE" {
-                tags "Cible"
-            }
-            mediaEntry -> sfInstance "Achemine le média après négociation" "WebRTC" {
-                tags "Cible"
-            }
-            admin -> grafanaInstance "Accès de l’équipe aux tableaux de bord" "Tunnel privé" {
-                tags "Cible"
-            }
+            clientInstance -> dnsRecord "Résout le domaine ISEN" "DNS"
+            clientInstance -> firewall "Charge le site et ouvre /api/ws" "HTTP :80 / HTTPS et WSS :443"
+            firewall -> caddyInstance "Achemine le trafic Web" "TCP 80 et 443"
+            manager -> caddyInstance "Supervise le frontal TLS"
+            manager -> standaloneInstance "Lance le service Node en tant que chatisen"
+            clientInstance -> stunEndpoint "Découvre ses candidats ICE" "STUN :19302"
+            clientInstance -> peer "Échange les pistes audio et vidéo entre navigateurs" "WebRTC / DTLS-SRTP"
         }
     }
 
     views {
-        systemContext chat "01-contexte" "Acteurs et systèmes extérieurs retenus pour la démonstration." {
-            title "01 · Contexte de ChatISEN"
-            include student reviewer operator dns tailscale chat
-            autoLayout lr
-        }
-        container chat "02-conteneurs" "Messagerie, signalisation et supervision." {
-            title "02 · Services applicatifs et protocoles"
-            include edge webHost web api db migration media prom grafana
-            exclude "relationship.source==web && relationship.destination==api"
-            exclude "relationship.source==api && relationship.destination==web"
-            exclude "relationship.source==db && relationship.destination==api"
+        systemContext chat "01-contexte" "Périmètre utilisateur, démonstration GCP et administration." {
+            title "01 · Contexte"
+            include student reviewer operator dns stun tailscale chat
             autoLayout tb
         }
-        component api "03-composants-api" "Identité, autorisation, transaction et diffusion au sein de Fastify." {
-            title "03 · Composants de l’API Fastify"
-            include identity conversations repo stream calls db metrics legacy prom
-            exclude "relationship.source==db && relationship.destination==repo"
-            exclude "relationship.source==repo && relationship.destination==identity"
-            exclude "relationship.source==db && relationship.destination==stream"
+        container chat "02-conteneurs" "Démo standalone sur GCP et pile Docker Compose de recette." {
+            title "02 · Conteneurs"
+            include edge webHost web api db migration media prom grafana localBrowser caddy local localFile
+            exclude "relationship==web->api"
             autoLayout tb
         }
-        deployment chat "Cible Google Cloud" "04-deploiement-gcp" "Cible réseau. Le port public 27028 et le chemin média font l’objet de validations distinctes." {
-            title "04 · Déploiement cible sur Google Cloud"
-            include *
-            exclude "relationship.source==dbInstance && relationship.destination==apiInstance"
+        component local "03-composants-api" "Déploiement réel sur Google Compute Engine. VM Debian 13 et service systemd chatisen, Node.js 24.14.1." {
+            title "03 · Composants de la démonstration Google Cloud"
+            include localBrowser dns stun caddy localRouter localAuth localChat localChannels localCalls localFile
+            exclude "relationship==localBrowser->localChat" "relationship==localBrowser->localChannels" "relationship==localBrowser->localCalls"
             autoLayout tb
         }
-        dynamic api "05-message-prive" "Alice est connectée et Bob est déjà abonné au fil." {
-            title "05 · Envoi d’un message privé"
-            web -> conversations "Alice envoie texte et clientId : POST /api/v1/conversations/{id}/messages."
-            conversations -> identity "Contrôle du cookie, de l’origine et du jeton CSRF."
-            conversations -> repo "Écrit le message pour l’utilisateur authentifié."
-            repo -> db "BEGIN. Verrouille conversation puis membre actif (FOR UPDATE). Cherche la clé (conversation_id, sender_id, client_id)."
-            repo -> db "Nouvelle clé : last_seq + 1, INSERT conversation_events puis messages, COMMIT. Toute erreur annule les trois écritures."
-            conversations -> web "201 + Message. Même clé et texte : 200, même ID. Texte différent : 409 IDEMPOTENCY_CONFLICT."
-            db -> stream "Seulement après un nouvel INSERT et son commit : NOTIFY réveille les abonnements du fil. Un retry identique ne crée aucun événement."
-            stream -> repo "Revalide la session de Bob et son appartenance."
-            stream -> db "Lit les événements où seq > curseur, dans l’ordre."
-            stream -> web "Bob reçoit message.created. React fusionne par ID."
-            autoLayout lr
-        }
-        dynamic api "06-reconnexion" "Bob reprend depuis la dernière séquence reçue." {
-            title "06 · Rattrapage d’un fil après une coupure"
-            web -> stream "Après fermeture, Bob rouvre /api/v1/ws au bout de 1 500 ms."
-            stream -> identity "Vérifie l’origine au handshake et authentifie le cookie."
-            stream -> web "Envoie ready (heartbeatSeconds=30)."
-            web -> stream "Envoie {v:1, type:subscribe, conversationId, afterSeq} avec un curseur décimal en chaîne."
-            stream -> repo "Vérifie la session et l’appartenance à la conversation."
-            stream -> db "Lit conversations.last_seq pour l’accusé subscribed(snapshotSeq)."
-            stream -> web "Confirme l’abonnement. Un curseur 0 relit depuis le début."
-            stream -> db "SELECT seq > afterSeq ORDER BY seq LIMIT 100. NOTIFY ou réveil périodique à 10 s relance la lecture."
-            stream -> repo "Revalide les droits avant de livrer chaque événement."
-            stream -> web "event avec seq, at, event, data. React avance son curseur et fusionne les messages par ID."
-            stream -> web "Accès perdu : error NOT_MEMBER. Tampon > 1 Mio : resync_required(fromSeq). Dans ces deux cas, le serveur retire l’abonnement."
-            autoLayout lr
-        }
-        container chat "07-profils" "Deux points d’entrée, deux clients, deux magasins de données." {
-            title "07 · Quelle application reconstruit-on ?"
-            include student web api db localBrowser local localFile
-            autoLayout tb
-        }
-        component web "09-interface-react" "Composants et fonctions du même fichier main.tsx." {
-            title "09 · Une action dans le client React"
-            include shell lists thread socketEffect httpClient api
-            autoLayout tb
-        }
-        dynamic api "10-identite" "Connexion puis accès privé avec la même session PostgreSQL." {
-            title "10 · Où ChatISEN authentifie Alice"
-            web -> identity "POST /api/v1/auth/login {handle,password}. Origin doit égaler CORS_ORIGIN."
-            identity -> repo "findUserByHandle normalise le handle en minuscules."
-            repo -> db "SELECT users par handle. À l’inscription : Argon2id, 19 456 Kio, t=2, p=1."
-            repo -> identity "Rend password_hash. argon2.verify contrôle le mot de passe. Échec : 401."
-            identity -> repo "Génère 32 octets aléatoires en base64url. createSession reçoit SHA-256 du jeton."
-            repo -> db "INSERT sessions. expires_at et absolute_expires_at sont fixés à 24 h."
-            identity -> web "200 {user}, avec csrfToken. Set-Cookie __Host-chatisen, Secure, HttpOnly, SameSite=Lax, Path=/, Max-Age=86400."
-            web -> identity "GET /api/v1/me avec cookie. postgresAuthenticator recharge session valide et utilisateur. Réponse : profil à la racine."
-            web -> identity "POST /api/v1/auth/logout, Origin et x-csrf-token = HMAC-SHA256(secret, jeton) en base64url."
-            identity -> repo "revokeSession écrit revoked_at."
-            identity -> web "204, cookie effacé. Un GET /me avec le jeton révoqué renvoie 401."
-            autoLayout lr
-        }
-        component local "16-standalone" "Responsabilités dans le processus node:http du profil local." {
-            title "16 · Du navigateur au fichier JSON local"
-            include localBrowser localAuth localChat localChannels localCalls localFile
-            autoLayout tb
-        }
-        dynamic api "18-admission-livekit" "Séquence exercée par tests HTTP, avec une base et sans serveur SFU." {
-            title "18 · Admission LiveKit expérimentale"
-            bench -> calls "POST /api/v1/conversations/{id}/calls {clientId,mode}. CHATISEN_EXPERIMENTAL_CALLS doit valoir true, sinon 503."
-            calls -> identity "Chaque mutation vérifie session, Origin et x-csrf-token."
-            calls -> repo "Verrouille conversation puis membre. Insère calls, state=ringing, room_name=chatisen_<UUID appel>. Un seul appel ouvert par fil."
-            calls -> bench "Création 201, retry identique 200, conflit 409. Aucun événement d’invitation v1."
-            bench -> calls "POST /api/v1/calls/{id}/join. LIVEKIT_URL doit désigner une URL wss et les clés doivent être configurées."
-            calls -> repo "Verrouille conversation, membre, session et appel. Upsert call_participants, état invited. Identité = userId_sessionId."
-            calls -> bench "200 {callId,serverUrl,token,expiresAt}, Cache-Control no-store. JWT HS256, salle unique, roomJoin, canPublish et canSubscribe."
-            bench -> calls "POST /api/v1/calls/{id}/end par initiateur ou owner. 403 pour un autre membre."
-            calls -> repo "Écrit state=ended et ended_at. Une admission ultérieure renvoie 409 CALL_ENDED."
-            calls -> bench "204. Le JWT déjà émis expire au plus tôt entre +300 s et l’expiration de session. La déconnexion SFU reste à intégrer."
-            autoLayout lr
-        }
-
         styles {
             element "Element" {
                 background #E8F1FA

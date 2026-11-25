@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 14 · Contrat HTTP v1 — comptes et conversations
+title Contrat HTTP v1 — comptes et conversations
 legend
   <b>Base /api/v1</b>     O = Origin égal à CORS_ORIGIN. S = session valide. M = S + O + x-csrf-token.
   |= Méthode |= Chemin |= Garde et entrée |= Succès |
@@ -26,6 +26,6 @@ legend
   Dates ISO UTC. UUID JSON en chaînes. lastSeq décimal en chaîne. limit entier de 1 à 100.
   Handle d’inscription normalisé en minuscules, [a-z0-9_] sur 3–32. Nom affiché élagué 1–80, mot de passe 12–128.
   <b>Échec v1</b>   {code,message,requestId}. 400 saisie · 401 session · 403 Origin/CSRF/rôle · 404 ressource masquée
-  409 handle pris, état incompatible ou réemploi de clientId avec un autre contenu. Règles de groupe détaillées en vue 11.
+  409 handle pris, état incompatible ou réemploi de clientId avec un autre contenu. Voir « Propriété et membres d’un groupe ».
 endlegend
 @enduml

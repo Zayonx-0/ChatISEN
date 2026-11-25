@@ -52,7 +52,7 @@ def physical_views(migrations, style):
 
     for view, (title, group) in VIEWS.items():
         lines = ["@startuml", "!pragma layout smetana", style, "hide circle", "hide empty methods",
-                 f"title {view[:2]} · PostgreSQL 17 — {title}"]
+                 f"title PostgreSQL 17 — {title}"]
         if "messages" in group:
             lines.append("left to right direction")
         references = defaultdict(list)
@@ -76,7 +76,7 @@ def physical_views(migrations, style):
                     external.add(parent)
                 references[table, parent].append((source, target))
         for name in sorted(external):
-            lines.append(f'entity "{name} · vue 12" as {name} #F0F2F5 {{\n  * id : uuid [PK]\n}}')
+            lines.append(f'entity "{name} · table du socle" as {name} #F0F2F5 {{\n  * id : uuid [PK]\n}}')
         for (table, parent), links in references.items():
             columns, _, unique, _ = tables[table]
             optional = any(not columns[column][1] for source, _ in links for column in source)

@@ -77,15 +77,16 @@ def render(cli, plantuml):
     folder = workspace.parent
     model = folder / "c4.dsl"
     details = folder / "details"
+    appendix = details / "vues.dsl"
     contract_gaps = check_http_routes(folder.parent.parent, details)
     migrations = {path.name: path.read_text(encoding="utf-8") for path in
                   sorted((folder.parent.parent / "db" / "migrations").glob("*.sql"))}
     style = (details / "style.iuml").read_text(encoding="utf-8")
-    run("bash", str(cli), "validate", "-workspace", str(model))
+    run("bash", str(cli), "validate", "-workspace", str(appendix))
     with TemporaryDirectory(prefix="chatisen-diagrams-") as temp:
         work = Path(temp)
         for fmt in ("plantuml", "websequencediagrams"):
-            run("bash", str(cli), "export", "-workspace", str(model), "-format", fmt, "-output", str(work))
+            run("bash", str(cli), "export", "-workspace", str(appendix), "-format", fmt, "-output", str(work))
 
         sources = []
         for diagram in sorted(work.glob("structurizr-*.puml")):
@@ -118,12 +119,16 @@ def render(cli, plantuml):
             puml.write_text(content, encoding="utf-8")
             sources.append(puml)
         catalogue = json.loads((folder / "vues.json").read_text(encoding="utf-8"))
-        listed = [view["id"] for view in catalogue]
+        levels = [view["id"] for view in catalogue]
+        if len(levels) != 4 or [key[:3] for key in levels] != ["01-", "02-", "03-", "04-"]:
+            raise ValueError("The catalogue must have exactly four main C4 levels, in order")
+        records = [record for level in catalogue for record in (level, *level["details"])]
+        listed = [record["id"] for record in records]
         if len(set(listed)) != len(listed) or set(listed) != {p.stem for p in sources}:
             raise ValueError("The viewer catalogue and the exported view keys must match")
-        for view in catalogue:
+        for view in records:
             for label, link in view["links"]:
-                if not (folder / link.split("#")[0]).is_file():
+                if not link.startswith("https://") and not (folder / link.split("#")[0]).is_file():
                     raise ValueError(f"{view['id']}: missing source {label}: {link}")
         run("java", "-Djava.awt.headless=true", "-jar", str(plantuml), "-failfast2", "-tsvg", "-charset", "UTF-8", *map(str, sources))
         # Check the complete offline workspace with freshly rendered images, even on a clean build.
@@ -137,8 +142,8 @@ def render(cli, plantuml):
         exported = json.loads((work / "workspace.json").read_text(encoding="utf-8"))
         native_keys = {view["key"] for kind, group in exported["views"].items() if kind.endswith("Views")
                        for view in group}
-        if native_keys != set(listed):
-            raise ValueError(f"The complete Structurizr workspace and the catalogue differ: {native_keys ^ set(listed)}")
+        if native_keys != set(levels):
+            raise ValueError(f"The Structurizr workspace and the four main levels differ: {native_keys ^ set(levels)}")
         output.mkdir(exist_ok=True)
         for source in sources:
             svg = source.with_suffix(".svg")

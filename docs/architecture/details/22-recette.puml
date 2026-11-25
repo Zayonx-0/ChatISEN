@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 22 · Refaire le parcours et reconnaître le résultat attendu
+title Refaire le parcours et reconnaître le résultat attendu
 legend
   <b>Deux navigateurs indépendants pour Alice et Bob. Un troisième compte, Ève, reste extérieur au fil.</b>
   |= Parcours du sujet |= Réalisation au SHA bf1cd60 |= Observation qui tranche |
@@ -11,7 +11,7 @@ legend
   | Audio / vidéo du profil local | WebRTC direct, deux pairs sur une machine | Octets audio et images décodées de chaque côté, refus et raccrochage |
   | Audio / vidéo Compose | Admission v1 expérimentale, SFU configurée | À établir : pistes distantes, mute/caméra et révocation sur pile HTTPS |
   | Déploiement et supervision | Compose local + provisioning Grafana | À établir : profil vierge, navigation HTTPS, métriques v1 et courbes UTC |
-  | Accès du jury sur GCP | DNS, IP statique, entrée TCP 27028 en cible | À établir hors tailnet : TLS, WSS et deux réseaux recevant le média |
+  | Accès du jury sur GCP | Démo standalone sur le domaine ISEN, Caddy HTTPS :443 | Sondes 200. Réception média sur deux réseaux encore à éprouver. |
 
   <b>Extensions et investigation du mandat</b>
   |= Objet |= Point d’ancrage actuel |= Preuve à produire |
