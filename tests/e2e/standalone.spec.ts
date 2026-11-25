@@ -23,7 +23,7 @@ test('standalone : inscription, direct, messages, rechargement et mobile',async(
   await alice.reload();await expect(alice.getByRole('button',{name:'Déconnexion'})).toBeVisible();
   await alice.getByPlaceholder('Rechercher un handle').fill('bob_e2e');await alice.getByRole('button',{name:/@bob_e2e/}).click();
   await alice.getByLabel('Message').fill('Bonjour Bob');await alice.getByRole('button',{name:'Envoyer'}).click();await expect(alice.locator('#messages p').getByText('Bonjour Bob',{exact:true})).toBeVisible();
-  await bob.reload();await bob.getByRole('button',{name:/Alice/}).click();await expect(bob.locator('#messages p').getByText('Bonjour Bob',{exact:true})).toBeVisible();
+  await bob.getByRole('button',{name:/Alice/}).click();await expect(bob.locator('#messages p').getByText('Bonjour Bob',{exact:true})).toBeVisible();
   await bob.getByLabel('Message').fill('Bonjour Alice');await bob.getByRole('button',{name:'Envoyer'}).click();await expect(alice.locator('#messages p').getByText('Bonjour Alice',{exact:true})).toBeVisible();
   await alice.reload();await expect(alice.locator('#messages p').getByText('Bonjour Alice',{exact:true})).toBeVisible();
   await alice.getByPlaceholder('Rechercher un handle').fill('bob_e2e');await alice.getByRole('button',{name:/@bob_e2e/}).click();await alice.getByLabel('Message').fill('Direct existant');await alice.getByRole('button',{name:'Envoyer'}).click();await expect(alice.locator('#messages p').getByText('Direct existant',{exact:true})).toBeVisible();
