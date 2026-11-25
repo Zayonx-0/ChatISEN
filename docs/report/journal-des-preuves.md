@@ -305,3 +305,7 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 - **Observé :** création et échanges réussis, historique retrouvé après rechargement. Trois comptes et un groupe synthétiques ont été créés pour cet essai. La CI de la PR a réussi 21 tests et quatre parcours navigateur.
 - **Limite :** test synthétique limité au parcours de groupe du profil standalone. Il ne démontre pas à lui seul tous les critères du Mandatory ni ceux de R01.
 - **Sources :** [PR](https://github.com/Zayonx-0/ChatISEN/pull/7), [run CI](https://github.com/Zayonx-0/ChatISEN/actions/runs/45625903511), [extrait expurgé](preuves/45625903511/extrait.txt), [E29](#e29--création-de-groupe-depuis-le-site).
+
+## Réception Mandatory au 25 novembre 2026 avant correction du groupe
+
+Sur le commit `e2ae3537f122b0408216809f0432d1ba0f51911b`, l'audit a observé que trois comptes pouvaient discuter dans un groupe créé par API, mais que la création manquait sur le site. Cette observation historique et les autres critères figurent dans la [fiche de réception](recette-mandatory-2026-11-25.md). Le parcours de création a ensuite été ajouté et rejoué sur le site : voir [E29](#e29--création-de-groupe-depuis-le-site) et [E30](#e30--recette-de-groupe-sur-le-site-déployé).
