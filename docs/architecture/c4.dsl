@@ -10,7 +10,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         peerBrowser = softwareSystem "Navigateur du correspondant" "Terminaison du média audio et vidéo pendant un appel direct."
         control = softwareSystem "Plan de contrôle GCP" "Console et API Compute Engine, VPC, IAM et observabilité. Autorisations distinctes de ChatISEN."
         perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard réservée, valeur expurgée. Règles web TCP 80/443 (P1000), SSH 22 (P65534). TCP 27028 permis, sans écoute. Voir les huit règles IPv4 et la limite IAM."
-        snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "default-schedule-1 copie le disque chaque jour. Deux snapshots standards prêts au relevé du 25 novembre."
+        snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "La politique quotidienne de snapshots, nom expurgé, copie le disque. Deux snapshots standards prêts au relevé du 25 novembre."
         bench = softwareSystem "Client de test v1" "Exerce les routes d’admission de Fastify par injection HTTP."
         chat = softwareSystem "ChatISEN" "Comptes, messagerie et appels directs. Démonstration standalone en HTTPS sur Google Compute Engine." {
             group "Navigateur web" {
@@ -219,7 +219,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
                 }
             }
             jsonInstance -> bootDisk "F06 · Héberge le fichier sur /dev/sda1" "ext4"
-            bootDisk -> savedDisks "F15 · Capture quotidienne du disque" "default-schedule-1"
+            bootDisk -> savedDisks "F15 · Capture quotidienne du disque" "nom de politique expurgé"
             clientInstance -> dnsRecord "Résout le domaine ISEN" "DNS"
             clientInstance -> firewall "Charge le site et ouvre /api/ws" "HTTP :80 / HTTPS et WSS :443"
             firewall -> caddyInstance "Achemine le trafic Web" "TCP 80 et 443"
