@@ -96,7 +96,7 @@ const architecture = {
       "id": "02-conteneurs",
       "title": "Conteneurs",
       "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
       "links": [
         [
           "Inventaire GCP et reconstruction",
@@ -120,7 +120,7 @@ const architecture = {
             "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"
           ],
           "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
           "links": [
             [
               "Inventaire vérifié",
@@ -141,7 +141,9 @@ const architecture = {
           ],
           "tables": [
             "Placement et points d’entrée",
-            "Pare-feu et exposition"
+            "Règles VPC visibles sur nic0",
+            "Pare-feu et exposition",
+            "Copies du disque en Europe"
           ]
         },
         {
@@ -217,7 +219,7 @@ const architecture = {
       "id": "03-composants-api",
       "title": "Composants",
       "build": "Le VPC filtre l’entrée vers la VM en europe-west4-a. Caddy reçoit le trafic autorisé et transfère sur loopback. Les composants Node contrôlent identité, appartenance, écriture JSON, livraison temps réel, signalisation et Push. Les pistes média circulent entre navigateurs.",
-      "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Les règles de pare-feu et les flux sont dépliables ci-dessous.",
+      "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Le tableau distingue les huit règles IPv4 visibles des accès réellement testés. Les politiques héritées restent à confirmer.",
       "links": [
         [
           "Inventaire GCP et reconstruction",
@@ -448,6 +450,7 @@ const architecture = {
         }
       ],
       "tables": [
+        "Règles VPC visibles sur nic0",
         "Pare-feu et exposition",
         "Flux nommés",
         "Services et responsabilités"
@@ -719,7 +722,8 @@ const architecture = {
         }
       ],
       "tables": [
-        "Données, résidences et reprise"
+        "Données, résidences et reprise",
+        "Copies du disque en Europe"
       ]
     }
   ],
@@ -746,7 +750,7 @@ const architecture = {
       [
         "Projet et hôte",
         "project-fd23d3d9-a7e8-4002-a7a · instance-20261123-141011",
-        "Projet et nom renvoyés par les métadonnées de l’instance."
+        "Une seule instance listée dans le projet, en fonctionnement. Le nom et le projet correspondent aux métadonnées interrogées par SSH."
       ],
       [
         "Région et zone",
@@ -760,23 +764,28 @@ const architecture = {
       ],
       [
         "VPC et interface",
-        "default (global) · réseau local 10.164.0.0/20 · IP interne 10.164.0.2 · passerelle 10.164.0.1",
-        "Métadonnées de l’interface 0. CIDR calculé avec le masque 255.255.240.0. Nom administratif du sous-réseau à confirmer côté projet."
+        "VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR 10.164.0.0/20, passerelle 10.164.0.1, IP interne éphémère 10.164.0.2",
+        "Concordance entre détails du sous-réseau dans la console, masque et adresse dans les métadonnées de la VM."
+      ],
+      [
+        "Routes du VPC",
+        "10.164.0.0/20 → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000.",
+        "Routes effectives visibles pour le VPC default dans europe-west4. Les priorités de routage et de filtrage appartiennent à des mécanismes distincts."
       ],
       [
         "DNS et entrée publique",
-        "ia-pple.isen.fedyna.fr → A 35.214.178.128 · aucun AAAA retourné lors du contrôle",
-        "L’IPv4 est celle de l’interface de la VM, confirmée depuis l’intérieur. Un utilisateur et un enseignant suivent le même chemin, depuis Internet."
+        "ia-pple.isen.fedyna.fr → 35.214.178.128, IPv4 statique réservée et attachée à nic0, région europe-west4, niveau réseau Standard",
+        "Concordance entre DNS externe, adresse distante HTTPS, console et métadonnées de la VM."
       ],
       [
         "Répartition de charge",
-        "Entrée directe sur la VM puis un seul upstream Caddy vers 127.0.0.1:3000",
-        "Aucun load balancer sur le trajet DNS→VM démontré. Le tag réseau lb-health-check ne prouve pas l’existence d’un LB. Le nombre de ressources indépendantes du projet demande un inventaire du plan de contrôle."
+        "Entrée directe sur l’IPv4 de la VM, puis un seul backend Caddy sur 127.0.0.1:3000",
+        "Aucun LB sur ce trajet. La liste des health checks Compute du projet était vide. Les forwarding rules, backends et LB éventuels ailleurs dans le projet restent à inventorier."
       ],
       [
         "Disque et copies",
-        "Disque de démarrage 10 Gio ; /dev/sda1 en ext4 héberge /var/lib/chatisen",
-        "lsblk et findmnt. Le type tarifaire, les snapshots, leurs emplacements et la réservation de l’IP demandent un relevé Compute Engine."
+        "Un disque de démarrage zonal Persistent Disk équilibré (pd-balanced), 10 Go affichés, europe-west4-a. /dev/sda1 en ext4 héberge /var/lib/chatisen",
+        "Seul disque attaché d’après la console. Deux snapshots standards prêts relevés en multi-région eu."
       ],
       [
         "Identités",
@@ -814,6 +823,11 @@ const architecture = {
         "Stockage local, VM",
         "/var/lib/chatisen/chatisen.json, propriétaire chatisen, mode 0600, répertoire 0700. Les références entre collections sont résolues par Node.",
         "stat sur le chemin et findmnt sur le répertoire, sans lecture du contenu privé."
+      ],
+      [
+        "Snapshots Compute Engine, multi-région eu",
+        "La politique default-schedule-1 attachée au disque déclenche une copie quotidienne. Compute Engine assure cette opération.",
+        "Comparer les créations UTC dans le relevé des snapshots et tester séparément la restauration applicative."
       ],
       [
         "Configuration de service, VM",
@@ -941,48 +955,119 @@ const architecture = {
         "Ops/jury → Caddy → Node ; agent hôte → services d’observabilité Google si configurés",
         "/healthz, /readyz, /metrics ; séries utilisateurs/messages. Agent Fluent Bit et collecteur OpenTelemetry présents",
         "Les deux premières sondes décrivent le processus. La sonde json-demo n’effectue pas de contrôle d’écriture disque. Confirmer l’ingestion et la rétention depuis le projet."
+      ],
+      [
+        "F15 · Copie du disque",
+        "Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu",
+        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1.",
+        "Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier."
+      ]
+    ],
+    "Règles VPC visibles sur nic0": [
+      [
+        "Règle VPC · entrée autorisée, logs désactivés",
+        "Priorité",
+        "Source IPv4",
+        "Protocole / ports",
+        "Cible"
+      ],
+      [
+        "default-allow-http",
+        "1000",
+        "0.0.0.0/0",
+        "TCP 80",
+        "Tag http-server"
+      ],
+      [
+        "default-allow-https",
+        "1000",
+        "0.0.0.0/0",
+        "TCP 443",
+        "Tag https-server"
+      ],
+      [
+        "allow-tcp-27028-instance",
+        "1000",
+        "0.0.0.0/0",
+        "TCP 27028",
+        "Tag instance-27028-codex"
+      ],
+      [
+        "default-allow-health-check",
+        "1000",
+        "35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22",
+        "TCP tous ports",
+        "Tag lb-health-check"
+      ],
+      [
+        "default-allow-ssh",
+        "65534",
+        "0.0.0.0/0",
+        "TCP 22",
+        "Toutes les VM du VPC"
+      ],
+      [
+        "default-allow-rdp",
+        "65534",
+        "0.0.0.0/0",
+        "TCP 3389",
+        "Toutes les VM du VPC"
+      ],
+      [
+        "default-allow-icmp",
+        "65534",
+        "0.0.0.0/0",
+        "ICMP",
+        "Toutes les VM du VPC"
+      ],
+      [
+        "default-allow-internal",
+        "65534",
+        "10.128.0.0/9",
+        "TCP et UDP 0–65535, ICMP",
+        "Toutes les VM du VPC"
       ]
     ],
     "Pare-feu et exposition": [
       [
-        "Direction / cible",
-        "Constat mesuré sur la VM",
-        "Ce qui décide de l’exposition"
+        "Chemin",
+        "Filtrage VPC visible",
+        "Service ou résultat observé"
       ],
       [
-        "Entrée web vers ens4",
-        "Caddy écoute TCP 80/443, le site répond en HTTPS ; UDP 443 en écoute",
-        "La règle VPC autorisant chaque protocole, sa source et sa priorité doivent être relevées indépendamment."
+        "User → TCP 80 et 443",
+        "Deux autorisations IPv4 publiques, priorité 1000, ciblent les tags web de la VM.",
+        "Caddy accepte TCP, redirige HTTP et termine TLS. HTTPS/WSS est relayé vers Node sur loopback."
       ],
       [
-        "Entrée Ops",
-        "sshd en écoute TCP 22, SSH direct vérifié depuis le poste de mesure",
-        "Une connexion réussie ne renseigne pas tous les CIDR autorisés. Accès IAP et politiques hiérarchiques à inventorier."
+        "User → UDP 443",
+        "La règle HTTPS publique listée couvre TCP. Aucune des huit règles relevées n’autorise UDP 443 depuis 0.0.0.0/0.",
+        "Caddy écoute en UDP 443. La disponibilité d’HTTP/3 depuis Internet reste non démontrée."
       ],
       [
-        "Port 27028",
-        "Aucune écoute 27028 dans ss -lntu",
-        "Le tag instance-27028-codex existe. Un tag seul ne crée aucun listener et ne suffit pas à identifier une règle effective."
+        "Ops → TCP 22",
+        "Autorisé depuis 0.0.0.0/0 pour toutes les VM, priorité 65534.",
+        "sshd écoutait et la connexion SSH directe par clé a réussi depuis le poste de contrôle. IAP, OS Login et origines effectives complètes à vérifier."
       ],
       [
-        "Loopback",
-        "Node TCP 3000, API Caddy TCP 2019, SMTP TCP 25 et résolveur local port 53",
-        "Le bind local empêche l’accès direct par l’IP de la VM à ces sockets. La route publique de l’app passe par Caddy."
+        "TCP 27028 et TCP 3389",
+        "Autorisations publiques visibles via le tag dédié pour 27028 et pour toutes les VM du VPC pour 3389.",
+        "Aucune écoute sur ces deux ports dans ss. Les utilisateurs accèdent au chat par HTTPS 443."
       ],
       [
-        "Autres listeners",
-        "Ops Agent TCP 20201 et 20202, résolveur local TCP/UDP 5355, DHCP sur l’interface",
-        "Vérifier règles ingress et cibles avant de conclure à une exposition Internet. Aucune nécessité applicative d’ouvrir ces ports au jury."
+        "Sources internes et plages de health check",
+        "La règle interne autorise TCP/UDP/ICMP depuis 10.128.0.0/9. La règle health check autorise TCP depuis les quatre plages indiquées.",
+        "Ops Agent écoute sur TCP 20201/20202. L’accessibilité dépend de l’origine et du filtrage effectif. Aucun accès public à ces services n’a été démontré."
       ],
       [
-        "Règles effectives",
-        "Tags d’instance relevés : http-server, https-server, instance-27028-codex, lb-health-check",
-        "La lecture des règles Compute a renvoyé ACCESS_TOKEN_SCOPE_INSUFFICIENT depuis la VM. Nom, priorité, sens, source/destination, action, protocoles, cible, journalisation et politique héritée restent à confirmer au niveau projet."
+        "Services sur loopback",
+        "La portée d’une règle VPC et l’adresse d’écoute du processus se vérifient séparément.",
+        "Node TCP 3000, API Caddy TCP 2019, SMTP TCP 25 et résolveur local sur 53. Node reçoit le trafic public via Caddy."
       ],
       [
-        "Sorties",
-        "Navigateur vers STUN/son pair ; VM vers push HTTPS, services de maintenance et éventuellement télémétrie",
-        "Des essais applicatifs prouvent un flux à un instant donné. Le périmètre des autorisations egress dépend des règles effectives."
+        "Autres écoutes et sorties",
+        "ICMP public figure au niveau VPC. Politiques egress et règles locales actives à confirmer.",
+        "Résolution locale TCP/UDP 5355, DHCP sur l’interface. Le navigateur contacte STUN et son pair. La VM envoie les notifications Push en HTTPS."
       ]
     ],
     "Données, résidences et reprise": [
@@ -1008,13 +1093,35 @@ const architecture = {
       ],
       [
         "Hors VM",
-        "Navigateurs et notifications sur les appareils des participants ; DNS, STUN et fournisseurs Web Push externes ; télémétrie Google si collectée",
-        "La zone néerlandaise localise le disque applicatif. Localisation finale des postes, du traitement par les prestataires, des logs et des copies à documenter avant toute conclusion RGPD."
+        "Navigateurs et notifications sur les appareils des participants, DNS, STUN et fournisseurs Web Push externes, télémétrie Google si collectée",
+        "Le disque actif est aux Pays-Bas et les deux snapshots observés sont en multi-région européenne. La localisation des postes, des prestataires et des journaux reste à documenter."
       ],
       [
         "Sauvegardes et continuité",
-        "Fichier local et configuration sur un hôte, lecture au démarrage et réécriture en place. Snapshot/backup, rétention, chiffrement avec clé gérée par le client et restauration vérifiée à confirmer",
-        "Une interruption durant l’écriture peut affecter le document. Pour une copie cohérente, prévoir une fenêtre de maintenance, restaurer sur hôte isolé, vérifier comptes synthétiques, groupes et historique, mesurer RPO/RTO."
+        "Le document est réécrit en place sur le disque qui fait l’objet des snapshots planifiés. La console n’affiche aucun plan Backup and DR dans la section de cette VM.",
+        "Une copie de disque prête n’établit pas l’intégrité du JSON. Restaurer sur hôte isolé, vérifier comptes synthétiques, groupes et historique, puis mesurer perte de données et délai de reprise."
+      ]
+    ],
+    "Copies du disque en Europe": [
+      [
+        "Objet",
+        "Observation datée",
+        "Portée"
+      ],
+      [
+        "Politique default-schedule-1",
+        "Quotidienne, fenêtre affichée 22 h–23 h. Fuseau de cette fenêtre non précisé dans la vue consultée.",
+        "Attachée au disque de démarrage de la VM. Durée de conservation et comportement à la suppression du disque à vérifier dans la politique."
+      ],
+      [
+        "Snapshot du 23 novembre 2026",
+        "Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés",
+        "Multi-région eu, source disque instance-20261123-141011."
+      ],
+      [
+        "Snapshot du 24 novembre 2026",
+        "Création à 22:03:17 UTC · standard, planifié, prêt · 200,78 Mo affichés",
+        "Même disque source et multi-région eu. Tailles ponctuelles de la console. Le stockage facturé sur un mois dépend aussi de leur durée de conservation."
       ]
     ],
     "Calcul du coût": [
@@ -1029,14 +1136,14 @@ const architecture = {
         "H × (4 × prix vCPU/h + 6 × prix Gio RAM/h) en prenant les SKU custom et la devise du compte, ou H × prix complet de la VM. Une seule de ces deux méthodes."
       ],
       [
-        "Disque",
-        "Un disque de démarrage provisionné à 10 Gio vue invité ; vérifier taille et type tarifaires dans Compute",
-        "Taille facturée × prix unitaire du type par mois, proratisé ; ajouter les données de snapshots selon taille réellement stockée et région des copies."
+        "Disque et snapshots",
+        "Un disque pd-balanced zonal de 10 Go affichés, deux snapshots standards multi-région eu (1,13 Go et 200,78 Mo affichés)",
+        "Proratiser la capacité provisionnée et appliquer le tarif régional pd-balanced. Calculer les snapshots selon l’usage facturé dans le temps et le SKU applicable."
       ],
       [
         "IPv4 publique",
-        "Une IPv4 attachée observée ; nature de la réservation à confirmer",
-        "Heures d’adresse facturables × tarif de la catégorie d’adresse. Distinguer adresse attachée et éventuelle réservation inutilisée."
+        "Une adresse statique Standard réservée dans europe-west4 et attachée à la VM",
+        "Heures d’adresse attachée × tarif applicable. Une autre IPv4 réservée et inutilisée dans us-central1 figure au projet. Son coût éventuel relève du projet jusqu’à attribution."
       ],
       [
         "Trafic",
@@ -1044,9 +1151,9 @@ const architecture = {
         "Somme des Gio par tranche et destination × tarif correspondant. Le média P2P circule entre les postes ; un futur relais média changerait le calcul."
       ],
       [
-        "Télémétrie, DNS, reprise",
-        "Logs ingérés/conservés, séries payantes, DNS éventuellement facturé au gestionnaire de zone, snapshots et copies",
-        "Quantités facturées × tarifs applicables. Aucun forfait de LB, SFU, Cloud SQL ou seconde VM à imputer au service web sans ressource attribuée à ChatISEN."
+        "Télémétrie et DNS",
+        "Logs ingérés et conservés, séries payantes, DNS éventuellement facturé au gestionnaire de zone",
+        "Quantités facturées × tarifs applicables. Imputer les ressources dont l’usage pour ChatISEN est établi."
       ],
       [
         "Exploitation et total",

@@ -48,6 +48,7 @@ C "1" -- "0..*" A : contrôle la lecture
 legend bottom
   <b>F05 → F06 → F07/F10</b>   POST du membre → ++lastSeq → messages.push → save() → WS/SSE et push.
   server.mjs charge le JSON au démarrage. writeFileSync réécrit le document sur /dev/sda1.
+  <b>F15 · Copie de disque</b>   pd-balanced en europe-west4-a → snapshots quotidiens en multi-région eu.
   Les liens sont résolus par le code, sans contraintes SQL. Le lecteur déplie le schéma PostgreSQL du banc R01.
 endlegend
 @enduml

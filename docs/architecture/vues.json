@@ -30,7 +30,7 @@
     "id": "02-conteneurs",
     "title": "Conteneurs",
     "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-    "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+    "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
     "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Caddy", "../../ops/gcp/Caddyfile.template"], ["Unité systemd", "../../ops/gcp/chatisen.service"]],
     "details": [
       {
@@ -38,9 +38,9 @@
         "title": "Déploiement Google Cloud",
         "steps": ["curl -fsS https://ia-pple.isen.fedyna.fr/readyz", "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"],
         "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
-        "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+        "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Contrôler le disque pd-balanced de 10 Go et sa politique quotidienne default-schedule-1 dans les détails du déploiement.",
         "links": [["Inventaire vérifié", "infrastructure-gcp.md"], ["Vue de déploiement", "details/vues.dsl"], ["Procédure GCP versionnée", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"], ["Disponibilité du démonstrateur", "https://ia-pple.isen.fedyna.fr/readyz"]],
-        "tables": ["Placement et points d’entrée", "Pare-feu et exposition"]
+        "tables": ["Placement et points d’entrée", "Règles VPC visibles sur nic0", "Pare-feu et exposition", "Copies du disque en Europe"]
       },
       {
         "id": "08-compose",
@@ -64,7 +64,7 @@
     "id": "03-composants-api",
     "title": "Composants",
     "build": "Le VPC filtre l’entrée vers la VM en europe-west4-a. Caddy reçoit le trafic autorisé et transfère sur loopback. Les composants Node contrôlent identité, appartenance, écriture JSON, livraison temps réel, signalisation et Push. Les pistes média circulent entre navigateurs.",
-    "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Les règles de pare-feu et les flux sont dépliables ci-dessous.",
+    "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Le tableau distingue les huit règles IPv4 visibles des accès réellement testés. Les politiques héritées restent à confirmer.",
     "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Routeur, sessions, chat et appels", "../../apps/standalone/server.mjs"], ["Service Web Push", "../../apps/standalone/push.mjs"]],
     "details": [
       {
@@ -131,7 +131,7 @@
         "links": [["Admission et signature", "../../apps/api/src/calls/postgres-routes.ts"], ["Test de signature", "../../tests/security/livekit-token.test.ts"], ["Test avec PostgreSQL", "../../tests/integration/calls/postgres-calls.test.ts"], ["Preuve E19", "../report/journal-des-preuves.md#e19--admission-média-expérimentale-et-contrôles-associés"]]
       }
     ],
-    "tables": ["Pare-feu et exposition", "Flux nommés", "Services et responsabilités"]
+    "tables": ["Règles VPC visibles sur nic0", "Pare-feu et exposition", "Flux nommés", "Services et responsabilités"]
   },
   {
     "id": "04-code",
@@ -209,6 +209,6 @@
         "links": [["Serveur JSON", "../../apps/standalone/server.mjs"], ["Serveur historique", "../../apps/api/src/server.ts"], ["Maps et clés", "../../apps/api/src/store.ts"], ["Test des accès historiques", "../../tests/security/fastify-realtime.test.ts"]]
       }
     ],
-    "tables": ["Données, résidences et reprise"]
+    "tables": ["Données, résidences et reprise", "Copies du disque en Europe"]
   }
 ]
