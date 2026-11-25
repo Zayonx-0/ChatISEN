@@ -84,6 +84,10 @@ Le profil standalone propose désormais une notification dans l'interface lorsqu
 
 Cette première solution fonctionne sur le profil local sans relais TURN ni LiveKit. Elle ne prouve pas les appels entre réseaux différents et ne remplace pas la recette du profil Compose prévue par R01, notamment sa révocation média.
 
+## Accueil et navigation dans la messagerie
+
+Sur un compte sans conversation, la page d’accueil invite à rechercher un contact par son nom ou son identifiant. Le champ d’envoi et les commandes d’appel deviennent disponibles au moment où ils peuvent être utilisés. Le fil défile dans sa propre zone et le champ d’envoi reste compact. Sur téléphone, le retour à la liste conserve le brouillon du fil. L’équipe a rejoué le parcours de messagerie et les appels synthétiques après la correction. [E26](journal-des-preuves.md#e26--arrivée-et-navigation-dans-la-messagerie)
+
 ## Ce qu'il reste à démontrer pour J1
 
 Les routes `/api/v1` d'identité ainsi que les premières routes de recherche, de direct et d'historique sont désormais raccordées à PostgreSQL. Le [run CI 45193174450](journal-des-preuves.md#e12--routes-v1-de-direct-et-historique-postgresql) a vérifié par injection HTTP la création concurrente d'un seul direct, le refus d'un tiers, les retries et la lecture de **125 messages** en trois pages. Ces tests portent sur les routes et le repository ; la gestion de groupes a été testée séparément ([E16](journal-des-preuves.md#e16--gestion-transactionnelle-des-groupes)). Le flux WebSocket v1 est désormais testé séparément ([E14](journal-des-preuves.md#e14--websocket-v1-sur-journal-postgresql)). Les tests ciblés exercent l'atomicité et les retries, et le parcours navigateur a vérifié la récupération après coupure et la relecture après redémarrage du processus API ([E10](journal-des-preuves.md#e10--test-postgresql-exécuté-et-concurrence-corrigée), [E17](journal-des-preuves.md#e17--parcours-navigateur-réel-sur-postgresql)). Il reste à rejouer ces comportements sur la pile Compose complète et à couvrir toutes les révocations prévues au mandat. La sonde de disponibilité doit également refléter une panne de base.
