@@ -999,7 +999,7 @@ const architecture = {
       [
         "F15 · Copie du disque",
         "Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu",
-        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon politique quotidienne expurgée.",
+        "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon la politique de snapshots (nom expurgé).",
         "Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier."
       ],
       [
