@@ -1,0 +1,5 @@
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-25T13:40:47.3479626Z ℹ tests 21
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-25T13:40:47.3480266Z ℹ pass 21
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-25T13:40:47.3480487Z ℹ fail 0
+Builds, tests et configuration Compose	Exécuter les tests disponibles	2026-11-25T13:40:47.3481013Z ℹ skipped 0
+Builds, tests et configuration Compose	Parcours navigateur v1 sur PostgreSQL	2026-11-25T13:42:07.6778742Z   4 passed (36.9s)
