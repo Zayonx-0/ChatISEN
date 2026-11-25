@@ -2,13 +2,13 @@
   {
     "id": "01-contexte",
     "title": "Contexte",
-    "build": "L’enseignant ouvre https://ia-pple.isen.fedyna.fr/ depuis Internet. Le navigateur utilise le profil standalone servi par une VM Google Compute Engine en HTTPS standard. L’équipe peut retrouver les preuves publiques et les deux profils de reconstruction ci-dessous.",
-    "check": "La page et GET /readyz répondent en HTTPS. Une requête HTTP redirige vers HTTPS.",
-    "links": [["Modèle C4", "workspace.dsl"], ["Mandat de recette", "../revisions/R01-socle-j1.md"]],
+    "build": "User et jury entrent par le domaine ISEN. Ops entre par SSH sur l’hôte. Admin utilise le plan de contrôle GCP avec IAM. Le propriétaire d’un groupe est un rôle applicatif du parcours User.",
+    "check": "Comparer le DNS au champ external-ip de la VM. Vérifier HTTPS, l’identité de l’hôte administré et les droits du projet séparément.",
+    "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Code en service", "https://github.com/Zayonx-0/ChatISEN/tree/9b08996060c52700b035d646bf6ac64075ef3ea6"]],
     "details": [
       {
         "id": "07-profils",
-        "title": "Choisir le profil à reconstruire",
+        "title": "Historique R01 · comparer le banc et le mode Node",
         "steps": ["git clone https://github.com/Zayonx-0/ChatISEN.git ChatISEN", "cd ChatISEN", "git checkout --detach bf1cd6029de69598c9d0c035b5abeb6dedc06fbd", "# Node 24 et pnpm 10.20.0", "pnpm install --frozen-lockfile", "pnpm typecheck", "pnpm build", "", "# Profil local sur cette machine", "pnpm db:seed", "HOST=127.0.0.1 PORT=3000 COOKIE_SECURE=false CHATISEN_DATA_FILE=./data/chatisen.json pnpm dev", "# Ouvrir http://127.0.0.1:3000/"],
         "build": "pnpm dev démarre le serveur Node et son client HTML/JS. La pile R01 assemble le build React, Fastify et PostgreSQL. Le même processus Fastify expose aussi une API historique en mémoire. Choisir le point d’entrée fixe le client, le protocole, les comptes et le stockage.",
         "check": "Une inscription locale produit une entrée users dans le fichier configuré par CHATISEN_DATA_FILE. Une inscription v1 produit une ligne users dans PostgreSQL. La relecture du compte après redémarrage doit utiliser le même profil.",
@@ -23,15 +23,25 @@
         "check": "Sur le snapshot, pnpm test:e2e couvre les profils de laboratoire. Pour J1, le mandat demande le parcours complet sur une pile HTTPS vierge. make verify LEVEL=core termine volontairement en échec tant que cette recette manque.",
         "links": [["Sujet, pages 12 et 17", "../../ChatISEN - Project Briefing.pdf"], ["Essais et limites", "../report/journal-des-preuves.md"], ["Critères J1", "../revisions/R01-socle-j1.md"], ["Garde de réception", "../../scripts/verify.mjs"]]
       }
-    ]
+    ],
+    "tables": ["Placement et points d’entrée", "Flux nommés"]
   },
   {
     "id": "02-conteneurs",
     "title": "Conteneurs",
-    "build": "Sur GCP, Caddy sert le HTTPS public et relaie vers le serveur standalone Node.js sur 127.0.0.1:3000. Le client HTML/JS écrit via l’API et le serveur persiste en JSON. La pile de recette Compose R01 assemble Nginx, React, Fastify, PostgreSQL, LiveKit et la supervision.",
-    "check": "Pour la démo, GET /readyz donne json-demo. Sur la pile Compose de recette, la page doit charger le bundle Vite, /api/v1/me sans session répondre 401 et /api/v1/ws accepter l’Upgrade avec la bonne session et la bonne origine.",
-    "links": [["Plateformes et preuves", "README.md#plateformes-par-environnement"], ["Routage Nginx", "../../infra/edge/nginx.conf"], ["Services et images", "../../infra/compose/docker-compose.yml"], ["Parcours React", "../../tests/e2e/chat.spec.ts"]],
+    "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
+    "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+    "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Caddy", "../../ops/gcp/Caddyfile.template"], ["Unité systemd", "../../ops/gcp/chatisen.service"]],
     "details": [
+      {
+        "id": "04-deploiement-gcp",
+        "title": "Déploiement Google Cloud",
+        "steps": ["curl -fsS https://ia-pple.isen.fedyna.fr/readyz", "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"],
+        "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
+        "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+        "links": [["Inventaire vérifié", "infrastructure-gcp.md"], ["Vue de déploiement", "details/vues.dsl"], ["Procédure GCP versionnée", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"], ["Disponibilité du démonstrateur", "https://ia-pple.isen.fedyna.fr/readyz"]],
+        "tables": ["Placement et points d’entrée", "Pare-feu et exposition"]
+      },
       {
         "id": "08-compose",
         "title": "Assemblage Compose local",
@@ -41,74 +51,30 @@
         "links": [["Compose", "../../infra/compose/docker-compose.yml"], ["Image API", "../../apps/api/Dockerfile"], ["Image web", "../../apps/web/Dockerfile"], ["CI GitHub Actions", "../../.github/workflows/r01.yml"], ["Recette HTTPS", "../../tests/e2e/README.md"]]
       },
       {
-        "id": "04-deploiement-gcp",
-        "title": "Déploiement Google Cloud",
-        "steps": ["curl -fsS https://ia-pple.isen.fedyna.fr/readyz", "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"],
-        "build": "Le domaine ISEN pointe vers le frontal HTTPS. Caddy termine TLS sur la VM Debian 13 et relaie vers Node.js supervisé par systemd. Les données résident dans /var/lib/chatisen/chatisen.json. Le navigateur récupère la configuration STUN et échange les pistes WebRTC avec son pair.",
-        "check": "Sonde publique à 200 avec json-demo. Le journal du lot GCP a vérifié le redémarrage et des pistes synthétiques reçues depuis deux contextes sur une même machine. Rejouer avec deux réseaux distincts pour vérifier les candidats ICE sélectionnés et les compteurs média de chaque côté.",
-        "links": [["Vue de déploiement", "details/vues.dsl"], ["Procédure GCP versionnée", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"], ["Disponibilité du démonstrateur", "https://ia-pple.isen.fedyna.fr/readyz"]]
-      },
-      {
         "id": "19-exploitation",
-        "title": "Sondes, métriques et Grafana",
+        "title": "Banc R01 · Sondes, métriques et Grafana",
         "build": "Démarrer Prometheus avec prometheus.yml et Grafana avec le datasource et les deux panneaux versionnés. Le frontal relaie /metrics et /healthz dans la configuration locale. /readyz se teste directement auprès de l’API. L’indicateur de messages est alimenté par le parcours historique.",
         "check": "Dans une pile jetable, une indisponibilité de PostgreSQL doit faire passer /readyz interne à 503. Vérifier up du job chatisen-api et une variation de requêtes sur la fenêtre de test. Les messages et connexions v1 demandent encore leur instrumentation et une capture du tableau.",
         "links": [["Registre et métriques", "../../apps/api/src/metrics.ts"], ["Scrape Prometheus", "../../ops/monitoring/prometheus.yml"], ["Datasource", "../../ops/monitoring/grafana/provisioning/datasources/datasource.yml"], ["Requêtes Grafana", "../../ops/monitoring/grafana/provisioning/dashboards/chatisen.json"]]
       }
-    ]
+    ],
+    "tables": ["Placement et points d’entrée", "Services et responsabilités", "Calcul du coût"]
   },
   {
     "id": "03-composants-api",
     "title": "Composants",
-    "build": "Sur la VM Compute Engine Debian 13, Caddy reçoit HTTPS/WSS sur 443 et relaie en loopback vers chatisen.service (Node.js 24.14.1, :3000). server.mjs sert l’interface et route vers identité, messagerie, abonnements et signalisation. Les mutations persistent dans le JSON. Le média circule entre les navigateurs avec un serveur STUN pour ICE.",
-    "check": "GET /readyz confirme json-demo et GET /api/config renvoie le serveur STUN. Après un redémarrage contrôlé sur une VM de recette, vérifier que les comptes et messages sont conservés. Pour les appels, observer de l’audio reçu et des images décodées dans les deux navigateurs.",
-    "links": [["Unité systemd", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/chatisen.service"], ["Configuration de Caddy", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/Caddyfile.template"], ["Serveur déployé", "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/apps/standalone/server.mjs"], ["Disponibilité du démonstrateur", "https://ia-pple.isen.fedyna.fr/readyz"]],
+    "build": "Le VPC filtre l’entrée vers la VM en europe-west4-a. Caddy reçoit le trafic autorisé et transfère sur loopback. Les composants Node contrôlent identité, appartenance, écriture JSON, livraison temps réel, signalisation et Push. Les pistes média circulent entre navigateurs.",
+    "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Les règles de pare-feu et les flux sont dépliables ci-dessous.",
+    "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Routeur, sessions, chat et appels", "../../apps/standalone/server.mjs"], ["Service Web Push", "../../apps/standalone/push.mjs"]],
     "details": [
-      {
-        "id": "23-composants-fastify",
-        "title": "Composants Fastify · recette Compose R01",
-        "build": "server.ts oriente les requêtes vers identité, conversations, abonnements et admission d’appel. L’identité reste intégrée à Fastify. Conversations, groupes et temps réel partagent le repository PostgreSQL et les contrôles d’appartenance.",
-        "check": "Avec PostgreSQL migré, GET /api/v1/me sans cookie répond 401 et les écritures restent disponibles après recréation du pool. L’admission LiveKit est expérimentale et répond 503 avec la configuration par défaut.",
-        "links": [["Montage des modules", "../../apps/api/src/server.ts"], ["Pool et transactions", "../../apps/api/src/repositories/postgres.ts"], ["Tests du repository", "../../tests/integration/c/postgres-repository.test.ts"]]
-      },
-      {
-        "id": "09-interface-react",
-        "title": "Navigation et état React",
-        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable, Chromium doit être installé", "pnpm db:migrate", "pnpm exec playwright test tests/e2e/chat.spec.ts"],
-        "build": "App et Auth sont dans main.tsx. Après /me, React charge les pages de conversations puis leurs détails. La sélection charge l’historique et ouvre une seule socket. Chaque fil conserve son brouillon et sa commande en attente en mémoire. La sélection la plus récente prévaut sur les réponses HTTP tardives.",
-        "check": "Deux sessions échangent, Bob change de fil, retrouve l’historique et peut revenir à la liste à 390 px. Un envoi réessayé avec le même texte réutilise clientId. L’interface React au SHA repère ne comporte aucun bouton d’appel.",
-        "links": [["App, Auth et accès réseau", "../../apps/web/src/main.tsx"], ["CSS React", "../../apps/web/src/styles.css"], ["Test Playwright v1", "../../tests/e2e/chat.spec.ts"]]
-      },
-      {
-        "id": "21-ecrans",
-        "title": "Écrans ordinateur et mobile",
-        "build": "Reproduire le formulaire de session, la liste des contacts, le fil et le composeur. React crée un groupe depuis un contact et demande son titre. Standalone ajoute les contrôles de notification et la fenêtre d’appel. La maquette situe les commandes, les feuilles de style donnent leurs valeurs exactes.",
-        "check": "À 390 px, React alterne liste et fil par le bouton de retour. Standalone garde la liste au-dessus du fil. Sur un appel local entrant, Bob voit Accepter et Refuser. Après acceptation vidéo, les commandes micro, caméra et raccrochage sont disponibles.",
-        "links": [["Styles exacts React", "../../apps/web/src/styles.css"], ["HTML et CSS standalone", "../../apps/web/public/index.html"], ["États du client local", "../../apps/web/public/app.js"], ["Recette locale", "../../tests/e2e/standalone.spec.ts"]]
-      },
-      {
-        "id": "10-identite",
-        "title": "Connexion et révocation",
-        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test tests/integration/identity/postgres-identity.test.ts"],
-        "build": "L’identité est locale à Fastify. Le mot de passe est traité par argon2, le cookie transporte le jeton opaque et la base conserve son empreinte. Le CSRF est un HMAC du jeton de session. Inscription et connexion exigent la même origine. Une mutation authentifiée ajoute le contrôle CSRF.",
-        "check": "Inscription 201 et cookie sécurisé, handle dupliqué 409, session reconnue après nouveau pool, mauvaise origine ou CSRF 403, déconnexion 204 puis relecture du cookie révoqué 401.",
-        "links": [["Routes d’identité", "../../apps/api/src/identity/postgres-routes.ts"], ["Argon2id et CSRF", "../../apps/api/src/security.ts"], ["Test identité", "../../tests/integration/identity/postgres-identity.test.ts"], ["Choix face à Keycloak", "../adr/001-choix.md"]]
-      },
-      {
-        "id": "11-groupes",
-        "title": "Propriété et membres d’un groupe",
-        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test tests/integration/chat/postgres-chat.test.ts"],
-        "build": "Le groupe démarre avec un owner et entre 1 et 99 autres membres. Le verrou de commande garantit une création unique. Les mutations suivantes prennent les verrous dans l’ordre conversation puis membre et consignent leur événement dans la même transaction.",
-        "check": "Créer deux fois simultanément avec la même clé donne 201 et 200 pour le même ID. Modifier le titre de la commande répétée donne 409. Transférer la propriété, quitter puis faire quitter le dernier owner ferme le groupe. Ève reçoit 404.",
-        "links": [["Règles de groupe", "../../apps/api/src/chat/group-operations.ts"], ["Création idempotente", "../../apps/api/src/repositories/postgres.ts"], ["Tests de rôles et conflits", "../../tests/integration/chat/postgres-chat.test.ts"]]
-      },
       {
         "id": "16-standalone",
         "title": "Serveur local, JSON et notifications",
         "steps": ["# Chromium Playwright installé", "pnpm exec playwright test tests/e2e/standalone.spec.ts", "node --test tests/security/standalone-realtime.test.mjs"],
         "build": "Le client JS demande tous les fils, s’y abonne par WS et rafraîchit la liste et les appels entrants toutes les 3 s. Un message dans un autre fil déclenche compteur et notification. L’alerte système nécessite une permission et un onglet masqué. SSE est offert aux autres clients. En HTTP de développement, le cookie est chatisen.",
         "check": "Bob ouvre le fil de Charlie. Un message d’Alice doit créer un indicateur non lu et une notification dans la page. Un nouveau direct doit apparaître sans recharger. Après redémarrage avec le même fichier JSON, la session encore valide retrouve le message.",
-        "links": [["Routage et stockage JSON", "../../apps/standalone/server.mjs"], ["Client et notifications", "../../apps/web/public/app.js"], ["Tests WS et SSE", "../../tests/security/standalone-realtime.test.mjs"], ["Tests navigateur", "../../tests/e2e/standalone.spec.ts"]]
+        "links": [["Routage et stockage JSON", "../../apps/standalone/server.mjs"], ["Client et notifications", "../../apps/web/public/app.js"], ["Tests WS et SSE", "../../tests/security/standalone-realtime.test.mjs"], ["Tests navigateur", "../../tests/e2e/standalone.spec.ts"]],
+        "tables": ["Services et responsabilités"]
       },
       {
         "id": "17-appel-direct",
@@ -119,39 +85,72 @@
         "links": [["Client WebRTC", "../../apps/web/public/app.js"], ["Signalisation et états", "../../apps/standalone/server.mjs"], ["Mesures sur les deux pairs", "../../tests/e2e/standalone.spec.ts"], ["Preuves E22 à E24", "../report/journal-des-preuves.md#e22--notifications-et-appels-directs-sur-le-profil-local"], ["Résultat CI E24", "../report/preuves/45583168142/extrait.txt"]]
       },
       {
+        "id": "23-composants-fastify",
+        "title": "Banc R01 · Composants Fastify · recette Compose R01",
+        "build": "server.ts oriente les requêtes vers identité, conversations, abonnements et admission d’appel. L’identité reste intégrée à Fastify. Conversations, groupes et temps réel partagent le repository PostgreSQL et les contrôles d’appartenance.",
+        "check": "Avec PostgreSQL migré, GET /api/v1/me sans cookie répond 401 et les écritures restent disponibles après recréation du pool. L’admission LiveKit est expérimentale et répond 503 avec la configuration par défaut.",
+        "links": [["Montage des modules", "../../apps/api/src/server.ts"], ["Pool et transactions", "../../apps/api/src/repositories/postgres.ts"], ["Tests du repository", "../../tests/integration/c/postgres-repository.test.ts"]]
+      },
+      {
+        "id": "09-interface-react",
+        "title": "Banc R01 · Navigation et état React",
+        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable, Chromium doit être installé", "pnpm db:migrate", "pnpm exec playwright test tests/e2e/chat.spec.ts"],
+        "build": "App et Auth sont dans main.tsx. Après /me, React charge les pages de conversations puis leurs détails. La sélection charge l’historique et ouvre une seule socket. Chaque fil conserve son brouillon et sa commande en attente en mémoire. La sélection la plus récente prévaut sur les réponses HTTP tardives.",
+        "check": "Deux sessions échangent, Bob change de fil, retrouve l’historique et peut revenir à la liste à 390 px. Un envoi réessayé avec le même texte réutilise clientId. L’interface React au SHA repère ne comporte aucun bouton d’appel.",
+        "links": [["App, Auth et accès réseau", "../../apps/web/src/main.tsx"], ["CSS React", "../../apps/web/src/styles.css"], ["Test Playwright v1", "../../tests/e2e/chat.spec.ts"]]
+      },
+      {
+        "id": "21-ecrans",
+        "title": "Banc R01 · Écrans ordinateur et mobile",
+        "build": "Reproduire le formulaire de session, la liste des contacts, le fil et le composeur. React crée un groupe depuis un contact et demande son titre. Standalone ajoute les contrôles de notification et la fenêtre d’appel. La maquette situe les commandes, les feuilles de style donnent leurs valeurs exactes.",
+        "check": "À 390 px, React alterne liste et fil par le bouton de retour. Standalone garde la liste au-dessus du fil. Sur un appel local entrant, Bob voit Accepter et Refuser. Après acceptation vidéo, les commandes micro, caméra et raccrochage sont disponibles.",
+        "links": [["Styles exacts React", "../../apps/web/src/styles.css"], ["HTML et CSS standalone", "../../apps/web/public/index.html"], ["États du client local", "../../apps/web/public/app.js"], ["Recette locale", "../../tests/e2e/standalone.spec.ts"]]
+      },
+      {
+        "id": "10-identite",
+        "title": "Banc R01 · Connexion et révocation",
+        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test tests/integration/identity/postgres-identity.test.ts"],
+        "build": "L’identité est locale à Fastify. Le mot de passe est traité par argon2, le cookie transporte le jeton opaque et la base conserve son empreinte. Le CSRF est un HMAC du jeton de session. Inscription et connexion exigent la même origine. Une mutation authentifiée ajoute le contrôle CSRF.",
+        "check": "Inscription 201 et cookie sécurisé, handle dupliqué 409, session reconnue après nouveau pool, mauvaise origine ou CSRF 403, déconnexion 204 puis relecture du cookie révoqué 401.",
+        "links": [["Routes d’identité", "../../apps/api/src/identity/postgres-routes.ts"], ["Argon2id et CSRF", "../../apps/api/src/security.ts"], ["Test identité", "../../tests/integration/identity/postgres-identity.test.ts"], ["Choix face à Keycloak", "../adr/001-choix.md"]]
+      },
+      {
+        "id": "11-groupes",
+        "title": "Banc R01 · Propriété et membres d’un groupe",
+        "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test tests/integration/chat/postgres-chat.test.ts"],
+        "build": "Le groupe démarre avec un owner et entre 1 et 99 autres membres. Le verrou de commande garantit une création unique. Les mutations suivantes prennent les verrous dans l’ordre conversation puis membre et consignent leur événement dans la même transaction.",
+        "check": "Créer deux fois simultanément avec la même clé donne 201 et 200 pour le même ID. Modifier le titre de la commande répétée donne 409. Transférer la propriété, quitter puis faire quitter le dernier owner ferme le groupe. Ève reçoit 404.",
+        "links": [["Règles de groupe", "../../apps/api/src/chat/group-operations.ts"], ["Création idempotente", "../../apps/api/src/repositories/postgres.ts"], ["Tests de rôles et conflits", "../../tests/integration/chat/postgres-chat.test.ts"]]
+      },
+      {
         "id": "18-admission-livekit",
-        "title": "Admission de salle LiveKit",
+        "title": "Banc R01 · Admission de salle LiveKit",
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test --test-concurrency=1 tests/security/livekit-token.test.ts tests/integration/calls/postgres-calls.test.ts"],
         "build": "Les trois commandes expérimentales exigent CHATISEN_EXPERIMENTAL_CALLS=true dans le processus API. L’identité média unit l’UUID utilisateur à l’UUID session. Le serveur signe un JWT qui autorise une seule salle. Le client React au SHA repère ne consomme pas ce jeton.",
         "check": "Sur le banc d’injection, vérifier signature HS256, room, sub, exp ≤ 300 s et expiration de session. Un tiers reçoit 404 et un nouvel accès après logout reçoit 401. Une piste distante et la coupure d’un participant SFU exigent un essai distinct sur LiveKit.",
         "links": [["Admission et signature", "../../apps/api/src/calls/postgres-routes.ts"], ["Test de signature", "../../tests/security/livekit-token.test.ts"], ["Test avec PostgreSQL", "../../tests/integration/calls/postgres-calls.test.ts"], ["Preuve E19", "../report/journal-des-preuves.md#e19--admission-média-expérimentale-et-contrôles-associés"]]
       }
-    ]
+    ],
+    "tables": ["Pare-feu et exposition", "Flux nommés", "Services et responsabilités"]
   },
   {
     "id": "04-code",
     "title": "Code et données",
-    "build": "Le composant PostgresRepository valide l’appartenance, verrouille le fil puis son membre, et écrit journal et message dans la même transaction. Chaque requête transporte un clientId choisi par React. Le serveur WebSocket relit le journal après le curseur et le client fusionne par ID. Les cartes de code, les schémas SQL et les deux séquences permettent de reproduire ce parcours.",
-    "check": "Un premier envoi répond 201. La même commande répond 200 avec le même ID et n’incrémente la séquence qu’une fois. Un autre texte avec la même clé répond 409. Après coupure, vérifier la livraison de chaque message manqué dans l’ordre, une seule fois.",
-    "links": [["Écriture et transaction", "../../apps/api/src/repositories/postgres.ts"], ["Route et MessageDto", "../../apps/api/src/chat/postgres-routes.ts"], ["Lecture du journal", "../../apps/api/src/chat/postgres-websocket.ts"], ["Migration du socle", "../../db/migrations/001_initial.sql"], ["Test de concurrence et rollback", "../../tests/integration/c/postgres-repository.test.ts"]],
+    "build": "Les collections du fichier JSON sont reliées par les identifiants utilisateur, session et conversation. Un même processus vérifie le membre, attribue seq, enregistre le texte et diffuse. Les schémas SQL et le code du laboratoire sont en annexe.",
+    "check": "Sur une réplique synthétique, vérifier lastSeq, senderId, le rôle et les IDs de session. Un second envoi avec la même clé conserve l’ID du message. Redémarrer le processus et contrôler le même historique.",
+    "links": [["Inventaire GCP et reconstruction", "infrastructure-gcp.md"], ["Structures et écriture locale", "../../apps/standalone/server.mjs"], ["Tests de confidentialité", "../../tests/security/standalone-realtime.test.mjs"]],
     "details": [
       {
+        "id": "24-code-postgres",
+        "title": "Banc R01 · transaction PostgreSQL",
+        "build": "Le composant PostgresRepository valide l’appartenance, verrouille le fil puis son membre, et écrit journal et message dans la même transaction. Chaque requête transporte un clientId choisi par React. Le serveur WebSocket relit le journal après le curseur et le client fusionne par ID. Les cartes de code, les schémas SQL et les deux séquences permettent de reproduire ce parcours.",
+        "check": "Un premier envoi répond 201. La même commande répond 200 avec le même ID et n’incrémente la séquence qu’une fois. Un autre texte avec la même clé répond 409. Après coupure, vérifier la livraison de chaque message manqué dans l’ordre, une seule fois.",
+        "links": [["Écriture et transaction", "../../apps/api/src/repositories/postgres.ts"], ["Route et MessageDto", "../../apps/api/src/chat/postgres-routes.ts"], ["Lecture du journal", "../../apps/api/src/chat/postgres-websocket.ts"], ["Migration du socle", "../../db/migrations/001_initial.sql"], ["Test de concurrence et rollback", "../../tests/integration/c/postgres-repository.test.ts"]]
+      },
+      {
         "id": "05-message-prive",
-        "title": "Envoi d’un message privé",
-        "wire": [
-          "Alice → HTTP POST /api/v1/conversations/10000000-0000-4000-8000-000000000001/messages",
-          "Origin: https://localhost",
-          "Cookie: __Host-chatisen=<session d’Alice>",
-          "X-CSRF-Token: <csrfToken reçu au login>",
-          "Content-Type: application/json",
-          "{\n  \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n  \"text\": \"Bonjour Bob\"\n}",
-          "",
-          "HTTP 201 puis 200 si Alice répète à l’identique",
-          "{\n  \"id\": \"40000000-0000-4000-8000-000000000004\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n  \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n  \"createdAt\": \"2026-11-25T09:00:00.000Z\",\n  \"text\": \"Bonjour Bob\"\n}",
-          "",
-          "Serveur → Bob déjà abonné, après lecture du journal",
-          "{\n  \"v\": 1,\n  \"type\": \"event\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"at\": \"2026-11-25T09:00:00.000Z\",\n  \"event\": \"message.created\",\n  \"data\": {\n    \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n    \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n    \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n    \"text\": \"Bonjour Bob\",\n    \"id\": \"40000000-0000-4000-8000-000000000004\"\n  }\n}"
-        ],
+        "title": "Banc R01 · Envoi d’un message privé",
+        "wire": ["Alice → HTTP POST /api/v1/conversations/10000000-0000-4000-8000-000000000001/messages", "Origin: https://localhost", "Cookie: __Host-chatisen=<session d’Alice>", "X-CSRF-Token: <csrfToken reçu au login>", "Content-Type: application/json", "{\n  \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n  \"text\": \"Bonjour Bob\"\n}", "", "HTTP 201 puis 200 si Alice répète à l’identique", "{\n  \"id\": \"40000000-0000-4000-8000-000000000004\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n  \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n  \"createdAt\": \"2026-11-25T09:00:00.000Z\",\n  \"text\": \"Bonjour Bob\"\n}", "", "Serveur → Bob déjà abonné, après lecture du journal", "{\n  \"v\": 1,\n  \"type\": \"event\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"at\": \"2026-11-25T09:00:00.000Z\",\n  \"event\": \"message.created\",\n  \"data\": {\n    \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n    \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n    \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n    \"text\": \"Bonjour Bob\",\n    \"id\": \"40000000-0000-4000-8000-000000000004\"\n  }\n}"],
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test --test-concurrency=1 tests/integration/c/postgres-repository.test.ts tests/integration/chat/postgres-chat.test.ts"],
         "build": "Alice et Bob exécutent le même client React. Alice poste le message, Bob est déjà abonné. Le commit rend le message durable. La réponse HTTP et la notification PostgreSQL peuvent parvenir dans les deux ordres. NOTIFY transporte conversationId et seq, le contenu est relu dans le journal.",
         "check": "Même clientId et même texte donnent le même ID avec 201 puis 200. Un texte différent donne 409. Les compteurs en base montrent un seul message, un seul événement et une seule progression de last_seq.",
@@ -159,19 +158,8 @@
       },
       {
         "id": "06-reconnexion",
-        "title": "Rattrapage après coupure",
-        "wire": [
-          "Après Upgrade /api/v1/ws avec Origin et cookie valides, sur un direct dont last_seq=1",
-          "Serveur → Bob   {\"v\":1,\"type\":\"ready\",\"heartbeatSeconds\":30}",
-          "Bob → serveur   {\"v\":1,\"type\":\"subscribe\",\"conversationId\":\"10000000-0000-4000-8000-000000000001\",\"afterSeq\":\"0\"}",
-          "Serveur → Bob   {\"v\":1,\"type\":\"subscribed\",\"conversationId\":\"10000000-0000-4000-8000-000000000001\",\"snapshotSeq\":\"1\"}",
-          "Serveur → Bob",
-          "{\n  \"v\": 1,\n  \"type\": \"event\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"at\": \"2026-11-25T09:00:00.000Z\",\n  \"event\": \"message.created\",\n  \"data\": {\n    \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n    \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n    \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n    \"text\": \"Bonjour Bob\",\n    \"id\": \"40000000-0000-4000-8000-000000000004\"\n  }\n}",
-          "",
-          "Nouvelle souscription après livraison de cet événement",
-          "{\n  \"v\": 1,\n  \"type\": \"subscribe\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"afterSeq\": \"1\"\n}",
-          "Si last_seq vaut encore 1, aucun event supplémentaire."
-        ],
+        "title": "Banc R01 · Rattrapage après coupure",
+        "wire": ["Après Upgrade /api/v1/ws avec Origin et cookie valides, sur un direct dont last_seq=1", "Serveur → Bob   {\"v\":1,\"type\":\"ready\",\"heartbeatSeconds\":30}", "Bob → serveur   {\"v\":1,\"type\":\"subscribe\",\"conversationId\":\"10000000-0000-4000-8000-000000000001\",\"afterSeq\":\"0\"}", "Serveur → Bob   {\"v\":1,\"type\":\"subscribed\",\"conversationId\":\"10000000-0000-4000-8000-000000000001\",\"snapshotSeq\":\"1\"}", "Serveur → Bob", "{\n  \"v\": 1,\n  \"type\": \"event\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"seq\": \"1\",\n  \"at\": \"2026-11-25T09:00:00.000Z\",\n  \"event\": \"message.created\",\n  \"data\": {\n    \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n    \"senderId\": \"20000000-0000-4000-8000-000000000002\",\n    \"clientId\": \"30000000-0000-4000-8000-000000000003\",\n    \"text\": \"Bonjour Bob\",\n    \"id\": \"40000000-0000-4000-8000-000000000004\"\n  }\n}", "", "Nouvelle souscription après livraison de cet événement", "{\n  \"v\": 1,\n  \"type\": \"subscribe\",\n  \"conversationId\": \"10000000-0000-4000-8000-000000000001\",\n  \"afterSeq\": \"1\"\n}", "Si last_seq vaut encore 1, aucun event supplémentaire."],
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable, Chromium doit être installé", "pnpm db:migrate", "pnpm exec playwright test tests/e2e/chat.spec.ts"],
         "build": "Bob reprend après sa dernière séquence. Le serveur draine le journal par pages de 100, sur signal PostgreSQL ou au réveil périodique. Il revérifie la session et le membre avant chaque livraison. GET /events est disponible séparément. Le client React traite les événements lors du réabonnement.",
         "check": "Couper Bob 15 secondes, envoyer 20 messages, rétablir le réseau. Chacun doit réapparaître exactement une fois. Avec une session révoquée ou un membre retiré, aucun contenu du fil ne doit être livré au prochain contrôle.",
@@ -179,7 +167,7 @@
       },
       {
         "id": "14-http-identite-groupes",
-        "title": "HTTP des comptes et groupes",
+        "title": "Banc R01 · HTTP des comptes et groupes",
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test --test-concurrency=1 tests/integration/identity/postgres-identity.test.ts tests/integration/chat/postgres-chat.test.ts"],
         "build": "La planche répertorie les handlers montés. Utiliser les enveloppes exactes, y compris la différence entre {user: Profil} à la connexion et Profil à la racine pour /me. La lecture d’un groupe vérifie l’appartenance. La modification de ses membres vérifie aussi le rôle.",
         "check": "Valider les réponses du serveur contre les schémas. À la création concurrente d’un direct Alice↔Bob, obtenir un 201 et un 200 pour un ID identique. La liste ne doit révéler à Ève aucun de leurs fils.",
@@ -187,7 +175,7 @@
       },
       {
         "id": "15-http-flux-appels",
-        "title": "HTTP des messages, WS et média",
+        "title": "Banc R01 · HTTP des messages, WS et média",
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "node --import tsx --test --test-concurrency=1 tests/contract/contract.test.mjs tests/integration/chat/postgres-websocket.test.ts tests/integration/calls/postgres-calls.test.ts"],
         "build": "Le serveur v1 transporte seq en chaîne, distingue les deux sens de pagination et retourne les erreurs sous {code,message,requestId}. La génération compare les deux planches HTTP aux handlers Fastify. Les opérations OpenAPI encore à raccorder sont listées ci-dessous.",
         "check": "Lire 125 messages en trois pages de 50, sans doublon. Relire les événements après 100 doit rendre les 25 derniers dans l’essai dédié. Un tiers reçoit 404. En mode par défaut, une demande de création d’appel v1 reçoit 503.",
@@ -196,7 +184,7 @@
       },
       {
         "id": "12-donnees-chat",
-        "title": "Schéma SQL de la messagerie",
+        "title": "Banc R01 · Schéma SQL de la messagerie",
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "pnpm db:migrate", "psql \"$DATABASE_URL\" -c 'SELECT id FROM _chatisen_migrations ORDER BY id'", "node --import tsx --test tests/integration/c/postgres-repository.test.ts"],
         "build": "Les colonnes, types, clés et liens sont tirés du DDL. La paire triée d’un direct ouvert est unique. Un index partiel autorise un seul owner actif par groupe. Chaque message référence son événement par (conversation_id,seq). Le trigger transmet sur chatisen_conversation_events le fil et sa séquence après commit.",
         "check": "Sur une base jetable, node db/migrate.mjs applique les deux fichiers une première fois, puis first/second permettent de constater qu’au second passage applied est vide. Les retries concurrents créent un message et un événement, et le rollback ne consomme aucune séquence.",
@@ -205,7 +193,7 @@
       },
       {
         "id": "13-donnees-media",
-        "title": "Schéma SQL des appels et fichiers",
+        "title": "Banc R01 · Schéma SQL des appels et fichiers",
         "steps": ["# DATABASE_URL doit viser une base PostgreSQL jetable", "pnpm db:migrate", "node --import tsx --test tests/integration/calls/postgres-calls.test.ts"],
         "build": "Le module expérimental écrit calls et call_participants. Le schéma prévoit aussi attachments, media_jobs, webhook_receipts et quality_samples. Ces tables existent dès la migration. Le traitement des jobs, l’ingestion des webhooks et le dépôt de fichiers ou de mesures en v1 restent à raccorder.",
         "check": "La migration doit créer ces six tables. L’admission d’un membre crée ou actualise un participant invited lié à sa session. Un deuxième appel ouvert dans le même fil est refusé. Le DDL fixe le plafond de fichier à 5 242 880 octets.",
@@ -220,6 +208,7 @@
         "check": "Sur le standalone, créer un direct déjà existant rend 200 et son ID initial. Un signal d’appel accepté est livré à la session du pair par WS. Sur Fastify historique, le jeton renvoyé contient le préfixe demo. et ses Maps repartent vides au redémarrage.",
         "links": [["Serveur JSON", "../../apps/standalone/server.mjs"], ["Serveur historique", "../../apps/api/src/server.ts"], ["Maps et clés", "../../apps/api/src/store.ts"], ["Test des accès historiques", "../../tests/security/fastify-realtime.test.ts"]]
       }
-    ]
+    ],
+    "tables": ["Données, résidences et reprise"]
   }
 ]

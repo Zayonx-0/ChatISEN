@@ -3,22 +3,22 @@ const architecture = {
     {
       "id": "01-contexte",
       "title": "Contexte",
-      "build": "L’enseignant ouvre https://ia-pple.isen.fedyna.fr/ depuis Internet. Le navigateur utilise le profil standalone servi par une VM Google Compute Engine en HTTPS standard. L’équipe peut retrouver les preuves publiques et les deux profils de reconstruction ci-dessous.",
-      "check": "La page et GET /readyz répondent en HTTPS. Une requête HTTP redirige vers HTTPS.",
+      "build": "User et jury entrent par le domaine ISEN. Ops entre par SSH sur l’hôte. Admin utilise le plan de contrôle GCP avec IAM. Le propriétaire d’un groupe est un rôle applicatif du parcours User.",
+      "check": "Comparer le DNS au champ external-ip de la VM. Vérifier HTTPS, l’identité de l’hôte administré et les droits du projet séparément.",
       "links": [
         [
-          "Modèle C4",
-          "workspace.dsl"
+          "Inventaire GCP et reconstruction",
+          "infrastructure-gcp.md"
         ],
         [
-          "Mandat de recette",
-          "../revisions/R01-socle-j1.md"
+          "Code en service",
+          "https://github.com/Zayonx-0/ChatISEN/tree/9b08996060c52700b035d646bf6ac64075ef3ea6"
         ]
       ],
       "details": [
         {
           "id": "07-profils",
-          "title": "Choisir le profil à reconstruire",
+          "title": "Historique R01 · comparer le banc et le mode Node",
           "steps": [
             "git clone https://github.com/Zayonx-0/ChatISEN.git ChatISEN",
             "cd ChatISEN",
@@ -86,32 +86,64 @@ const architecture = {
             ]
           ]
         }
+      ],
+      "tables": [
+        "Placement et points d’entrée",
+        "Flux nommés"
       ]
     },
     {
       "id": "02-conteneurs",
       "title": "Conteneurs",
-      "build": "Sur GCP, Caddy sert le HTTPS public et relaie vers le serveur standalone Node.js sur 127.0.0.1:3000. Le client HTML/JS écrit via l’API et le serveur persiste en JSON. La pile de recette Compose R01 assemble Nginx, React, Fastify, PostgreSQL, LiveKit et la supervision.",
-      "check": "Pour la démo, GET /readyz donne json-demo. Sur la pile Compose de recette, la page doit charger le bundle Vite, /api/v1/me sans session répondre 401 et /api/v1/ws accepter l’Upgrade avec la bonne session et la bonne origine.",
+      "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
+      "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
       "links": [
         [
-          "Plateformes et preuves",
-          "README.md#plateformes-par-environnement"
+          "Inventaire GCP et reconstruction",
+          "infrastructure-gcp.md"
         ],
         [
-          "Routage Nginx",
-          "../../infra/edge/nginx.conf"
+          "Caddy",
+          "../../ops/gcp/Caddyfile.template"
         ],
         [
-          "Services et images",
-          "../../infra/compose/docker-compose.yml"
-        ],
-        [
-          "Parcours React",
-          "../../tests/e2e/chat.spec.ts"
+          "Unité systemd",
+          "../../ops/gcp/chatisen.service"
         ]
       ],
       "details": [
+        {
+          "id": "04-deploiement-gcp",
+          "title": "Déploiement Google Cloud",
+          "steps": [
+            "curl -fsS https://ia-pple.isen.fedyna.fr/readyz",
+            "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"
+          ],
+          "build": "Une VM Compute Engine à 4 vCPU et 6 Gio héberge Caddy, Node et le disque JSON. Le navigateur exécute le front distribué par Node. Le DNS aboutit directement à l’IPv4 de la VM ; Caddy utilise un seul backend.",
+          "check": "Vérifier la zone europe-west4-a, le VPC default, les sockets de Caddy et le bind de Node sur 127.0.0.1:3000. Le schéma physique et les postes de coût sont dépliables.",
+          "links": [
+            [
+              "Inventaire vérifié",
+              "infrastructure-gcp.md"
+            ],
+            [
+              "Vue de déploiement",
+              "details/vues.dsl"
+            ],
+            [
+              "Procédure GCP versionnée",
+              "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"
+            ],
+            [
+              "Disponibilité du démonstrateur",
+              "https://ia-pple.isen.fedyna.fr/readyz"
+            ]
+          ],
+          "tables": [
+            "Placement et points d’entrée",
+            "Pare-feu et exposition"
+          ]
+        },
         {
           "id": "08-compose",
           "title": "Assemblage Compose local",
@@ -151,32 +183,8 @@ const architecture = {
           ]
         },
         {
-          "id": "04-deploiement-gcp",
-          "title": "Déploiement Google Cloud",
-          "steps": [
-            "curl -fsS https://ia-pple.isen.fedyna.fr/readyz",
-            "curl -fsS https://ia-pple.isen.fedyna.fr/api/config"
-          ],
-          "build": "Le domaine ISEN pointe vers le frontal HTTPS. Caddy termine TLS sur la VM Debian 13 et relaie vers Node.js supervisé par systemd. Les données résident dans /var/lib/chatisen/chatisen.json. Le navigateur récupère la configuration STUN et échange les pistes WebRTC avec son pair.",
-          "check": "Sonde publique à 200 avec json-demo. Le journal du lot GCP a vérifié le redémarrage et des pistes synthétiques reçues depuis deux contextes sur une même machine. Rejouer avec deux réseaux distincts pour vérifier les candidats ICE sélectionnés et les compteurs média de chaque côté.",
-          "links": [
-            [
-              "Vue de déploiement",
-              "details/vues.dsl"
-            ],
-            [
-              "Procédure GCP versionnée",
-              "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/README.md"
-            ],
-            [
-              "Disponibilité du démonstrateur",
-              "https://ia-pple.isen.fedyna.fr/readyz"
-            ]
-          ]
-        },
-        {
           "id": "19-exploitation",
-          "title": "Sondes, métriques et Grafana",
+          "title": "Banc R01 · Sondes, métriques et Grafana",
           "build": "Démarrer Prometheus avec prometheus.yml et Grafana avec le datasource et les deux panneaux versionnés. Le frontal relaie /metrics et /healthz dans la configuration locale. /readyz se teste directement auprès de l’API. L’indicateur de messages est alimenté par le parcours historique.",
           "check": "Dans une pile jetable, une indisponibilité de PostgreSQL doit faire passer /readyz interne à 503. Vérifier up du job chatisen-api et une variation de requêtes sur la fenêtre de test. Les messages et connexions v1 demandent encore leur instrumentation et une capture du tableau.",
           "links": [
@@ -198,153 +206,33 @@ const architecture = {
             ]
           ]
         }
+      ],
+      "tables": [
+        "Placement et points d’entrée",
+        "Services et responsabilités",
+        "Calcul du coût"
       ]
     },
     {
       "id": "03-composants-api",
       "title": "Composants",
-      "build": "Sur la VM Compute Engine Debian 13, Caddy reçoit HTTPS/WSS sur 443 et relaie en loopback vers chatisen.service (Node.js 24.14.1, :3000). server.mjs sert l’interface et route vers identité, messagerie, abonnements et signalisation. Les mutations persistent dans le JSON. Le média circule entre les navigateurs avec un serveur STUN pour ICE.",
-      "check": "GET /readyz confirme json-demo et GET /api/config renvoie le serveur STUN. Après un redémarrage contrôlé sur une VM de recette, vérifier que les comptes et messages sont conservés. Pour les appels, observer de l’audio reçu et des images décodées dans les deux navigateurs.",
+      "build": "Le VPC filtre l’entrée vers la VM en europe-west4-a. Caddy reçoit le trafic autorisé et transfère sur loopback. Les composants Node contrôlent identité, appartenance, écriture JSON, livraison temps réel, signalisation et Push. Les pistes média circulent entre navigateurs.",
+      "check": "Suivre un message F02 → F03 → F04/F05 → F06 → F07/F10, puis vérifier le destinataire, la présence dans l’historique et le refus du tiers. Les règles de pare-feu et les flux sont dépliables ci-dessous.",
       "links": [
         [
-          "Unité systemd",
-          "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/chatisen.service"
+          "Inventaire GCP et reconstruction",
+          "infrastructure-gcp.md"
         ],
         [
-          "Configuration de Caddy",
-          "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/ops/gcp/Caddyfile.template"
+          "Routeur, sessions, chat et appels",
+          "../../apps/standalone/server.mjs"
         ],
         [
-          "Serveur déployé",
-          "https://github.com/Zayonx-0/ChatISEN/blob/ab465a31c4eda0ce9290d1168daebd39f29e8e44/apps/standalone/server.mjs"
-        ],
-        [
-          "Disponibilité du démonstrateur",
-          "https://ia-pple.isen.fedyna.fr/readyz"
+          "Service Web Push",
+          "../../apps/standalone/push.mjs"
         ]
       ],
       "details": [
-        {
-          "id": "23-composants-fastify",
-          "title": "Composants Fastify · recette Compose R01",
-          "build": "server.ts oriente les requêtes vers identité, conversations, abonnements et admission d’appel. L’identité reste intégrée à Fastify. Conversations, groupes et temps réel partagent le repository PostgreSQL et les contrôles d’appartenance.",
-          "check": "Avec PostgreSQL migré, GET /api/v1/me sans cookie répond 401 et les écritures restent disponibles après recréation du pool. L’admission LiveKit est expérimentale et répond 503 avec la configuration par défaut.",
-          "links": [
-            [
-              "Montage des modules",
-              "../../apps/api/src/server.ts"
-            ],
-            [
-              "Pool et transactions",
-              "../../apps/api/src/repositories/postgres.ts"
-            ],
-            [
-              "Tests du repository",
-              "../../tests/integration/c/postgres-repository.test.ts"
-            ]
-          ]
-        },
-        {
-          "id": "09-interface-react",
-          "title": "Navigation et état React",
-          "steps": [
-            "# DATABASE_URL doit viser une base PostgreSQL jetable, Chromium doit être installé",
-            "pnpm db:migrate",
-            "pnpm exec playwright test tests/e2e/chat.spec.ts"
-          ],
-          "build": "App et Auth sont dans main.tsx. Après /me, React charge les pages de conversations puis leurs détails. La sélection charge l’historique et ouvre une seule socket. Chaque fil conserve son brouillon et sa commande en attente en mémoire. La sélection la plus récente prévaut sur les réponses HTTP tardives.",
-          "check": "Deux sessions échangent, Bob change de fil, retrouve l’historique et peut revenir à la liste à 390 px. Un envoi réessayé avec le même texte réutilise clientId. L’interface React au SHA repère ne comporte aucun bouton d’appel.",
-          "links": [
-            [
-              "App, Auth et accès réseau",
-              "../../apps/web/src/main.tsx"
-            ],
-            [
-              "CSS React",
-              "../../apps/web/src/styles.css"
-            ],
-            [
-              "Test Playwright v1",
-              "../../tests/e2e/chat.spec.ts"
-            ]
-          ]
-        },
-        {
-          "id": "21-ecrans",
-          "title": "Écrans ordinateur et mobile",
-          "build": "Reproduire le formulaire de session, la liste des contacts, le fil et le composeur. React crée un groupe depuis un contact et demande son titre. Standalone ajoute les contrôles de notification et la fenêtre d’appel. La maquette situe les commandes, les feuilles de style donnent leurs valeurs exactes.",
-          "check": "À 390 px, React alterne liste et fil par le bouton de retour. Standalone garde la liste au-dessus du fil. Sur un appel local entrant, Bob voit Accepter et Refuser. Après acceptation vidéo, les commandes micro, caméra et raccrochage sont disponibles.",
-          "links": [
-            [
-              "Styles exacts React",
-              "../../apps/web/src/styles.css"
-            ],
-            [
-              "HTML et CSS standalone",
-              "../../apps/web/public/index.html"
-            ],
-            [
-              "États du client local",
-              "../../apps/web/public/app.js"
-            ],
-            [
-              "Recette locale",
-              "../../tests/e2e/standalone.spec.ts"
-            ]
-          ]
-        },
-        {
-          "id": "10-identite",
-          "title": "Connexion et révocation",
-          "steps": [
-            "# DATABASE_URL doit viser une base PostgreSQL jetable",
-            "node --import tsx --test tests/integration/identity/postgres-identity.test.ts"
-          ],
-          "build": "L’identité est locale à Fastify. Le mot de passe est traité par argon2, le cookie transporte le jeton opaque et la base conserve son empreinte. Le CSRF est un HMAC du jeton de session. Inscription et connexion exigent la même origine. Une mutation authentifiée ajoute le contrôle CSRF.",
-          "check": "Inscription 201 et cookie sécurisé, handle dupliqué 409, session reconnue après nouveau pool, mauvaise origine ou CSRF 403, déconnexion 204 puis relecture du cookie révoqué 401.",
-          "links": [
-            [
-              "Routes d’identité",
-              "../../apps/api/src/identity/postgres-routes.ts"
-            ],
-            [
-              "Argon2id et CSRF",
-              "../../apps/api/src/security.ts"
-            ],
-            [
-              "Test identité",
-              "../../tests/integration/identity/postgres-identity.test.ts"
-            ],
-            [
-              "Choix face à Keycloak",
-              "../adr/001-choix.md"
-            ]
-          ]
-        },
-        {
-          "id": "11-groupes",
-          "title": "Propriété et membres d’un groupe",
-          "steps": [
-            "# DATABASE_URL doit viser une base PostgreSQL jetable",
-            "node --import tsx --test tests/integration/chat/postgres-chat.test.ts"
-          ],
-          "build": "Le groupe démarre avec un owner et entre 1 et 99 autres membres. Le verrou de commande garantit une création unique. Les mutations suivantes prennent les verrous dans l’ordre conversation puis membre et consignent leur événement dans la même transaction.",
-          "check": "Créer deux fois simultanément avec la même clé donne 201 et 200 pour le même ID. Modifier le titre de la commande répétée donne 409. Transférer la propriété, quitter puis faire quitter le dernier owner ferme le groupe. Ève reçoit 404.",
-          "links": [
-            [
-              "Règles de groupe",
-              "../../apps/api/src/chat/group-operations.ts"
-            ],
-            [
-              "Création idempotente",
-              "../../apps/api/src/repositories/postgres.ts"
-            ],
-            [
-              "Tests de rôles et conflits",
-              "../../tests/integration/chat/postgres-chat.test.ts"
-            ]
-          ]
-        },
         {
           "id": "16-standalone",
           "title": "Serveur local, JSON et notifications",
@@ -372,6 +260,9 @@ const architecture = {
               "Tests navigateur",
               "../../tests/e2e/standalone.spec.ts"
             ]
+          ],
+          "tables": [
+            "Services et responsabilités"
           ]
         },
         {
@@ -407,8 +298,129 @@ const architecture = {
           ]
         },
         {
+          "id": "23-composants-fastify",
+          "title": "Banc R01 · Composants Fastify · recette Compose R01",
+          "build": "server.ts oriente les requêtes vers identité, conversations, abonnements et admission d’appel. L’identité reste intégrée à Fastify. Conversations, groupes et temps réel partagent le repository PostgreSQL et les contrôles d’appartenance.",
+          "check": "Avec PostgreSQL migré, GET /api/v1/me sans cookie répond 401 et les écritures restent disponibles après recréation du pool. L’admission LiveKit est expérimentale et répond 503 avec la configuration par défaut.",
+          "links": [
+            [
+              "Montage des modules",
+              "../../apps/api/src/server.ts"
+            ],
+            [
+              "Pool et transactions",
+              "../../apps/api/src/repositories/postgres.ts"
+            ],
+            [
+              "Tests du repository",
+              "../../tests/integration/c/postgres-repository.test.ts"
+            ]
+          ]
+        },
+        {
+          "id": "09-interface-react",
+          "title": "Banc R01 · Navigation et état React",
+          "steps": [
+            "# DATABASE_URL doit viser une base PostgreSQL jetable, Chromium doit être installé",
+            "pnpm db:migrate",
+            "pnpm exec playwright test tests/e2e/chat.spec.ts"
+          ],
+          "build": "App et Auth sont dans main.tsx. Après /me, React charge les pages de conversations puis leurs détails. La sélection charge l’historique et ouvre une seule socket. Chaque fil conserve son brouillon et sa commande en attente en mémoire. La sélection la plus récente prévaut sur les réponses HTTP tardives.",
+          "check": "Deux sessions échangent, Bob change de fil, retrouve l’historique et peut revenir à la liste à 390 px. Un envoi réessayé avec le même texte réutilise clientId. L’interface React au SHA repère ne comporte aucun bouton d’appel.",
+          "links": [
+            [
+              "App, Auth et accès réseau",
+              "../../apps/web/src/main.tsx"
+            ],
+            [
+              "CSS React",
+              "../../apps/web/src/styles.css"
+            ],
+            [
+              "Test Playwright v1",
+              "../../tests/e2e/chat.spec.ts"
+            ]
+          ]
+        },
+        {
+          "id": "21-ecrans",
+          "title": "Banc R01 · Écrans ordinateur et mobile",
+          "build": "Reproduire le formulaire de session, la liste des contacts, le fil et le composeur. React crée un groupe depuis un contact et demande son titre. Standalone ajoute les contrôles de notification et la fenêtre d’appel. La maquette situe les commandes, les feuilles de style donnent leurs valeurs exactes.",
+          "check": "À 390 px, React alterne liste et fil par le bouton de retour. Standalone garde la liste au-dessus du fil. Sur un appel local entrant, Bob voit Accepter et Refuser. Après acceptation vidéo, les commandes micro, caméra et raccrochage sont disponibles.",
+          "links": [
+            [
+              "Styles exacts React",
+              "../../apps/web/src/styles.css"
+            ],
+            [
+              "HTML et CSS standalone",
+              "../../apps/web/public/index.html"
+            ],
+            [
+              "États du client local",
+              "../../apps/web/public/app.js"
+            ],
+            [
+              "Recette locale",
+              "../../tests/e2e/standalone.spec.ts"
+            ]
+          ]
+        },
+        {
+          "id": "10-identite",
+          "title": "Banc R01 · Connexion et révocation",
+          "steps": [
+            "# DATABASE_URL doit viser une base PostgreSQL jetable",
+            "node --import tsx --test tests/integration/identity/postgres-identity.test.ts"
+          ],
+          "build": "L’identité est locale à Fastify. Le mot de passe est traité par argon2, le cookie transporte le jeton opaque et la base conserve son empreinte. Le CSRF est un HMAC du jeton de session. Inscription et connexion exigent la même origine. Une mutation authentifiée ajoute le contrôle CSRF.",
+          "check": "Inscription 201 et cookie sécurisé, handle dupliqué 409, session reconnue après nouveau pool, mauvaise origine ou CSRF 403, déconnexion 204 puis relecture du cookie révoqué 401.",
+          "links": [
+            [
+              "Routes d’identité",
+              "../../apps/api/src/identity/postgres-routes.ts"
+            ],
+            [
+              "Argon2id et CSRF",
+              "../../apps/api/src/security.ts"
+            ],
+            [
+              "Test identité",
+              "../../tests/integration/identity/postgres-identity.test.ts"
+            ],
+            [
+              "Choix face à Keycloak",
+              "../adr/001-choix.md"
+            ]
+          ]
+        },
+        {
+          "id": "11-groupes",
+          "title": "Banc R01 · Propriété et membres d’un groupe",
+          "steps": [
+            "# DATABASE_URL doit viser une base PostgreSQL jetable",
+            "node --import tsx --test tests/integration/chat/postgres-chat.test.ts"
+          ],
+          "build": "Le groupe démarre avec un owner et entre 1 et 99 autres membres. Le verrou de commande garantit une création unique. Les mutations suivantes prennent les verrous dans l’ordre conversation puis membre et consignent leur événement dans la même transaction.",
+          "check": "Créer deux fois simultanément avec la même clé donne 201 et 200 pour le même ID. Modifier le titre de la commande répétée donne 409. Transférer la propriété, quitter puis faire quitter le dernier owner ferme le groupe. Ève reçoit 404.",
+          "links": [
+            [
+              "Règles de groupe",
+              "../../apps/api/src/chat/group-operations.ts"
+            ],
+            [
+              "Création idempotente",
+              "../../apps/api/src/repositories/postgres.ts"
+            ],
+            [
+              "Tests de rôles et conflits",
+              "../../tests/integration/chat/postgres-chat.test.ts"
+            ]
+          ]
+        },
+        {
           "id": "18-admission-livekit",
-          "title": "Admission de salle LiveKit",
+          "title": "Banc R01 · Admission de salle LiveKit",
           "steps": [
             "# DATABASE_URL doit viser une base PostgreSQL jetable",
             "node --import tsx --test --test-concurrency=1 tests/security/livekit-token.test.ts tests/integration/calls/postgres-calls.test.ts"
@@ -434,39 +446,64 @@ const architecture = {
             ]
           ]
         }
+      ],
+      "tables": [
+        "Pare-feu et exposition",
+        "Flux nommés",
+        "Services et responsabilités"
       ]
     },
     {
       "id": "04-code",
       "title": "Code et données",
-      "build": "Le composant PostgresRepository valide l’appartenance, verrouille le fil puis son membre, et écrit journal et message dans la même transaction. Chaque requête transporte un clientId choisi par React. Le serveur WebSocket relit le journal après le curseur et le client fusionne par ID. Les cartes de code, les schémas SQL et les deux séquences permettent de reproduire ce parcours.",
-      "check": "Un premier envoi répond 201. La même commande répond 200 avec le même ID et n’incrémente la séquence qu’une fois. Un autre texte avec la même clé répond 409. Après coupure, vérifier la livraison de chaque message manqué dans l’ordre, une seule fois.",
+      "build": "Les collections du fichier JSON sont reliées par les identifiants utilisateur, session et conversation. Un même processus vérifie le membre, attribue seq, enregistre le texte et diffuse. Les schémas SQL et le code du laboratoire sont en annexe.",
+      "check": "Sur une réplique synthétique, vérifier lastSeq, senderId, le rôle et les IDs de session. Un second envoi avec la même clé conserve l’ID du message. Redémarrer le processus et contrôler le même historique.",
       "links": [
         [
-          "Écriture et transaction",
-          "../../apps/api/src/repositories/postgres.ts"
+          "Inventaire GCP et reconstruction",
+          "infrastructure-gcp.md"
         ],
         [
-          "Route et MessageDto",
-          "../../apps/api/src/chat/postgres-routes.ts"
+          "Structures et écriture locale",
+          "../../apps/standalone/server.mjs"
         ],
         [
-          "Lecture du journal",
-          "../../apps/api/src/chat/postgres-websocket.ts"
-        ],
-        [
-          "Migration du socle",
-          "../../db/migrations/001_initial.sql"
-        ],
-        [
-          "Test de concurrence et rollback",
-          "../../tests/integration/c/postgres-repository.test.ts"
+          "Tests de confidentialité",
+          "../../tests/security/standalone-realtime.test.mjs"
         ]
       ],
       "details": [
         {
+          "id": "24-code-postgres",
+          "title": "Banc R01 · transaction PostgreSQL",
+          "build": "Le composant PostgresRepository valide l’appartenance, verrouille le fil puis son membre, et écrit journal et message dans la même transaction. Chaque requête transporte un clientId choisi par React. Le serveur WebSocket relit le journal après le curseur et le client fusionne par ID. Les cartes de code, les schémas SQL et les deux séquences permettent de reproduire ce parcours.",
+          "check": "Un premier envoi répond 201. La même commande répond 200 avec le même ID et n’incrémente la séquence qu’une fois. Un autre texte avec la même clé répond 409. Après coupure, vérifier la livraison de chaque message manqué dans l’ordre, une seule fois.",
+          "links": [
+            [
+              "Écriture et transaction",
+              "../../apps/api/src/repositories/postgres.ts"
+            ],
+            [
+              "Route et MessageDto",
+              "../../apps/api/src/chat/postgres-routes.ts"
+            ],
+            [
+              "Lecture du journal",
+              "../../apps/api/src/chat/postgres-websocket.ts"
+            ],
+            [
+              "Migration du socle",
+              "../../db/migrations/001_initial.sql"
+            ],
+            [
+              "Test de concurrence et rollback",
+              "../../tests/integration/c/postgres-repository.test.ts"
+            ]
+          ]
+        },
+        {
           "id": "05-message-prive",
-          "title": "Envoi d’un message privé",
+          "title": "Banc R01 · Envoi d’un message privé",
           "wire": [
             "Alice → HTTP POST /api/v1/conversations/10000000-0000-4000-8000-000000000001/messages",
             "Origin: https://localhost",
@@ -504,7 +541,7 @@ const architecture = {
         },
         {
           "id": "06-reconnexion",
-          "title": "Rattrapage après coupure",
+          "title": "Banc R01 · Rattrapage après coupure",
           "wire": [
             "Après Upgrade /api/v1/ws avec Origin et cookie valides, sur un direct dont last_seq=1",
             "Serveur → Bob   {\"v\":1,\"type\":\"ready\",\"heartbeatSeconds\":30}",
@@ -541,7 +578,7 @@ const architecture = {
         },
         {
           "id": "14-http-identite-groupes",
-          "title": "HTTP des comptes et groupes",
+          "title": "Banc R01 · HTTP des comptes et groupes",
           "steps": [
             "# DATABASE_URL doit viser une base PostgreSQL jetable",
             "node --import tsx --test --test-concurrency=1 tests/integration/identity/postgres-identity.test.ts tests/integration/chat/postgres-chat.test.ts"
@@ -569,7 +606,7 @@ const architecture = {
         },
         {
           "id": "15-http-flux-appels",
-          "title": "HTTP des messages, WS et média",
+          "title": "Banc R01 · HTTP des messages, WS et média",
           "steps": [
             "# DATABASE_URL doit viser une base PostgreSQL jetable",
             "node --import tsx --test --test-concurrency=1 tests/contract/contract.test.mjs tests/integration/chat/postgres-websocket.test.ts tests/integration/calls/postgres-calls.test.ts"
@@ -598,7 +635,7 @@ const architecture = {
         },
         {
           "id": "12-donnees-chat",
-          "title": "Schéma SQL de la messagerie",
+          "title": "Banc R01 · Schéma SQL de la messagerie",
           "steps": [
             "# DATABASE_URL doit viser une base PostgreSQL jetable",
             "pnpm db:migrate",
@@ -629,7 +666,7 @@ const architecture = {
         },
         {
           "id": "13-donnees-media",
-          "title": "Schéma SQL des appels et fichiers",
+          "title": "Banc R01 · Schéma SQL des appels et fichiers",
           "steps": [
             "# DATABASE_URL doit viser une base PostgreSQL jetable",
             "pnpm db:migrate",
@@ -680,6 +717,9 @@ const architecture = {
             ]
           ]
         }
+      ],
+      "tables": [
+        "Données, résidences et reprise"
       ]
     }
   ],
@@ -695,5 +735,324 @@ const architecture = {
     "POST /calls/{id}/leave",
     "POST /calls/{id}/quality",
     "POST /conversations/{id}/files"
-  ]
+  ],
+  "inventory": {
+    "Placement et points d’entrée": [
+      [
+        "Élément",
+        "Valeur",
+        "Portée et preuve"
+      ],
+      [
+        "Projet et hôte",
+        "project-fd23d3d9-a7e8-4002-a7a · instance-20261123-141011",
+        "Projet et nom renvoyés par les métadonnées de l’instance."
+      ],
+      [
+        "Région et zone",
+        "europe-west4 (Pays-Bas) · europe-west4-a",
+        "Zone de la VM. Un arrêt de la VM, de son disque ou de la zone interrompt le site."
+      ],
+      [
+        "Calcul",
+        "e2-custom-4-6144 · 4 vCPU · 6 Gio configurés",
+        "Type issu des métadonnées, 4 CPU disponibles dans l’OS, Debian GNU/Linux 13."
+      ],
+      [
+        "VPC et interface",
+        "default (global) · réseau local 10.164.0.0/20 · IP interne 10.164.0.2 · passerelle 10.164.0.1",
+        "Métadonnées de l’interface 0. CIDR calculé avec le masque 255.255.240.0. Nom administratif du sous-réseau à confirmer côté projet."
+      ],
+      [
+        "DNS et entrée publique",
+        "ia-pple.isen.fedyna.fr → A 35.214.178.128 · aucun AAAA retourné lors du contrôle",
+        "L’IPv4 est celle de l’interface de la VM, confirmée depuis l’intérieur. Un utilisateur et un enseignant suivent le même chemin, depuis Internet."
+      ],
+      [
+        "Répartition de charge",
+        "Entrée directe sur la VM puis un seul upstream Caddy vers 127.0.0.1:3000",
+        "Aucun load balancer sur le trajet DNS→VM démontré. Le tag réseau lb-health-check ne prouve pas l’existence d’un LB. Le nombre de ressources indépendantes du projet demande un inventaire du plan de contrôle."
+      ],
+      [
+        "Disque et copies",
+        "Disque de démarrage 10 Gio ; /dev/sda1 en ext4 héberge /var/lib/chatisen",
+        "lsblk et findmnt. Le type tarifaire, les snapshots, leurs emplacements et la réservation de l’IP demandent un relevé Compute Engine."
+      ],
+      [
+        "Identités",
+        "User entre par HTTPS ; Ops par SSH TCP 22 ; Admin infrastructure par console/API GCP et IAM",
+        "SSH direct authentifié pendant le contrôle. IAM exprime le chemin d’administration cloud. Les rôles réellement attribués et les autres modes d’accès demandent une lecture du projet. Le rôle owner d’un groupe s’applique uniquement à cette conversation."
+      ]
+    ],
+    "Services et responsabilités": [
+      [
+        "Service / emplacement",
+        "Responsabilité et état observé",
+        "Point de contrôle"
+      ],
+      [
+        "DNS du domaine ISEN, externe",
+        "Publie l’enregistrement A du site. Le gestionnaire de la zone DNS reste à identifier dans l’inventaire de l’équipe.",
+        "dig A et AAAA puis comparaison à l’adresse externe de la NIC."
+      ],
+      [
+        "Caddy 2.6.2, VM",
+        "TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif porte aussi le nom historique 35-214-178-128.sslip.io.",
+        "État systemd, domaines et validation HTTPS. Le template Git décrit le site principal."
+      ],
+      [
+        "chatisen.service, VM",
+        "Un processus Node.js 24.14.1 sous utilisateur Unix chatisen. Sert apps/web/public, route /api, publie WS/SSE et lit ou réécrit le document JSON.",
+        "systemctl is-active chatisen ; GET /readyz répond persistence=json-demo."
+      ],
+      [
+        "Front et service worker, navigateur",
+        "HTML, CSS et app.js pour comptes, DM, groupes et appels. sw.js peut notifier quand l’onglet est fermé et ouvrir le fil. Les fichiers sont distribués par le serveur Node de la même VM.",
+        "SHA-256 du bundle ; parcours à 2–3 sessions ; test Web Push avec deux profils persistants."
+      ],
+      [
+        "Stockage local, VM",
+        "/var/lib/chatisen/chatisen.json, propriétaire chatisen, mode 0600, répertoire 0700. Les références entre collections sont résolues par Node.",
+        "stat sur le chemin et findmnt sur le répertoire, sans lecture du contenu privé."
+      ],
+      [
+        "Configuration de service, VM",
+        "/etc/chatisen/chatisen.env appartient à root, mode 0600 ; secrets CSRF et VAPID, origine et STUN. systemd lit l’environnement au démarrage.",
+        "Vérifier noms des paramètres du script de déploiement et modes, comparer l’origine et la configuration publique."
+      ],
+      [
+        "OpenSSH et systemd, VM",
+        "Connexion de l’exploitant et supervision des unités caddy/chatisen. Les journaux hôte passent par journald/rsyslog.",
+        "ssh.service actif ; systemctl et journalctl avec privilèges d’exploitation autorisés."
+      ],
+      [
+        "Google Cloud Ops Agent, VM",
+        "Sous-services Fluent Bit et collecteur OpenTelemetry actifs. Leurs ports de supervision locaux sont distincts du port du chat. Cloud Logging/Monitoring sont les destinations habituelles du produit ; la réception, le bucket et la rétention demandent une preuve côté console.",
+        "États systemd et processus propriétaires des sockets 20201/20202 ; rechercher une série et un journal datés dans le projet."
+      ],
+      [
+        "WebRTC et STUN, navigateurs + service externe",
+        "SDP/ICE via Node pour établir l’appel. STUN Google pour découvrir les candidats. Les deux navigateurs transportent le son et l’image entre eux. Le banc GCP n’emploie aucune SFU/TURN applicative dans cette configuration.",
+        "GET /api/config, paire ICE sélectionnée et progression des compteurs inbound-rtp à chaque extrémité."
+      ],
+      [
+        "Web Push, module Node + fournisseurs externes",
+        "Création de l’abonnement, filtrage des sessions/membres, envoi chiffré et remise au service worker du navigateur. Les domaines éligibles sont définis dans push.mjs.",
+        "Vérifier abonnement, suppression après déconnexion et réception après fermeture de l’onglet."
+      ],
+      [
+        "Services de plateforme de l’hôte",
+        "Guest agent GCE, OS Config, mises à jour Debian, réseau/résolution/horloge systemd. L’hôte exécute aussi cron, Exim sur loopback et services système Debian.",
+        "Inventaire des unités actives ; Docker, PostgreSQL, Tailscale et nftables.service déclarés inactifs au contrôle."
+      ],
+      [
+        "Banc R01, ailleurs que sur le trajet public",
+        "Nginx, web React, API Fastify, migration, PostgreSQL, LiveKit, Prometheus et Grafana. Décrit sous infra/compose pour la recette.",
+        "Les 8 entrées de services dans Compose. Déplier « Assemblage Compose local » dans le lecteur."
+      ]
+    ],
+    "Flux nommés": [
+      [
+        "Flux",
+        "Origine → destination",
+        "Protocole et données",
+        "Autorisation ou observation"
+      ],
+      [
+        "F01 · Résolution",
+        "Navigateur → résolveur DNS → zone du domaine",
+        "Nom du site, réponse A publique. Le transport vers le résolveur dépend du poste.",
+        "Lecture publique ; vérifier la réponse et son TTL lors de la reconstruction."
+      ],
+      [
+        "F02 · Entrée User",
+        "Navigateur → IPv4 de la VM → filtrage VPC → Caddy",
+        "TCP 80 redirige. HTTPS/WSS sur TCP 443. Caddy écoute aussi UDP 443 pour HTTP/3.",
+        "TLS au frontal ; reachabilité publique de l’UDP à confirmer. Le navigateur n’a besoin d’aucun VPN."
+      ],
+      [
+        "F03 · Distribution",
+        "Caddy → serveur Node sur la même VM, ou fichiers du lecteur",
+        "HTTP/1.1 et Upgrade via 127.0.0.1:3000 ; /architecture/ servi par Caddy depuis le clone",
+        "Les assets du front sont publics. Sur les routes privées Node vérifie le cookie et les droits."
+      ],
+      [
+        "F04 · Identité",
+        "Navigateur → routeur → identité → document JSON",
+        "POST /api/auth/register, login, logout ; GET /api/auth/me. Cookie __Host-chatisen ; secret mot de passe dérivé par scrypt, token de session haché",
+        "Session limitée à 24 h. Vérifications CSRF pour mutations gardées, règles propres à chaque route."
+      ],
+      [
+        "F05 · Direct, groupe, envoi",
+        "Navigateur → messagerie dans Node",
+        "HTTPS POST /api/conversations puis /api/conversations/{id}/messages. Historique par GET. Retrait de membre par DELETE",
+        "Membre actif pour lire et écrire, owner pour retirer ; id de commande clientMessageId ; numéro d’ordre par conversation."
+      ],
+      [
+        "F06 · Persistance",
+        "Modules Node → mémoire du processus → système de fichiers de la VM",
+        "Lecture initiale, writeFileSync du JSON complet. Comptes, sessions, conversations, membres, messages, appels, abonnements Push, pièces préexistantes",
+        "Accès Unix du service ; aucune connexion SQL dans ce chemin. Une seule instance écrivaine, pas de transaction ni de réplication applicative."
+      ],
+      [
+        "F07 · Livraison chat",
+        "Node → clients abonnés du fil",
+        "Upgrade /api/ws puis message.created ; GET /api/events?conversationId=… offre SSE. Accès depuis Internet via Caddy/TLS.",
+        "Contrôle d’origine et de session aux points d’entrée, appartenance revalidée avant diffusion. Le front utilise la socket et rafraîchit aussi sa liste."
+      ],
+      [
+        "F08 · Établissement d’appel",
+        "Navigateurs → routeur appels ; navigateurs → STUN Google",
+        "POST /api/conversations/{id}/calls ; answer/end/signal ; SDP et candidats ICE ciblés par session via WS ; découverte STUN sur 19302",
+        "Direct à deux membres, site HTTPS et permissions micro/caméra. Le STUN reçoit des métadonnées réseau."
+      ],
+      [
+        "F09 · Média",
+        "Navigateur appelant ↔ navigateur correspondant",
+        "ICE puis audio/vidéo DTLS-SRTP sur la paire négociée, ports dynamiques ; signalisation séparée",
+        "Source des statistiques = navigateur. Les restrictions NAT peuvent empêcher la liaison. Les pistes ne transitent pas par le disque ou par Caddy."
+      ],
+      [
+        "F10 · Envoi Push",
+        "Navigateur → API d’abonnement ; Node → fournisseur push par HTTPS 443 sortant",
+        "/api/push/config et /api/push/subscriptions ; notification chiffrée contenant type, conversationId, messageId et senderName, TTL 120 s",
+        "Consentement navigateur, association à la session, membre actif et session valide au moment de l’envoi."
+      ],
+      [
+        "F11 · Réveil",
+        "Fournisseur push → service worker du destinataire",
+        "Transport de remise géré par le navigateur. Notification puis retour au fil au clic",
+        "Cette remise ne crée aucun port entrant sur la VM. La disponibilité dépend du fournisseur et du poste."
+      ],
+      [
+        "F12 · Exploitation",
+        "Poste Ops → IP publique de la VM → sshd → systemd/journaux",
+        "SSH TCP 22 par clé ; gestion locale des unités, certificats et checkout. Sorties de maintenance HTTPS pour Git, runtime et dépendances",
+        "Accès direct vérifié. Source autorisée par le VPC et droits sudo/IAM à distinguer. Dépôts, registres et ACME sont des dépendances d’exploitation."
+      ],
+      [
+        "F13 · Administration",
+        "Admin infrastructure → console/API Google Cloud → projet et ressources",
+        "HTTPS TCP 443 vers Google ; inventaire, IAM, VPC et configuration des VM/disques, selon les droits",
+        "Aucun portail admin global dans le code de la démo. Le propriétaire d’un groupe suit F02/F05 avec son compte applicatif."
+      ],
+      [
+        "F14 · Observabilité",
+        "Ops/jury → Caddy → Node ; agent hôte → services d’observabilité Google si configurés",
+        "/healthz, /readyz, /metrics ; séries utilisateurs/messages. Agent Fluent Bit et collecteur OpenTelemetry présents",
+        "Les deux premières sondes décrivent le processus. La sonde json-demo n’effectue pas de contrôle d’écriture disque. Confirmer l’ingestion et la rétention depuis le projet."
+      ]
+    ],
+    "Pare-feu et exposition": [
+      [
+        "Direction / cible",
+        "Constat mesuré sur la VM",
+        "Ce qui décide de l’exposition"
+      ],
+      [
+        "Entrée web vers ens4",
+        "Caddy écoute TCP 80/443, le site répond en HTTPS ; UDP 443 en écoute",
+        "La règle VPC autorisant chaque protocole, sa source et sa priorité doivent être relevées indépendamment."
+      ],
+      [
+        "Entrée Ops",
+        "sshd en écoute TCP 22, SSH direct vérifié depuis le poste de mesure",
+        "Une connexion réussie ne renseigne pas tous les CIDR autorisés. Accès IAP et politiques hiérarchiques à inventorier."
+      ],
+      [
+        "Port 27028",
+        "Aucune écoute 27028 dans ss -lntu",
+        "Le tag instance-27028-codex existe. Un tag seul ne crée aucun listener et ne suffit pas à identifier une règle effective."
+      ],
+      [
+        "Loopback",
+        "Node TCP 3000, API Caddy TCP 2019, SMTP TCP 25 et résolveur local port 53",
+        "Le bind local empêche l’accès direct par l’IP de la VM à ces sockets. La route publique de l’app passe par Caddy."
+      ],
+      [
+        "Autres listeners",
+        "Ops Agent TCP 20201 et 20202, résolveur local TCP/UDP 5355, DHCP sur l’interface",
+        "Vérifier règles ingress et cibles avant de conclure à une exposition Internet. Aucune nécessité applicative d’ouvrir ces ports au jury."
+      ],
+      [
+        "Règles effectives",
+        "Tags d’instance relevés : http-server, https-server, instance-27028-codex, lb-health-check",
+        "La lecture des règles Compute a renvoyé ACCESS_TOKEN_SCOPE_INSUFFICIENT depuis la VM. Nom, priorité, sens, source/destination, action, protocoles, cible, journalisation et politique héritée restent à confirmer au niveau projet."
+      ],
+      [
+        "Sorties",
+        "Navigateur vers STUN/son pair ; VM vers push HTTPS, services de maintenance et éventuellement télémétrie",
+        "Des essais applicatifs prouvent un flux à un instant donné. Le périmètre des autorisations egress dépend des règles effectives."
+      ]
+    ],
+    "Données, résidences et reprise": [
+      [
+        "Donnée",
+        "Relations et emplacement",
+        "Conséquence pour l’équipe"
+      ],
+      [
+        "Identités, sessions et autorisations",
+        "users.id → sessions.userId ; users.id et conversations.id → members. Le rôle appartient au couple utilisateur/conversation. JSON sur disque racine en europe-west4-a.",
+        "La session résulte d’un cookie HTTP-only et doit rester active. La sortie du groupe renseigne leftAt. Les mots de passe sont dérivés, les sessions persistées sous forme d’empreinte."
+      ],
+      [
+        "Messages et pièces",
+        "messages.conversationId et senderId rattachent fil et auteur, seq ordonne le fil. Les pièces préexistantes sont lues par attachment.conversationId. Même disque et même copie mémoire Node.",
+        "Contrôle du membre à la lecture. L’endpoint de téléchargement existant n’établit pas un parcours d’upload sur ce profil."
+      ],
+      [
+        "Appels et abonnements",
+        "calls référence le direct, les deux utilisateurs et leurs sessions. pushSubscriptions lie utilisateur et session à un endpoint et aux clés publiques/de chiffrement nécessaires à Push.",
+        "SDP/ICE et média sont transitoires. Le JSON persiste les métadonnées d’appel. L’envoi Push contient des identifiants et le nom affiché ; le texte du message est absent du payload."
+      ],
+      [
+        "Hors VM",
+        "Navigateurs et notifications sur les appareils des participants ; DNS, STUN et fournisseurs Web Push externes ; télémétrie Google si collectée",
+        "La zone néerlandaise localise le disque applicatif. Localisation finale des postes, du traitement par les prestataires, des logs et des copies à documenter avant toute conclusion RGPD."
+      ],
+      [
+        "Sauvegardes et continuité",
+        "Fichier local et configuration sur un hôte, lecture au démarrage et réécriture en place. Snapshot/backup, rétention, chiffrement avec clé gérée par le client et restauration vérifiée à confirmer",
+        "Une interruption durant l’écriture peut affecter le document. Pour une copie cohérente, prévoir une fenêtre de maintenance, restaurer sur hôte isolé, vérifier comptes synthétiques, groupes et historique, mesurer RPO/RTO."
+      ]
+    ],
+    "Calcul du coût": [
+      [
+        "Poste",
+        "Quantité à prendre",
+        "Calcul et source à associer"
+      ],
+      [
+        "Compute Engine E2 custom",
+        "4 vCPU et 6 Gio en europe-west4 ; H = heures facturables",
+        "H × (4 × prix vCPU/h + 6 × prix Gio RAM/h) en prenant les SKU custom et la devise du compte, ou H × prix complet de la VM. Une seule de ces deux méthodes."
+      ],
+      [
+        "Disque",
+        "Un disque de démarrage provisionné à 10 Gio vue invité ; vérifier taille et type tarifaires dans Compute",
+        "Taille facturée × prix unitaire du type par mois, proratisé ; ajouter les données de snapshots selon taille réellement stockée et région des copies."
+      ],
+      [
+        "IPv4 publique",
+        "Une IPv4 attachée observée ; nature de la réservation à confirmer",
+        "Heures d’adresse facturables × tarif de la catégorie d’adresse. Distinguer adresse attachée et éventuelle réservation inutilisée."
+      ],
+      [
+        "Trafic",
+        "Octets sortants facturables de la VM, ventilés par destination ; HTTPS/WS, Push et signalisation",
+        "Somme des Gio par tranche et destination × tarif correspondant. Le média P2P circule entre les postes ; un futur relais média changerait le calcul."
+      ],
+      [
+        "Télémétrie, DNS, reprise",
+        "Logs ingérés/conservés, séries payantes, DNS éventuellement facturé au gestionnaire de zone, snapshots et copies",
+        "Quantités facturées × tarifs applicables. Aucun forfait de LB, SFU, Cloud SQL ou seconde VM à imputer au service web sans ressource attribuée à ChatISEN."
+      ],
+      [
+        "Exploitation et total",
+        "Heures de maintenance et de restauration, tarif interne ; période et devise communes",
+        "TCO = infrastructure + coûts d’exploitation. Présenter brut, remises, crédits, taxes et net séparément. Les consommations réelles viennent de Billing."
+      ]
+    ]
+  }
 };

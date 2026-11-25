@@ -35,9 +35,9 @@ La page 12 présente les extensions comme un choix de l’équipe. J2 retient ce
 
 ## 2. Architecture retenue
 
-**Pour reconstruire l’application de R01**, partir du lecteur de diagrammes au commit `bf1cd60`. Il associe les points d’entrée, les contrats HTTP et WebSocket, le schéma SQL, les écrans et les configurations à un test pour chaque vue. Le dessin ci-dessous présente la cible du mandat. [Ouvrir la visionneuse](docs/architecture/index.html#07-profils) · [Procédure de reconstruction](docs/architecture/README.md)
+**Déploiement du jury.** Une VM Compute Engine dans `europe-west4-a` héberge Caddy, Node et son fichier JSON. Les quatre vues C4 principales décrivent cette installation vérifiée. Le dossier d’exploitation donne les points d’entrée User/Ops/Admin, les flux, les règles réseau, le placement des données et les unités de coût. [Ouvrir le C4](docs/architecture/index.html#01-contexte) · [Reconstruire la VM](docs/architecture/infrastructure-gcp.md)
 
-Un serveur Linux héberge l’application web, l’API, PostgreSQL et le serveur média LiveKit dans Docker Compose. L’API décide **qui a le droit** de lire une conversation ou de rejoindre une salle. PostgreSQL conserve **ce qui doit survivre** à un redémarrage. LiveKit transporte **ce qui doit arriver immédiatement** pendant un appel. Une panne du serveur média laisse donc la messagerie utilisable.
+**Cible du mandat R01/Advanced.** Le dessin et les choix de la suite de cette section décrivent le banc et la cible de développement. Un serveur Linux y assemble l’application web, l’API, PostgreSQL et le serveur média LiveKit dans Docker Compose. L’API décide **qui a le droit** de lire une conversation ou de rejoindre une salle. PostgreSQL conserve **ce qui doit survivre** à un redémarrage. LiveKit transporte **ce qui doit arriver immédiatement** pendant un appel. Une panne du serveur média laisse donc la messagerie utilisable.
 
 ```mermaid
 flowchart LR

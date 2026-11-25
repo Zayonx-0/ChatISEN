@@ -309,3 +309,7 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 ## Réception Mandatory au 25 novembre 2026 avant correction du groupe
 
 Sur le commit `e2ae3537f122b0408216809f0432d1ba0f51911b`, l'audit a observé que trois comptes pouvaient discuter dans un groupe créé par API, mais que la création manquait sur le site. Cette observation historique et les autres critères figurent dans la [fiche de réception](recette-mandatory-2026-11-25.md). Le parcours de création a ensuite été ajouté et rejoué sur le site : voir [E29](#e29--création-de-groupe-depuis-le-site) et [E30](#e30--recette-de-groupe-sur-le-site-déployé).
+
+## Inventaire de la VM et du trajet public · 25 novembre 2026
+
+Entre 13 h 43 et 13 h 46 UTC, le DNS A du domaine a rendu l’IPv4 externe de la VM. Une connexion SSH par clé d’hôte connue a permis de lire son nom, sa zone `europe-west4-a`, son VPC, son interface, ses services et le montage du fichier applicatif. Le checkout déployé est `9b08996` et l’empreinte du JavaScript servi a été comparée au dépôt. Le service Caddy relaie vers un unique processus Node sur loopback. Le site public conserve son état sur le disque de cette VM. L’inventaire distingue métadonnées d’instance, accès testés et observations du plan de contrôle, dont la lecture directe était refusée au compte de la VM. [Inventaire et contrôles reproductibles](../architecture/infrastructure-gcp.md) · [Quatre vues du lecteur](../architecture/index.html#01-contexte)
