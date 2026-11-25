@@ -115,3 +115,5 @@ La recette a mis en évidence une rupture dans le parcours : l’API pouvait cr�
 Un parcours Chromium à trois comptes a exercé la création depuis un écran mobile, le retrait et l’ajout d’un contact, les échanges entre les trois membres et la relecture après rechargement. Ses conditions et limites figurent dans [E29](journal-des-preuves.md#e29--création-de-groupe-depuis-le-site). Ce test ne vaut pas réception de l’ensemble du Mandatory.
 
 Le parcours a ensuite été rejoué sur le site HTTPS déployé : trois comptes synthétiques ont créé et ouvert le groupe depuis l’interface, échangé trois messages et retrouvé l’historique après rechargement. La CI de la correction a également réussi les tests et les quatre parcours navigateur. Les conditions de cette recette figurent dans [E30](journal-des-preuves.md#e30--recette-de-groupe-sur-le-site-déployé).
+
+La [recette Mandatory du 25 novembre](recette-mandatory-2026-11-25.md) conserve l'état observé sur le commit `e2ae353` avant la correction de création de groupe. Le [mandat R02](../revisions/R02-advanced-luna.md) rassemble des propositions pour les extensions ; il ne constitue pas une preuve de leur implémentation.
