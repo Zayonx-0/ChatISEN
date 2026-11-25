@@ -277,3 +277,12 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 - **Sources :** [tests du service](../../tests/security/push.test.mjs), [tests API](../../tests/security/push-api.test.mjs), [service worker](../../apps/web/public/sw.js), [E22](#e22--notifications-et-appels-directs-sur-le-profil-local).
 - **Recette navigateur complémentaire :** un premier lancement a échoué faute de `DATABASE_URL` et parce que le sélecteur du test ne prévoyait pas le libellé « Réessayer » après restauration impossible ; le sélecteur a été corrigé. Un second lancement sur base vierge a réussi les deux parcours standalone, mais échoué sur React car les migrations n’avaient pas été appliquées ; le protocole est relancé avec migrations.
 - **Reprise :** après application des deux migrations, les trois parcours Chromium passent, dont les deux profils standalone et le parcours React/PostgreSQL. Ce résultat corrige les échecs de préparation ci-dessus ; les appareils média restent synthétiques.
+
+## E28 — Push sur le site déployé
+
+- **Date UTC :** 2026-11-25, vers 13:08. **Lot / ID :** profil standalone ; notifications de message, suite de E27.
+- **SHA / environnement :** `92af44146a5055902ce007b364f9a86ba4e1236a` ; site HTTPS déployé, Chromium sur macOS, deux profils persistants et deux comptes synthétiques.
+- **Protocole et attendu :** enregistrer un abonnement, fermer l’onglet du destinataire, envoyer un message depuis l’autre compte et lire les notifications du service worker.
+- **Observé :** configuration push disponible et notification reçue après fermeture de l’onglet. La sonde de disponibilité et le service worker répondent sur le site. Deux comptes synthétiques ont été créés pour cet essai.
+- **Limite :** la notification enregistrée par le navigateur ne démontre pas son affichage physique par le système ; l’arrière-plan d’un onglet, l’arrêt complet du navigateur et d’autres navigateurs restent à vérifier. La livraison dépend des autorisations et de la session active.
+- **Sources :** [PR de correction](https://github.com/Zayonx-0/ChatISEN/pull/5), [CI de la PR](https://github.com/Zayonx-0/ChatISEN/actions/runs/45619995036), [E27](#e27--notifications-lorsque-longlet-est-fermé).
