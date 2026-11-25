@@ -725,6 +725,46 @@ const architecture = {
         "Données, résidences et reprise",
         "Copies du disque en Europe"
       ]
+    },
+    {
+      "id": "05-architecture-globale",
+      "title": "Architecture globale",
+      "build": "Pour la soutenance, partir des navigateurs à gauche, suivre le VPC et Caddy jusqu’à Node, puis montrer les flux qui sortent de la VM. User utilise l’application, Ops exploite Debian et Admin passe par le plan de contrôle IAM.",
+      "check": "Suivre un message jusqu’au disque puis à l’autre navigateur. Pour l’appel, suivre la signalisation jusqu’à Node et le média entre les navigateurs. Terminer avec le parcours de livraison et la copie du disque.",
+      "links": [
+        [
+          "Inventaire GCP et preuves",
+          "infrastructure-gcp.md"
+        ],
+        [
+          "Configuration Caddy",
+          "../../ops/gcp/Caddyfile.template"
+        ],
+        [
+          "Service systemd",
+          "../../ops/gcp/chatisen.service"
+        ],
+        [
+          "Workflow GitHub Actions",
+          "../../.github/workflows/r01.yml"
+        ]
+      ],
+      "stepsTitle": "Fil conducteur de soutenance",
+      "steps": [
+        "1. F01–F03 · Le DNS dirige les navigateurs vers l’IPv4 réservée. Le VPC filtre. Caddy termine TLS et relaie vers Node sur loopback.",
+        "2. F04–F07 · Node vérifie la session locale et l’appartenance, écrit le JSON, puis diffuse le message aux membres.",
+        "3. F08–F11 · Node relaie la signalisation. STUN aide à établir la liaison et les pistes WebRTC circulent entre deux navigateurs. Le fournisseur Web Push joint le service worker.",
+        "4. F12–F15 · Ops entre par SSH, Admin via IAM. Les sondes vérifient l’application. Compute Engine copie le disque zonal en multi-région eu.",
+        "5. F16–F17 · GitHub Actions vérifie les commits. Ops choisit puis déploie un SHA de main sur la VM."
+      ],
+      "details": [],
+      "tables": [
+        "Flux nommés",
+        "Règles VPC visibles sur nic0",
+        "Pare-feu et exposition",
+        "Copies du disque en Europe",
+        "Calcul du coût"
+      ]
     }
   ],
   "migrations": {
@@ -961,6 +1001,18 @@ const architecture = {
         "Disque pd-balanced en europe-west4-a → service de snapshots Compute Engine → stockage multi-région eu",
         "Capture planifiée du disque de démarrage par la plateforme. Fréquence quotidienne selon default-schedule-1.",
         "Deux snapshots prêts observés. Aucun port à ouvrir sur la VM pour ce flux. Cohérence métier, rétention et restauration restent à vérifier."
+      ],
+      [
+        "F16 · Intégration continue",
+        "Contributeur → dépôt GitHub privé → runner GitHub Actions",
+        "Déclenchement sur pull request et push sur main. Installation verrouillée, builds, contrôle de Compose, tests PostgreSQL et Chromium.",
+        "Consulter le résultat associé au SHA de la PR. Le workflow r01.yml valide le candidat et archive les traces des tests."
+      ],
+      [
+        "F17 · Livraison sur la VM",
+        "Ops via F12, puis VM → dépôt GitHub privé",
+        "Récupération Git puis sélection d’un SHA de main dans /opt/chatisen/app. Une modification des dessins devient lisible via Caddy.",
+        "Livraison déclenchée par Ops. Vérifier la provenance du SHA, les fichiers publics et la disponibilité."
       ]
     ],
     "Règles VPC visibles sur nic0": [
