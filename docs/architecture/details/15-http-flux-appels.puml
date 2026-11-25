@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 15 · Contrat v1 — messages, événements et appels
+title Contrat v1 — messages, événements et appels
 legend
   <b>Base /api/v1</b>     S = session valide. M = S + Origin exact + x-csrf-token. Fil = membre actif.
   |= Méthode |= Chemin |= Garde et entrée |= Succès |

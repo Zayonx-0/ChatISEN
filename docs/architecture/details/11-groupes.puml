@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 11 · Qui peut modifier un groupe ?
+title Qui peut modifier un groupe ?
 hide footbox
 participant "Client v1" as client
 participant "Routes chat\npostgres-routes.ts" as routes
@@ -28,5 +28,5 @@ note over group, db
   Départ du propriétaire avec d’autres membres → 409 jusqu’au transfert.
   Départ du dernier propriétaire → left_at, conversation.closed et closed_at.
 end note
-routes --> client : Détail actualisé ou 204 selon la route (vue 14)
+routes --> client : Détail actualisé ou 204 selon la route
 @enduml

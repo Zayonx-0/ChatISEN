@@ -1,6 +1,6 @@
 @startuml
 !include style.iuml
-title 20 · Les interfaces /api non versionnées
+title Les interfaces /api non versionnées
 legend
   |= Route relative à /api |= Serveur standalone · fichier JSON |= Fastify historique · Maps en RAM |
   | POST /auth/register et /auth/login | 200 {user,csrf}, scrypt, session 24 h | 201 inscription / 200 connexion, Argon2id |
@@ -27,6 +27,6 @@ legend
   Call porte initiatorId, recipientId et leurs IDs de session. publicCall retire ces IDs de session du DTO.
   Cookie local chatisen en HTTP, __Host-chatisen avec COOKIE_SECURE=true. Les erreurs utilisent {error:{code,message}}.
   Chat v1, standalone et historique ont des identités et des magasins indépendants. Les identifiants clientId et
-  clientMessageId appartiennent à des contrats distincts. La liste des routes v1 figure dans les vues 14 et 15.
+  clientMessageId appartiennent à des contrats distincts. Les routes v1 figurent dans les deux planches HTTP.
 endlegend
 @enduml
