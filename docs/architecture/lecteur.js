@@ -789,8 +789,8 @@ const architecture = {
       ],
       [
         "Projet et hôte",
-        "project-fd23d3d9-a7e8-4002-a7a · instance-20261123-141011",
-        "Une seule instance listée dans le projet, en fonctionnement. Le nom et le projet correspondent aux métadonnées interrogées par SSH."
+        "Identifiants du projet et de l’instance expurgés",
+        "Une seule instance en fonctionnement observée dans le projet. Son rattachement a été recoupé avec les métadonnées lues par SSH."
       ],
       [
         "Région et zone",
@@ -804,17 +804,17 @@ const architecture = {
       ],
       [
         "VPC et interface",
-        "VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR 10.164.0.0/20, passerelle 10.164.0.1, IP interne éphémère 10.164.0.2",
+        "VPC global default → sous-réseau régional default (europe-west4) → nic0 IPv4. CIDR, passerelle et adresse privée expurgés",
         "Concordance entre détails du sous-réseau dans la console, masque et adresse dans les métadonnées de la VM."
       ],
       [
         "Routes du VPC",
-        "10.164.0.0/20 → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000.",
+        "CIDR du sous-réseau privé → réseau default, priorité 0. 0.0.0.0/0 → passerelle Internet par défaut, priorité 1000.",
         "Routes effectives visibles pour le VPC default dans europe-west4. Les priorités de routage et de filtrage appartiennent à des mécanismes distincts."
       ],
       [
         "DNS et entrée publique",
-        "ia-pple.isen.fedyna.fr → 35.214.178.128, IPv4 statique réservée et attachée à nic0, région europe-west4, niveau réseau Standard",
+        "ia-pple.isen.fedyna.fr → IPv4 statique réservée, valeur expurgée, attachée à nic0 dans europe-west4",
         "Concordance entre DNS externe, adresse distante HTTPS, console et métadonnées de la VM."
       ],
       [
@@ -846,7 +846,7 @@ const architecture = {
       ],
       [
         "Caddy 2.6.2, VM",
-        "TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif porte aussi le nom historique 35-214-178-128.sslip.io.",
+        "TLS et redirection HTTP ; proxy vers Node pour pages, API et Upgrade WS. Sert directement le lecteur C4 sous /architecture/. Le fichier actif conserve aussi une redirection historique de domaine.",
         "État systemd, domaines et validation HTTPS. Le template Git décrit le site principal."
       ],
       [
@@ -1168,7 +1168,7 @@ const architecture = {
       [
         "Snapshot du 23 novembre 2026",
         "Création à 22:03:17 UTC · standard, planifié, prêt · 1,13 Go affichés",
-        "Multi-région eu, source disque instance-20261123-141011."
+        "Multi-région eu, source disque de la VM du site, nom expurgé."
       ],
       [
         "Snapshot du 24 novembre 2026",
