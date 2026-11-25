@@ -9,7 +9,7 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         pushProvider = softwareSystem "Service push du navigateur" "FCM, Mozilla ou autre fournisseur accepté par push.mjs. Livre au service worker."
         peerBrowser = softwareSystem "Navigateur du correspondant" "Terminaison du média audio et vidéo pendant un appel direct."
         control = softwareSystem "Plan de contrôle GCP" "Console et API Compute Engine, VPC, IAM et observabilité. Autorisations distinctes de ChatISEN."
-        perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard 35.214.178.128. Règles web TCP 80/443 (P1000), SSH 22 (P65534). TCP 27028 permis, sans écoute. Voir les huit règles IPv4 et la limite IAM."
+        perimeter = softwareSystem "Pare-feu du VPC default · nic0" "IPv4 Standard 35.214.178.128. Entrées utilisées : web TCP 80/443 (P1000) et SSH 22 (P65534). Voir les huit règles IPv4 et la limite IAM."
         snapshots = softwareSystem "Snapshots Compute Engine · multi-région eu" "default-schedule-1 copie le disque chaque jour. Deux snapshots standards prêts au relevé du 25 novembre."
         bench = softwareSystem "Client de test v1" "Exerce les routes d’admission de Fastify par injection HTTP."
         chat = softwareSystem "ChatISEN" "Comptes, messagerie et appels directs. Démonstration standalone en HTTPS sur Google Compute Engine." {
