@@ -69,8 +69,8 @@ text { font-family: Inter, "DejaVu Sans", Arial, sans-serif; fill:#162940; font-
 <text x="447" y="388" class="small" text-anchor="start">TCP 443 → HTTPS/WSS</text>
 <text x="447" y="409" class="small" text-anchor="start">TCP 80 → redirection</text>
 <text x="447" y="430" class="micro" text-anchor="start">Règles web · P1000</text>
-<text x="447" y="457" class="small" text-anchor="start">TCP 27028 autorisé</text>
-<text x="447" y="476" class="micro" text-anchor="start">Aucune écoute VM</text>
+<path d="M447 456H592" fill="none" stroke="#d8e1ed"/>
+<text x="447" y="486" class="id ops" text-anchor="start">Accès exploitation</text>
 <text x="447" y="509" class="small" text-anchor="start">TCP 22 → sshd</text>
 <text x="447" y="529" class="micro" text-anchor="start">Règle SSH · P65534</text>
 <text x="447" y="553" class="micro" text-anchor="start">8 règles VPC visibles</text>
