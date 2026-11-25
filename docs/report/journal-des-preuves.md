@@ -217,3 +217,35 @@ Le même workflow a été rejoué après le commit documentaire `304c2cdfdb52c5d
 - **Observé :** le test `tests/e2e/standalone.spec.ts` passe ; la liste est rafraîchie périodiquement et le destinataire peut ouvrir le fil. Cette entrée complète le scénario E20 qui nécessitait encore un rechargement.
 - **Limite :** ce contrôle utilise un profil standalone sur une seule machine ; il ne démontre pas Compose, la réception média ou tous les scénarios de perte réseau. Le run GitHub 45579680330 est vert sur la fusion temporaire afae01c0bb3be4b557691cfe8bb8bc38f69da4d6 : 17 tests réussis, aucun échec ni ignoré, et deux parcours Chromium réussis.
 - **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/ec798c8462887626ddc050d78381af8a954ea996), [test](../../tests/e2e/standalone.spec.ts), [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45579680330), [extrait expurgé](preuves/45579680330/extrait.txt), [E20](#e20--messagerie-locale-et-parcours-des-deux-interfaces).
+
+
+## E22 — Notifications et appels directs sur le profil local
+
+- **Date UTC :** 2026-11-25, 08:55–09:07. **Lot / IDs :** D et E ; F06–F07, F13 et S03 partiels.
+- **SHA / environnement :** `91add836cc81a3f68ebdbe3b2725d697e55d2ab1` ; macOS arm64, Node 24.14.1, Chromium local, PostgreSQL 16.15 jetable pour le parcours React, données standalone isolées et périphériques audio/vidéo synthétiques.
+- **Incident :** le bouton historique d'acceptation appelait `/api/calls/{id}/answer`, route absente du serveur standalone ; l'ancienne fenêtre affichait un média simulé. Les appels avaient ensuite été désactivés dans l'interface.
+- **Protocole et attendu :** créer trois comptes isolés, envoyer un message alors que le destinataire consulte un autre fil, vérifier la notification et le compteur, appeler depuis un direct, accepter dans l'autre contexte et mesurer les statistiques WebRTC entrantes audio puis vidéo des deux côtés. Vérifier micro et caméra activés/désactivés, raccrochage des deux côtés, refus et exclusion d'un tiers.
+- **Observé :** la suite locale a réussi 17 tests sans échec ni ignoré ; les trois parcours Chromium ont réussi. Le test d'appels vérifie des octets audio reçus et des images vidéo décodées de chaque côté, ainsi que l'état des pistes synthétiques. La notification dans l'interface et la demande d'autorisation navigateur sont exercées.
+- **Limites :** ce profil utilise WebRTC direct sans STUN/TURN ni LiveKit ; il n'est testé ici que sur une machine, avec périphériques synthétiques. Aucune preuve de qualité, de connexion entre réseaux, de supervision Grafana ou de révocation complète après retrait de membre n'est apportée. Ce résultat ne vaut pas réception du lot D sur Compose ni de J1. Les notifications système nécessitent l'autorisation de l'utilisateur et un onglet en arrière-plan.
+- **Sources :** [commit](https://github.com/Zayonx-0/ChatISEN/commit/91add836cc81a3f68ebdbe3b2725d697e55d2ab1), [test navigateur](../../tests/e2e/standalone.spec.ts), [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45582451596).
+
+
+## E23 — Échec du banc média GitHub et correction tentée
+
+- **Date UTC :** 2026-11-25, 09:07–09:10. **Lot / IDs :** E ; F06–F07 partiels.
+- **SHA / environnement :** tête `91add836cc81a3f68ebdbe3b2725d697e55d2ab1`, fusion temporaire `6ae4b6696c91fe0743f749fe63ef92b57171ae47` ; GitHub Actions Ubuntu 24.04, Node 24, Chromium headless.
+- **Protocole et attendu :** suite de tests disponible et trois parcours Chromium incluant les appels à périphériques synthétiques.
+- **Observé :** les 17 tests de la suite passent ; deux parcours navigateur passent, puis le test d'appel dépasse 60 secondes et le job échoue. Le journal Chromium indique `RequestMediaAccessPermission: Not supported`. La cause exacte reste à confirmer ; le navigateur local avait réussi le même parcours.
+- **Correction tentée :** le commit `4bbbbcb73f638141b8d303d13ed56e177af5ee12` ajoute l'autorisation automatique de l'interface média factice dans les options Chromium. Le run suivant est vert : voir E24.
+- **Limite :** l'échec est une preuve CI distincte des résultats locaux ; l'option de test ne représente pas l'autorisation d'un utilisateur réel.
+- **Sources :** [run échoué](https://github.com/Zayonx-0/ChatISEN/actions/runs/45582451596), [extrait expurgé](preuves/45582451596/extrait.txt), [run de correction](https://github.com/Zayonx-0/ChatISEN/actions/runs/45583168142), [E22](#e22--notifications-et-appels-directs-sur-le-profil-local).
+
+
+## E24 — Correction du banc média GitHub
+
+- **Date UTC :** 2026-11-25, 09:12–09:14. **Lot / IDs :** E ; F06–F07 partiels.
+- **SHA / environnement :** tête `4bbbbcb73f638141b8d303d13ed56e177af5ee12`, fusion temporaire `17aa54a7bc1653f7448659c46dfacd42e963da83` ; GitHub Actions Ubuntu 24.04, Node 24, PostgreSQL 17 et Chromium headless.
+- **Protocole et attendu :** rejouer le parcours E23 avec l'autorisation automatique des périphériques synthétiques dans Chromium.
+- **Observé :** le run 45583168142 est vert ; 17 tests réussis sans échec ni ignoré et trois parcours Chromium réussis, dont les appels. Le résultat corrige le banc de l'essai précédent E23.
+- **Limite :** l'autorisation et les appareils sont synthétiques ; le test ne couvre ni périphérique physique, ni réseaux distincts, ni LiveKit/Compose.
+- **Sources :** [run GitHub](https://github.com/Zayonx-0/ChatISEN/actions/runs/45583168142), [extrait expurgé](preuves/45583168142/extrait.txt), [échec précédent E23](#e23--échec-du-banc-média-github-et-correction-tentée).
