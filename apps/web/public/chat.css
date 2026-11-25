@@ -103,6 +103,14 @@ button:disabled { cursor: default; opacity: .55; }
 .compose button { flex: none; }
 .mobile-back { display: none; }
 .notice { position: fixed; right: 1rem; bottom: 5rem; max-width: calc(100% - 2rem); background: #17233c; color: #fff; border-radius: .8rem; padding: .75rem 1rem; box-shadow: 0 6px 24px #17233c38; overflow-wrap: anywhere; }
+.group-dialog { width: min(32rem, calc(100% - 1.5rem)); max-height: calc(100dvh - 1.5rem); overflow: auto; color: inherit; }
+.group-dialog::backdrop { background: #17233c99; }
+.group-dialog form { display: grid; gap: .65rem; }
+.group-dialog label, .group-selected-title { font-size: .875rem; font-weight: 650; }
+.group-results { max-height: 10rem; overflow: auto; }
+.group-selected { display: flex; flex-wrap: wrap; gap: .4rem; font-size: .875rem; }
+.group-chip { border: 1px solid #c9d4e5; border-radius: 999px; background: var(--soft); color: var(--accent); padding: .35rem .7rem; }
+.group-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 .call { width: min(35rem, calc(100% - 1.5rem)); max-height: calc(100dvh - 1.5rem); border: 1px solid var(--line); color: inherit; text-align: center; }
 .call::backdrop { background: #17233c99; }
 .call .empty-mark { margin: 0 auto .75rem; }

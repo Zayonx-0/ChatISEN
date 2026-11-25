@@ -286,3 +286,13 @@ Le parcours du lecteur sur ordinateur a exercé les liens et le zoom dans Chromi
 - **Observé :** configuration push disponible et notification reçue après fermeture de l’onglet. La sonde de disponibilité et le service worker répondent sur le site. Deux comptes synthétiques ont été créés pour cet essai.
 - **Limite :** la notification enregistrée par le navigateur ne démontre pas son affichage physique par le système ; l’arrière-plan d’un onglet, l’arrêt complet du navigateur et d’autres navigateurs restent à vérifier. La livraison dépend des autorisations et de la session active.
 - **Sources :** [PR de correction](https://github.com/Zayonx-0/ChatISEN/pull/5), [CI de la PR](https://github.com/Zayonx-0/ChatISEN/actions/runs/45619995036), [extrait expurgé](preuves/45619995036/extrait.txt), [E27](#e27--notifications-lorsque-longlet-est-fermé).
+
+## E29 — Création de groupe depuis le site
+
+- **Date UTC :** 2026-11-25. **Lot / ID :** profil standalone, F03–F04.
+- **Constat :** le retour de recette signale que le site ne proposait pas de créer un groupe, alors que trois comptes pouvaient discuter dans un groupe créé par l’API. Cette observation ne constitue pas une réception complète du Mandatory.
+- **SHA / environnement :** modifications locales fondées sur `8e9e3d3801649eda6f029f8da358aadcaec97931` ; macOS, Node 24 et Chromium. Le commit contenant cette entrée identifie le correctif testé.
+- **Protocole et attendu :** trois comptes isolés ; Alice, sur écran de 390 px, crée un groupe nommé, recherche deux contacts, retire puis rajoute l’un d’eux ; chacun ouvre le groupe, envoie un message et reçoit ceux des autres ; Alice recharge la page.
+- **Observé :** le scénario Playwright ciblé F03 réussit. La création est impossible dans le formulaire avant de saisir un nom et de sélectionner deux contacts. Les trois messages et l’historique après rechargement sont visibles.
+- **Limite :** données et navigateurs synthétiques en local. La recette sur le site déployé et les autres critères de réception restent à vérifier séparément.
+- **Sources :** [parcours F03](../../tests/e2e/standalone.spec.ts), [interface standalone](../../apps/web/public/app.js).

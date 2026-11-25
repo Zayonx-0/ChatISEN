@@ -107,3 +107,9 @@ La première notification reposait sur la connexion WebSocket de la page : une f
 Un essai avec deux profils Chromium persistants a confirmé la réception d’un push réel après fermeture de l’onglet. Les contrôles d’accès et de persistance ont également été testés ; les limites de l’essai en arrière-plan et du mode privé sont consignées dans [E27](journal-des-preuves.md#e27--notifications-lorsque-longlet-est-fermé). La livraison dépend des autorisations du navigateur et du système ainsi que de leur capacité à fonctionner en arrière-plan.
 
 Après fusion, le même parcours à deux profils persistants a été rejoué sur le site HTTPS : le service worker a reçu une notification après fermeture de l’onglet destinataire. Cette observation et ses limites sont détaillées dans [E28](journal-des-preuves.md#e28--push-sur-le-site-déployé).
+
+## Création de groupe depuis le site
+
+La recette a mis en évidence une rupture dans le parcours : l’API pouvait créer un groupe et ses membres pouvaient ensuite y discuter, mais aucun bouton du site ne permettait à Alice de le créer. Le profil standalone propose désormais un formulaire pour nommer le groupe et sélectionner au moins deux contacts recherchés par nom ou identifiant. Le groupe s’ouvre après création et apparaît dans les conversations des autres membres.
+
+Un parcours Chromium à trois comptes a exercé la création depuis un écran mobile, le retrait et l’ajout d’un contact, les échanges entre les trois membres et la relecture après rechargement. Ses conditions et limites figurent dans [E29](journal-des-preuves.md#e29--création-de-groupe-depuis-le-site). Ce test ne vaut pas réception de l’ensemble du Mandatory.

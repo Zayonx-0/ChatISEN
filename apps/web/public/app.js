@@ -76,7 +76,7 @@ function render(){
       '<span class="account-name" title="'+esc(state.user.displayName)+'">'+esc(state.user.displayName)+'</span>'+
       '<button class="icon-button" id="enable-notifications" title="Activer les notifications" aria-label="Activer les notifications">'+icon('bell')+'</button>'+
       '<button class="icon-button" id="logout" title="Déconnexion" aria-label="Déconnexion">'+icon('logout')+'</button></div></div></header>'+
-    '<div class="layout" data-pane="list"><aside class="side" aria-labelledby="conversations-title"><h1 id="conversations-title">Conversations</h1>'+
+    '<div class="layout" data-pane="list"><aside class="side" aria-labelledby="conversations-title"><h1 id="conversations-title">Conversations</h1><button type="button" class="ghost" id="new-group">Créer un groupe</button>'+
       '<div class="search-box"><label class="search-label" for="search">Rechercher un contact</label><div class="search-field">'+icon('search')+
       '<input class="field" id="search" type="search" placeholder="Nom ou identifiant" autocomplete="off" spellcheck="false" aria-describedby="search-status"></div>'+
       '<p id="search-status" class="side-note" aria-live="polite" hidden></p></div>'+
@@ -91,7 +91,7 @@ function render(){
       '<button class="icon-button" id="video" title="Appel vidéo" aria-label="Appel vidéo">'+icon('video')+'</button></div></header>'+
       '<div class="messages" id="messages" role="log" aria-label="Messages" hidden></div>'+
       '<form class="compose" id="compose" hidden><input class="field" id="text" placeholder="Écrire un message…" aria-label="Message" maxlength="4000" autocomplete="off"><button type="submit" id="send" class="primary" disabled>Envoyer</button></form></main></div>'+
-    '<div id="notice" class="notice" role="status" hidden></div><dialog id="modal" class="card call" aria-labelledby="call-title"></dialog></div>';
+    '<div id="notice" class="notice" role="status" hidden></div><dialog id="group-dialog" class="card group-dialog" aria-labelledby="group-title"><form id="group-form"><h2 id="group-title">Créer un groupe</h2><p class="muted">Donnez un nom au groupe et ajoutez au moins deux contacts.</p><label for="group-name">Nom du groupe</label><input class="field" id="group-name" maxlength="80" required><label for="group-search">Ajouter des contacts</label><input class="field" id="group-search" type="search" placeholder="Nom ou identifiant" autocomplete="off"><p id="group-status" class="side-note" aria-live="polite"></p><div id="group-results" class="group-results"></div><p class="group-selected-title">Participants sélectionnés</p><div id="group-selected" class="group-selected" aria-live="polite"></div><p id="group-error" class="error" role="alert" hidden></p><div class="group-actions"><button type="button" class="ghost" id="group-cancel">Annuler</button><button type="submit" class="primary" id="group-create" disabled>Créer le groupe</button></div></form></dialog><dialog id="modal" class="card call" aria-labelledby="call-title"></dialog></div>';
 
   $('#logout').onclick=logout;
   $('#enable-notifications').onclick=togglePushNotifications;
@@ -99,6 +99,7 @@ function render(){
   $('#text').oninput=()=>{if(state.selected)drafts.set(state.selected.id,$('#text').value);syncComposer();};
   $('#search').oninput=search;
   $('#find-contact').onclick=()=>$('#search').focus();
+  setupGroupDialog();
   $('#chat-back').onclick=()=>closeThread({focus:true});
   $('#audio').onclick=()=>startCall('audio');
   $('#video').onclick=()=>startCall('video');
@@ -231,6 +232,57 @@ function drawConvs(){
     button.onclick=()=>select(state.convs.find(c=>c.id===button.dataset.id),{focus:true});
     if(button.dataset.id===focused)button.focus({preventScroll:true});
   }
+}
+
+function setupGroupDialog(){
+  const dialog=$('#group-dialog'),form=$('#group-form'),name=$('#group-name'),query=$('#group-search');
+  const selected=new Map();
+  let version=0,timer,busy=false;
+  const error=message=>{const box=$('#group-error');box.textContent=message;box.hidden=!message;};
+  const update=()=>{
+    $('#group-create').disabled=busy||!name.value.trim()||selected.size<2;
+    $('#group-selected').innerHTML=selected.size?[...selected.values()].map(contact=>'<button type="button" class="group-chip" data-id="'+esc(contact.id)+'" aria-label="Retirer '+esc(contact.displayName)+'">'+esc(contact.displayName)+' ×</button>').join(''):'<span class="muted">Aucun contact sélectionné.</span>';
+    for(const button of $('#group-selected').querySelectorAll('button'))button.onclick=()=>{selected.delete(button.dataset.id);update();};
+  };
+  const searchGroup=()=>{
+    const term=query.value.trim(),current=++version;
+    clearTimeout(timer);$('#group-results').replaceChildren();
+    $('#group-status').textContent=term.length<2?(term?'Saisissez au moins deux caractères.':''):'Recherche…';
+    if(term.length<2)return;
+    timer=setTimeout(async()=>{
+      try{
+        const result=await api('/api/users/search?q='+encodeURIComponent(term));
+        if(current!==version||!dialog.open)return;
+        const contacts=result.users.filter(contact=>contact.id!==state.user.id&&!selected.has(contact.id));
+        $('#group-results').innerHTML=contacts.map(contact=>personRow({id:contact.id,name:contact.displayName,subtitle:'@'+contact.handle,result:true})).join('');
+        $('#group-status').textContent=contacts.length?'':'Aucun contact trouvé.';
+        for(const button of $('#group-results').querySelectorAll('button'))button.onclick=()=>{
+          const contact=contacts.find(item=>item.id===button.dataset.id);
+          if(!contact)return;
+          selected.set(contact.id,contact);query.value='';version++;$('#group-results').replaceChildren();$('#group-status').textContent='';update();query.focus();
+        };
+      }catch(e){if(current===version&&dialog.open)$('#group-status').textContent=e.message;}
+    },180);
+  };
+  $('#new-group').onclick=()=>{form.reset();selected.clear();version++;error('');$('#group-status').textContent='';$('#group-results').replaceChildren();update();dialog.showModal();name.focus();};
+  $('#group-cancel').onclick=()=>dialog.close();
+  dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+  dialog.addEventListener('close',()=>{version++;clearTimeout(timer);});
+  name.oninput=update;query.oninput=searchGroup;
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    if(busy||!name.value.trim()||selected.size<2)return;
+    busy=true;update();$('#group-cancel').disabled=true;error('');
+    const auth=authVersion;
+    try{
+      const result=await api('/api/conversations',mutate({type:'group',title:name.value.trim(),memberIds:[...selected.keys()]}));
+      if(auth!==authVersion)return;
+      const conversation=result.conversation;
+      state.convs=[conversation,...state.convs.filter(item=>item.id!==conversation.id)];
+      subscribe();dialog.close();await select(conversation,{focus:true});
+    }catch(e){if(auth===authVersion)error(e.message);}
+    finally{busy=false;$('#group-cancel').disabled=false;update();}
+  };
 }
 
 function search(){
