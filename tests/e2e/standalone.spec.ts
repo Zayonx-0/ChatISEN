@@ -41,7 +41,9 @@ test('standalone : notifications et appels audio et vidéo entre deux sessions',
     stats.forEach(stat=>{if(stat.type==='inbound-rtp'&&stat.kind===wanted)result+=wanted==='video'?(stat.framesDecoded||0):(stat.bytesReceived||0)});return result;
   },kind);
   try{
+    expect((await alice.request.get(origin+'/readyz')).status()).toBe(200);
     await register(alice,'alice_call','Alice');await register(bob,'bob_call','Bob');await register(charlie,'charlie_call','Charlie');
+    expect(await alice.evaluate(async()=>(await (await fetch('/api/config')).json()).iceServers)).toEqual([]);
     await bob.getByRole('button',{name:'Activer les notifications'}).click();await expect(bob.getByRole('status').filter({hasText:'Notifications : activées'})).toBeVisible();
     await alice.getByPlaceholder('Rechercher un handle').fill('bob_call');await alice.getByRole('button',{name:/@bob_call/}).click();
     await bob.getByRole('button',{name:/Alice/}).click();
