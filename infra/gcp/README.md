@@ -52,6 +52,8 @@ Une fusion sur `main` lance la CI. Si elle réussit, le workflow « Cible — im
 
 Conséquence : **toute migration doit rester compatible avec la version encore en service** (ajouter d'abord, retirer dans une version ultérieure). La migration 004, qui déplaçait les tables, a été la dernière exception, avant la mise en service. L'environnement GitHub `cible` est limité à `main`, sans approbation manuelle.
 
+**Droits de `sa-deploy`**, accordés par un propriétaire hors Terraform : `artifactregistry.writer`, `compute.instanceAdmin.v1`, `run.developer`, l'usage de `sa-app`, et un rôle personnalisé réduit à `compute.healthChecks.use`. Sans ce dernier, Google refuse toute mise à jour d'un groupe de VM doté de la réparation automatique. Un essai du script avec un compte plus large ne le montre pas.
+
 Terraform ignore la configuration commune du groupe et l'image de la tâche de migration : il gère l'infrastructure, la CI gère les versions. `images.auto.tfvars.json` ne sert qu'à la création. La région limite à 8 VM : tant que la démo existe, une seule VM de renfort est créée à la fois, d'où des erreurs `QUOTA_EXCEEDED` sans gravité et 10 à 15 minutes par déploiement.
 
 **Mesurer la disponibilité** se fait depuis une VM qui a sa propre adresse publique, comme `chatisen-turn`. Depuis une VM sortant par Cloud NAT, une sonde d'une requête par seconde épuise les 64 ports réservés à la VM et rapporte de fausses coupures.
