@@ -6,7 +6,7 @@ import {guards,uuid} from '../../kernel/guards.js';
 import {validSubscription,type PushConfig} from './push-port.js';
 import {PushDispatcher} from './dispatcher.js';
 
-export async function registerNotifications(app:FastifyInstance,repo:PostgresRepository,push:PushConfig|undefined){
+export async function registerNotifications(app:FastifyInstance,repo:PostgresRepository,push:PushConfig|undefined,{background=true}:{background?:boolean}={}){
   const {authenticate,mutation}=guards(repo);
 
   app.get('/api/v1/push-configuration',{preHandler:authenticate},async()=>({available:Boolean(push),publicKey:push?.publicKey??null}));
@@ -29,7 +29,8 @@ export async function registerNotifications(app:FastifyInstance,repo:PostgresRep
     return removed.rowCount?reply.code(204).send():invalid(reply,404,'NOT_FOUND','Abonnement inconnu');
   });
 
-  if(!push)return;
+  // Les tests coupent la boucle pour déclencher eux-mêmes chaque envoi.
+  if(!push||!background)return;
   const dispatcher=new PushDispatcher(repo,push,(message,error)=>app.log.warn({err:error},message));
   const run=()=>{dispatcher.run().catch(error=>app.log.error({err:error},'Push dispatcher failed'));};
   // NOTIFY déclenche l'envoi immédiat ; l'intervalle rattrape les reprises et une écoute coupée.

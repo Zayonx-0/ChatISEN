@@ -25,7 +25,7 @@ test('notifications: rights, retries, revocation and single delivery across repl
     sent.push({endpoint:subscription.endpoint,payload:JSON.parse(payload),ttl});}};
   const repo=new PostgresRepository(databaseUrl);const app=Fastify();await app.register(cookie);
   await registerPostgresIdentity(app,repo);await registerPostgresChat(app,repo);await registerNotifications(app,repo,undefined);
-  const withPush=Fastify();await withPush.register(cookie);await registerNotifications(withPush,repo,push);
+  const withPush=Fastify();await withPush.register(cookie);await registerNotifications(withPush,repo,push,{background:false});
   const quiet=()=>{};const one=new PushDispatcher(repo,push,quiet),two=new PushDispatcher(repo,push,quiet);
   const flush=async()=>{await Promise.all([one.run(),two.run()]);await new Promise(r=>setTimeout(r,150));};
   const suffix=randomBytes(5).toString('hex');
@@ -51,6 +51,11 @@ test('notifications: rights, retries, revocation and single delivery across repl
     assert.deepEqual(mine().map(s=>s.endpoint),[endpoint('bob')],'one delivery, to the other member only');
     assert.deepEqual(mine()[0].payload,{type:'message',conversationId:conversation.id,messageId:message.id,senderName:'alice'});
     assert.ok(mine()[0].ttl>0&&mine()[0].ttl<=120);assert.ok(!JSON.stringify(mine()[0].payload).includes('contenu privé'));
+
+    // La boucle d'une vraie instance envoie sans qu'on l'appelle.
+    sent.length=0;const live=Fastify();await live.register(cookie);await registerNotifications(live,repo,push);
+    try{await post('envoi automatique');for(let i=0;i<100&&!mine().length;i++)await new Promise(r=>setTimeout(r,100));await new Promise(r=>setTimeout(r,150));}finally{await live.close();}
+    assert.equal(mine().length,1,'the background loop delivers once');
 
     sent.length=0;failures.set(endpoint('bob'),500);await post('panne du fournisseur');await flush();
     let state=(await pool.query("select state,attempts from push_deliveries d join push_subscriptions s on s.id=d.subscription_id where s.endpoint=$1 and state='pending'",[endpoint('bob')])).rows[0];
