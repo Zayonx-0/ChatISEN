@@ -42,7 +42,7 @@ resource "google_compute_instance_template" "app" {
     public-host    = local.web_host
     lb-public-ip   = google_compute_address.web.address
     proxy-cidr     = google_compute_subnetwork.proxy.ip_cidr_range
-    acme-upstream  = google_compute_instance.ops.network_interface[0].network_ip
+    acme-upstream  = local.ops_ip
     calls-enabled  = "false"
     startup-script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/app.sh")}"
   }

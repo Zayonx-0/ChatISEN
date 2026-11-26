@@ -31,6 +31,8 @@ EOF
   job noeud-app app 9100
   job noeud-turn turn 9100
   job coturn turn 9641
+  # coturn ne précise pas le type de contenu : Prometheus 3 doit le supposer.
+  printf '    fallback_scrape_protocol: PrometheusText0.0.4\n'
   job livekit sfu 6789
   job noeud-sfu sfu 9100
 } >/opt/chatisen/monitoring/prometheus.yml

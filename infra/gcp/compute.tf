@@ -6,6 +6,9 @@ data "google_compute_image" "debian" {
 
 locals {
   base_script = file("${path.module}/vm/base.sh")
+  # Adresse fixe de la supervision : écrite ici pour que le modèle des VM applicatives
+  # (créé avant destruction) n'impose pas ce même ordre à la VM de supervision.
+  ops_ip = "10.40.30.2"
 }
 
 # --- coturn : STUN et TURN, sous-réseau média, adresse publique réservée --------
@@ -36,8 +39,8 @@ resource "google_compute_instance" "turn" {
   metadata = {
     enable-oslogin = "TRUE"
     turn-host      = local.turn_host
+    startup-script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/turn.sh")}"
   }
-  metadata_startup_script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/turn.sh")}"
 
   service_account {
     email  = local.sa.turn
@@ -70,12 +73,13 @@ resource "google_compute_instance" "ops" {
 
   network_interface {
     subnetwork = google_compute_subnetwork.ops.id
+    network_ip = local.ops_ip # Nginx y relaie le défi ACME
   }
 
   metadata = {
     enable-oslogin = "TRUE"
+    startup-script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/ops.sh")}"
   }
-  metadata_startup_script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/ops.sh")}"
 
   service_account {
     email  = local.sa.ops
