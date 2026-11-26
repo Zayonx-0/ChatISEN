@@ -59,9 +59,14 @@ healthy() {
   done
 }
 
-roll() {
+# Bash ignore « set -e » dans une fonction testée par « if » : chaque échec est donc rendu
+# explicitement à l'appelant.
+apply_images() {
+  gc compute instance-groups managed all-instances-config update "$GROUP" --region "$REGION" --metadata "api-image=$1,edge-image=$2" >/dev/null
+}
+
+wait_for_images() {
   local api=$1 edge=$2 deadline
-  gc compute instance-groups managed all-instances-config update "$GROUP" --region "$REGION" --metadata "api-image=$api,edge-image=$edge" >/dev/null
   deadline=$(($(date +%s) + TIMEOUT))
   while (($(date +%s) < deadline)); do
     sleep "$POLL"
@@ -87,13 +92,20 @@ gc run jobs update "$JOB" --region "$REGION" --image "$API_IMAGE" >/dev/null
 gc run jobs execute "$JOB" --region "$REGION" --wait >/dev/null
 
 log "Remplacement des VM applicatives"
-if roll "$API_IMAGE" "$EDGE_IMAGE"; then
+if ! apply_images "$API_IMAGE" "$EDGE_IMAGE"; then
+  # Une commande en échec a pu être acceptée malgré tout : le groupe est relu avant de conclure.
+  if state=$(group_json) && [[ $(jq -r '.allInstancesConfig.properties.metadata["api-image"] // empty' <<<"$state") != "$API_IMAGE" ]]; then
+    log "Mise à jour du groupe refusée : aucune VM n’a été touchée. La base garde la nouvelle migration." >&2
+    exit 1
+  fi
+fi
+if wait_for_images "$API_IMAGE" "$EDGE_IMAGE"; then
   log "Déploiement vérifié : les VM saines servent les nouvelles images."
   exit 0
 fi
 
 log "Échec du déploiement : retour aux images précédentes" >&2
-if roll "$PREVIOUS_API" "$PREVIOUS_EDGE"; then
+if apply_images "$PREVIOUS_API" "$PREVIOUS_EDGE" && wait_for_images "$PREVIOUS_API" "$PREVIOUS_EDGE"; then
   log "Retour arrière vérifié. La base garde la nouvelle migration." >&2
 else
   log "RETOUR ARRIÈRE NON VÉRIFIÉ : intervention nécessaire." >&2
