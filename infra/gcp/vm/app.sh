@@ -1,5 +1,7 @@
 # VM applicative : Nginx, API, Cloud SQL Auth Proxy et node-exporter par Docker Compose.
-export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM CALLS_ENABLED
+export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM CALLS_ENABLED SFU_1_HOST SFU_2_HOST
+SFU_1_HOST=$(meta instance/attributes/sfu-1-host)
+SFU_2_HOST=$(meta instance/attributes/sfu-2-host)
 API_IMAGE=$(meta instance/attributes/api-image)
 EDGE_IMAGE=$(meta instance/attributes/edge-image)
 SQL_CONNECTION=$(meta instance/attributes/sql-connection)
@@ -52,6 +54,8 @@ services:
       LB_PUBLIC_IP: ${LB_PUBLIC_IP}
       PROXY_CIDR: ${PROXY_CIDR}
       PUBLIC_HOST: ${PUBLIC_HOST}
+      SFU_1_HOST: ${SFU_1_HOST}
+      SFU_2_HOST: ${SFU_2_HOST}
     ports: ["8443:8443"]
     volumes: ["/opt/chatisen/tls:/etc/nginx/tls:ro"]
     depends_on: [api]

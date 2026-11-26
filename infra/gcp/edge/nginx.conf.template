@@ -22,6 +22,11 @@ http {
   limit_req_status 429;
 
   upstream api { server api:3000; keepalive 32; }
+  # Signalisation des conférences : API des SFU, joignable des seules VM applicatives (FW6).
+  upstream livekit {
+    server ${SFU_1_HOST}:7880;
+    server ${SFU_2_HOST}:7880;
+  }
 
   server {
     listen 8443 ssl;
@@ -68,6 +73,17 @@ http {
     # Seules les routes v1 sont publiques ; /metrics ne l'est jamais.
     location /api/ { return 404; }
     location = /metrics { return 404; }
+
+    location /livekit/ {
+      proxy_pass http://livekit/;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $remote_addr;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+    }
 
     location / {
       root /usr/share/nginx/html;

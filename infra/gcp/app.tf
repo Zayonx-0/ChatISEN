@@ -42,8 +42,11 @@ resource "google_compute_instance_template" "app" {
     public-host    = local.web_host
     lb-public-ip   = google_compute_address.web.address
     proxy-cidr     = google_compute_subnetwork.proxy.ip_cidr_range
-    acme-upstream  = google_compute_instance.ops.network_interface[0].network_ip
+    acme-upstream  = local.ops_ip
     calls-enabled  = "false"
+    # Noms DNS internes, écrits sans référence aux VM pour garder les cycles de vie séparés.
+    sfu-1-host     = "chatisen-sfu-1.${local.zones[0]}.c.${var.project}.internal"
+    sfu-2-host     = "chatisen-sfu-2.${local.zones[1]}.c.${var.project}.internal"
     startup-script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/app.sh")}"
   }
 

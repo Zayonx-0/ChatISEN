@@ -31,6 +31,8 @@ EOF
   job noeud-app app 9100
   job noeud-turn turn 9100
   job coturn turn 9641
+  # coturn ne précise pas le type de contenu : Prometheus 3 doit le supposer.
+  printf '    fallback_scrape_protocol: PrometheusText0.0.4\n'
   job livekit sfu 6789
   job noeud-sfu sfu 9100
 } >/opt/chatisen/monitoring/prometheus.yml
@@ -114,4 +116,5 @@ services:
     ports: ["3000:3000"]
 volumes: {prometheus: {}, grafana: {}}
 EOF
-docker compose -f /opt/chatisen/compose.yml up -d --remove-orphans
+# La configuration est montée depuis des fichiers : les conteneurs sont recréés pour la relire.
+docker compose -f /opt/chatisen/compose.yml up -d --force-recreate --remove-orphans
