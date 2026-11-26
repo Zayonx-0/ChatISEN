@@ -50,6 +50,9 @@ http {
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Request-ID $request_id;
+    # Les en-têtes d'identité ne viennent jamais du navigateur.
+    proxy_set_header X-User-Id "";
+    proxy_set_header X-Session-Id "";
 
     # Passerelle : la session est vérifiée avant tout accès à l'API. L'API la revérifie et
     # garde les décisions de droits ; elle ne fait pas confiance aux en-têtes du client.
@@ -84,6 +87,8 @@ http {
       proxy_set_header X-Forwarded-For $remote_addr;
       proxy_set_header X-Forwarded-Proto https;
       proxy_set_header X-Request-ID $request_id;
+      proxy_set_header X-User-Id "";
+      proxy_set_header X-Session-Id "";
       proxy_read_timeout 3600s;
       proxy_send_timeout 3600s;
     }
