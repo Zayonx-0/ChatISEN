@@ -1,0 +1,49 @@
+name: Cible — images
+# Flux T18 : la CI construit les images et les envoie au registre avec une identité
+# fédérée (aucune clé stockée). L'accès GCP n'est accordé qu'à main et à l'environnement « cible ».
+on:
+  push:
+    branches: [main]
+    paths: ['apps/**', 'packages/**', 'db/**', 'infra/gcp/edge/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/images.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: europe-west4-docker.pkg.dev/project-fd23d3d9-a7e8-4002-a7a/chatisen
+
+jobs:
+  images:
+    name: Construire et publier les images
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: cible
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/424540770012/locations/global/workloadIdentityPools/github/providers/chatisen
+          service_account: sa-deploy@project-fd23d3d9-a7e8-4002-a7a.iam.gserviceaccount.com
+          token_format: access_token
+      - uses: docker/login-action@v3
+        with:
+          registry: europe-west4-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      - name: Construire et publier
+        run: |
+          set -euo pipefail
+          publish() {  # nom, Dockerfile
+            docker build --file "$2" --tag "$REGISTRY/$1:$GITHUB_SHA" .
+            docker push --quiet "$REGISTRY/$1:$GITHUB_SHA"
+            digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$1:$GITHUB_SHA")
+            echo "- $1 : \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          }
+          publish api apps/api/Dockerfile
+          publish edge infra/gcp/edge/Dockerfile
