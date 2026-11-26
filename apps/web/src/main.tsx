@@ -1,19 +1,17 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './styles.css';
+import {api,ApiError,write} from './api.js';
+import {useRealtime,type Frame} from './realtime.js';
+import {useCalls} from './calls.js';
+import {CallPanel} from './CallPanel.js';
+import {usePush} from './push.js';
 
 type User={id:string;handle:string;displayName:string;createdAt?:string;csrfToken?:string};
 type Member={user:User;role:'owner'|'member';joinedAt:string};
 type Conversation={id:string;type:'direct'|'group';title:string|null;lastSeq:string;role:'owner'|'member';updatedAt:string;members?:Member[]};
 type Message={id:string;conversationId:string;seq:string;senderId:string;clientId:string;text:string;createdAt:string};
 type EventEnvelope={v:1;type:'event';conversationId:string;seq:string;at:string;event:string;data:{id?:string;senderId?:string;clientId?:string;text?:string}};
-class ApiError extends Error {constructor(readonly status:number,message:string){super(message)}}
-async function api<T>(path:string,options:RequestInit={}):Promise<T>{
-  const headers=new Headers(options.headers);if(options.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
-  const response=await fetch(`/api/v1${path}`,{...options,headers,credentials:'include'});
-  if(response.status===204)return undefined as T;
-  const data=await response.json().catch(()=>({}));if(!response.ok)throw new ApiError(response.status,data.message||'Une erreur est survenue.');return data as T;
-}
 const bySequence=(a:Message,b:Message)=>BigInt(a.seq)<BigInt(b.seq)?-1:BigInt(a.seq)>BigInt(b.seq)?1:0;
 const upsert=(existing:Message[],incoming:Message)=>[...existing.filter(m=>m.id!==incoming.id),incoming].sort(bySequence);
 const displayName=(conversation:Conversation,userId:string)=>conversation.title||conversation.members?.find(m=>m.user.id!==userId)?.user.displayName||'Conversation privée';
@@ -25,24 +23,40 @@ function Auth({onAuthenticated,initialError}:{onAuthenticated:(user:User)=>void;
 }
 
 function App(){
-  const [user,setUser]=useState<User|null>(null);const [loading,setLoading]=useState(true);const [conversations,setConversations]=useState<Conversation[]>([]);const [selected,setSelected]=useState<Conversation|null>(null);const [messages,setMessages]=useState<Message[]>([]);const [before,setBefore]=useState<string|null>(null);const [draft,setDraft]=useState('');const [search,setSearch]=useState('');const [contact,setContact]=useState<User|null>(null);const [error,setError]=useState('');const [connection,setConnection]=useState<'connecting'|'online'|'offline'>('connecting');const [showList,setShowList]=useState(true);const cursor=useRef('0');const selection=useRef(0);const selectedId=useRef<string|null>(null);const sending=useRef(false);const [sendBusy,setSendBusy]=useState(false);const drafts=useRef<Record<string,string>>({});const pending=useRef<Record<string,{conversationId:string;text:string;clientId:string}>>({});
+  const [user,setUser]=useState<User|null>(null);const [loading,setLoading]=useState(true);const [conversations,setConversations]=useState<Conversation[]>([]);const [selected,setSelected]=useState<Conversation|null>(null);const [messages,setMessages]=useState<Message[]>([]);const [before,setBefore]=useState<string|null>(null);const [draft,setDraft]=useState('');const [search,setSearch]=useState('');const [contact,setContact]=useState<User|null>(null);const [error,setError]=useState('');const [unread,setUnread]=useState<Record<string,number>>({});const [showList,setShowList]=useState(true);const cursor=useRef('0');const selection=useRef(0);const selectedId=useRef<string|null>(null);const sending=useRef(false);const [sendBusy,setSendBusy]=useState(false);const drafts=useRef<Record<string,string>>({});const pending=useRef<Record<string,{conversationId:string;text:string;clientId:string}>>({});
   const csrf=user?.csrfToken||'';
-  const mutation=useCallback((method:string,body?:unknown):RequestInit=>({method,headers:{'x-csrf-token':csrf},...(body===undefined?{}:{body:JSON.stringify(body)})}),[csrf]);
+  const mutation=useCallback((method:string,body?:unknown)=>write(csrf,method,body),[csrf]);
+  const calls=useCalls(user?.id,csrf);const push=usePush(user?.id,csrf);const wanted=useRef<string|null>(new URLSearchParams(location.search).get('conversation'));
   const loadConversations=useCallback(async()=>{const all:Conversation[]=[];let next:string|null=null;do{const page:{items:Conversation[];nextCursor:string|null}=await api<{items:Conversation[];nextCursor:string|null}>(`/conversations${next?`?cursor=${encodeURIComponent(next)}`:''}`);all.push(...page.items);next=page.nextCursor;}while(next);const details=await Promise.all(all.map(c=>api<Conversation>(`/conversations/${c.id}`)));setConversations(details);return details;},[]);
   useEffect(()=>{let active=true;api<User>('/me').then(async profile=>{if(!active)return;setUser(profile);try{await loadConversations();}catch(e){if(active)setError(e instanceof Error?e.message:'Conversations indisponibles.');}}).catch(e=>{if(active&&!(e instanceof ApiError&&e.status===401))setError(e instanceof Error?e.message:'Session indisponible.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[loadConversations]);
-  const select=async(conversation:Conversation)=>{const request=++selection.current;setError('');if(selectedId.current===conversation.id){setShowList(false);return;}try{const detail=await api<Conversation>(`/conversations/${conversation.id}`);const page=await api<{items:Message[];nextBeforeSeq:string|null}>(`/conversations/${conversation.id}/messages`);if(request!==selection.current)return;cursor.current=page.items.at(-1)?.seq||'0';if(selectedId.current!==detail.id)setDraft(drafts.current[detail.id]||'');selectedId.current=detail.id;setSelected(detail);setMessages(page.items);setBefore(page.nextBeforeSeq);setShowList(false);}catch(e){if(request===selection.current)setError(e instanceof Error?e.message:'Conversation indisponible.');}};
-  useEffect(()=>{if(!selected||!user)return;let closed=false;let socket:WebSocket;let retry:ReturnType<typeof setTimeout>|undefined;
-    const open=()=>{if(closed)return;setConnection('connecting');socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/api/v1/ws`);
-      socket.onopen=()=>{setConnection('online');socket.send(JSON.stringify({v:1,type:'subscribe',conversationId:selected.id,afterSeq:cursor.current}));};
-      socket.onmessage=event=>{if(selectedId.current!==selected.id)return;const frame=JSON.parse(String(event.data)) as EventEnvelope|{type:string;conversationId?:string};if(frame.type==='event'&&'event' in frame){const ev=frame as EventEnvelope;if(BigInt(ev.seq)>BigInt(cursor.current))cursor.current=ev.seq;if(ev.event==='message.created'&&ev.data.id&&ev.data.senderId&&ev.data.clientId&&typeof ev.data.text==='string'){setMessages(old=>upsert(old,{id:ev.data.id!,conversationId:ev.conversationId,seq:ev.seq,senderId:ev.data.senderId!,clientId:ev.data.clientId!,text:ev.data.text!,createdAt:ev.at}));}else if(ev.event.startsWith('conversation.')){void loadConversations();}}};
-      socket.onclose=()=>{if(!closed){setConnection('offline');retry=setTimeout(open,1500);}};socket.onerror=()=>socket.close();};open();
-    return()=>{closed=true;if(retry)clearTimeout(retry);socket?.close();};},[selected?.id,user?.id,loadConversations]);
+  const select=async(conversation:Conversation)=>{const request=++selection.current;setError('');if(selectedId.current===conversation.id){setShowList(false);return;}try{const detail=await api<Conversation>(`/conversations/${conversation.id}`);const page=await api<{items:Message[];nextBeforeSeq:string|null}>(`/conversations/${conversation.id}/messages`);if(request!==selection.current)return;cursor.current=page.items.at(-1)?.seq||'0';if(selectedId.current!==detail.id)setDraft(drafts.current[detail.id]||'');selectedId.current=detail.id;setSelected(detail);setUnread(old=>({...old,[detail.id]:0}));setMessages(page.items);setBefore(page.nextBeforeSeq);setShowList(false);}catch(e){if(request===selection.current)setError(e instanceof Error?e.message:'Conversation indisponible.');}};
+  const onFrame=(frame:Frame)=>{
+    if(frame.type==='user_event'){calls.onEvent(frame.event!,frame.data);return;}
+    if(frame.type==='conversation_list_changed'){
+      const changed=frame.conversationId;const reason=(frame as Frame&{reason?:string}).reason;
+      void loadConversations().then(all=>{
+        if(selectedId.current&&!all.some(c=>c.id===selectedId.current)){selection.current++;selectedId.current=null;setSelected(null);setMessages([]);setShowList(true);}
+        const target=all.find(c=>c.id===changed);
+        if(reason==='message'&&target&&user&&(selectedId.current!==target.id||document.hidden)){setUnread(old=>({...old,[target.id]:(old[target.id]||0)+1}));calls.setNotice(`Nouveau message : ${displayName(target,user.id)}`);}
+      }).catch(()=>{});
+      return;
+    }
+    if(frame.type!=='event'||frame.conversationId!==selectedId.current)return;
+    const ev=frame as unknown as EventEnvelope;if(BigInt(ev.seq)>BigInt(cursor.current))cursor.current=ev.seq;
+    if(ev.event==='message.created'&&ev.data.id&&ev.data.senderId&&ev.data.clientId&&typeof ev.data.text==='string')setMessages(old=>upsert(old,{id:ev.data.id!,conversationId:ev.conversationId,seq:ev.seq,senderId:ev.data.senderId!,clientId:ev.data.clientId!,text:ev.data.text!,createdAt:ev.at}));
+    else if(ev.event.startsWith('conversation.'))void loadConversations().then(all=>{const fresh=all.find(c=>c.id===selectedId.current);if(fresh)setSelected(fresh);}).catch(()=>{});
+  };
+  const connection=useRealtime(user?.id,selected?.id,cursor,onFrame,()=>{void loadConversations().catch(()=>{});void calls.recover().catch(()=>{});});
+  useEffect(()=>{if(!calls.notice)return;const timer=setTimeout(()=>calls.setNotice(''),5000);return()=>clearTimeout(timer);},[calls.notice,calls.setNotice]);
   const send=async(event:React.FormEvent)=>{event.preventDefault();if(!selected||!draft.trim()||sending.current)return;const cid=selected.id;const previous=pending.current[cid];const command=previous?.text===draft?previous:{conversationId:cid,text:draft,clientId:crypto.randomUUID()};pending.current[cid]=command;sending.current=true;setSendBusy(true);try{const message=await api<Message>(`/conversations/${cid}/messages`,mutation('POST',{text:command.text,clientId:command.clientId}));if(drafts.current[cid]===command.text)drafts.current[cid]='';if(selectedId.current===cid){setMessages(old=>upsert(old,message));setDraft(current=>current===command.text?'':current);setError('');}if(pending.current[cid]===command)delete pending.current[cid];}catch(e){if(selectedId.current===cid)setError(`${e instanceof Error?e.message:'Envoi impossible.'} Réessayez sans modifier le message.`);}finally{sending.current=false;setSendBusy(false);}};
   const history=async()=>{if(!selected||!before)return;const cid=selected.id;try{const page=await api<{items:Message[];nextBeforeSeq:string|null}>(`/conversations/${cid}/messages?beforeSeq=${encodeURIComponent(before)}`);if(selectedId.current!==cid)return;setMessages(old=>[...page.items,...old].filter((m,i,a)=>a.findIndex(x=>x.id===m.id)===i).sort(bySequence));setBefore(page.nextBeforeSeq);}catch(e){if(selectedId.current===cid)setError(e instanceof Error?e.message:'Historique indisponible.');}};
+  const openRef=useRef<(id:string)=>void>(()=>{});openRef.current=id=>{const target=conversations.find(c=>c.id===id);if(target)void select(target);else wanted.current=id;};
+  useEffect(()=>{if(!wanted.current)return;const target=conversations.find(c=>c.id===wanted.current);if(target){wanted.current=null;window.history.replaceState(null,'',location.pathname);void select(target);}},[conversations]);
+  useEffect(()=>{if(!('serviceWorker' in navigator))return;const listen=(event:MessageEvent)=>{if(event.data?.type==='open-conversation'&&typeof event.data.conversationId==='string')openRef.current(event.data.conversationId);};navigator.serviceWorker.addEventListener('message',listen);return()=>navigator.serviceWorker.removeEventListener('message',listen);},[]);
   const findContact=async(event:React.FormEvent)=>{event.preventDefault();setContact(null);try{const found=await api<User>(`/users?handle=${encodeURIComponent(search.trim().toLowerCase())}`);if(found.id===user?.id)throw new Error('Choisissez un autre compte.');setContact(found);setError('');}catch(e){setError(e instanceof Error?e.message:'Contact introuvable.');}};
   const direct=async()=>{if(!contact)return;try{const conversation=await api<Conversation>('/conversations/direct',mutation('POST',{peerId:contact.id}));await loadConversations();setContact(null);setSearch('');await select(conversation);}catch(e){setError(e instanceof Error?e.message:'Création impossible.');}};
   const createGroup=async()=>{if(!contact)return;const title=window.prompt('Nom du groupe');if(!title?.trim())return;try{const group=await api<Conversation>('/conversations/groups',mutation('POST',{title:title.trim(),memberIds:[contact.id],clientId:crypto.randomUUID()}));await loadConversations();setContact(null);setSearch('');await select(group);}catch(e){setError(e instanceof Error?e.message:'Création impossible.');}};
-  const logout=async()=>{try{await api('/auth/logout',mutation('POST'));selection.current++;selectedId.current=null;pending.current={};drafts.current={};setDraft('');setError('');setSearch('');setContact(null);setUser(null);setSelected(null);setConversations([]);setMessages([]);setShowList(true);}catch(e){setError(e instanceof Error?e.message:'Déconnexion impossible.');}};
+  const logout=async()=>{try{await api('/auth/logout',mutation('POST'));selection.current++;selectedId.current=null;pending.current={};drafts.current={};setDraft('');setError('');setSearch('');setContact(null);setUnread({});setUser(null);setSelected(null);setConversations([]);setMessages([]);setShowList(true);}catch(e){setError(e instanceof Error?e.message:'Déconnexion impossible.');}};
   if(loading)return <main className="empty">Chargement de votre session…</main>;
   if(!user)return <Auth initialError={error} onAuthenticated={profile=>{setError('');setUser(profile);void loadConversations().catch(e=>setError(e.message));}}/>;
   const pageError=error&&<div className="error inline" role="alert">{error}<button onClick={()=>setError('')} aria-label="Fermer">×</button></div>;const members=selected?.members||[];const authors=new Map(members.map(m=>[m.user.id,m.user.displayName]));
@@ -52,10 +66,15 @@ function App(){
         <div className="brand"><span className="logo small">✦</span><b>ChatISEN</b></div>
         <div className="status">
           <span className="dot"/>
-          <span className="account-status">{selected?(connection==='online'?'Connecté':connection==='connecting'?'Connexion…':'Reconnexion…'):'Connecté'} · {user.displayName}</span>
+          <span className="account-status">{connection==='online'?'Connecté':connection==='connecting'?'Connexion…':'Reconnexion…'} · {user.displayName}</span>
+          {(push.state==='on'||push.state==='off'||push.state==='busy')&&<button className="ghost" disabled={push.state==='busy'} aria-pressed={push.state==='on'} onClick={()=>void (push.state==='on'?push.disable():push.enable())}>{push.state==='on'?'Notifications activées':'Activer les notifications'}</button>}
+          {push.state==='denied'&&<span className="push-hint">Notifications bloquées par le navigateur</span>}
           <button className="ghost" onClick={()=>void logout()}>Déconnexion</button>
         </div>
       </header>
+      {calls.notice&&<div className="toast" role="status">{calls.notice}</div>}
+      {push.error&&<div className="error inline" role="alert">{push.error}</div>}
+      <CallPanel calls={calls} peerName={(()=>{const c=conversations.find(x=>x.id===calls.view.conversationId);return c?displayName(c,user.id):'Correspondant';})()}/>
       <div className={`layout ${showList?'show-list':'show-chat'}`}>
         <aside>
           {showList&&pageError}
@@ -78,6 +97,7 @@ function App(){
               <button className={'conversation '+(selected?.id===c.id?'active':'')} aria-current={selected?.id===c.id||undefined} key={c.id} onClick={()=>void select(c)}>
                 <span className="avatar" aria-hidden="true">{displayName(c,user.id).slice(0,1).toUpperCase()}</span>
                 <span><b>{displayName(c,user.id)}</b><small>{c.type==='group'?'Groupe':'Conversation privée'}</small></span>
+                {Boolean(unread[c.id])&&<span className="badge" aria-label={`${unread[c.id]} message${unread[c.id]>1?'s':''} non lu${unread[c.id]>1?'s':''}`}>{unread[c.id]}</span>}
               </button>
             ))}
           </nav>
@@ -89,6 +109,10 @@ function App(){
                 <button className="mobile-back" onClick={()=>setShowList(true)}>← Conversations</button>
                 <h2>{displayName(selected,user.id)}</h2><small>{members.length} participant(s)</small>
               </div>
+              {selected.type==='direct'&&<div className="call-buttons">
+                <button disabled={calls.view.phase!=='idle'||connection!=='online'} onClick={()=>void calls.start(selected.id,'audio')}>Appel audio</button>
+                <button disabled={calls.view.phase!=='idle'||connection!=='online'} onClick={()=>void calls.start(selected.id,'video')}>Appel vidéo</button>
+              </div>}
             </div>
             <div className="messages">
               {before&&<button className="history" onClick={()=>void history()}>Charger les messages précédents</button>}

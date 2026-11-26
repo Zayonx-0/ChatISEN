@@ -43,7 +43,7 @@ resource "google_compute_instance_template" "app" {
     lb-public-ip   = google_compute_address.web.address
     proxy-cidr     = google_compute_subnetwork.proxy.ip_cidr_range
     acme-upstream  = local.ops_ip
-    calls-enabled  = "false"
+    turn-host      = local.turn_host
     # Noms DNS internes, écrits sans référence aux VM pour garder les cycles de vie séparés.
     sfu-1-host     = "chatisen-sfu-1.${local.zones[0]}.c.${var.project}.internal"
     sfu-2-host     = "chatisen-sfu-2.${local.zones[1]}.c.${var.project}.internal"
@@ -62,7 +62,8 @@ resource "google_compute_instance_template" "app" {
     create_before_destroy = true
   }
   depends_on = [google_secret_manager_secret_version.v, google_secret_manager_secret_iam_member.lecture,
-  google_compute_router_nat.cible, google_artifact_registry_repository.images]
+    google_secret_manager_secret_iam_member.vapid, google_compute_router_nat.cible,
+  google_artifact_registry_repository.images]
 }
 
 # Contrôle utilisé pour la réparation automatique, volontairement tolérant.

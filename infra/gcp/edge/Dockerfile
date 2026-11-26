@@ -8,8 +8,9 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
-# Le dossier public contient aussi le client de la démo standalone : seul sw.js est repris.
+# Le dossier public contient le client de la démo standalone : la cible a son propre service worker.
 RUN rm -f apps/web/public/index.html apps/web/public/app.js apps/web/public/chat.css
+RUN cp apps/web/sw/sw.js apps/web/public/sw.js
 RUN pnpm --filter @chatisen/web build
 
 FROM nginx:1.27-alpine

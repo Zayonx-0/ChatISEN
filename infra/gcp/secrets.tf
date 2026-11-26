@@ -87,3 +87,25 @@ resource "google_secret_manager_secret_iam_member" "lecture" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.sa[each.value.reader]}"
 }
+
+# Clés VAPID des notifications Web Push : Terraform crée les secrets et les droits ; les
+# valeurs sont ajoutées hors Terraform, pour ne figurer ni dans Git ni dans l'état.
+resource "google_secret_manager_secret" "vapid" {
+  for_each  = toset(["vapid-public-key", "vapid-private-key"])
+  secret_id = each.key
+  labels    = local.labels
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_iam_member" "vapid" {
+  for_each  = google_secret_manager_secret.vapid
+  secret_id = each.value.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.sa.app}"
+}
