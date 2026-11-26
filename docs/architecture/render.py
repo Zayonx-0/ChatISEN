@@ -1,6 +1,7 @@
-"""Export the C4 workspace and render its views locally as SVG."""
+"""Export the C4 workspace and render its views locally as SVG. Requires PyYAML for the contracts."""
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -8,12 +9,21 @@ import textwrap
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import contracts
 from global_view import render_global_view
 from global_view_demo import render_global_view as render_demo_view
+from infra_view import render_infra_view
+from mcd_view import render_mcd_view
+from modules_view import render_modules_view
 from schema import physical_views
 
 GLOBAL_VIEW = "05-architecture-globale"
 DEMO_VIEW = "25-demo-globale"  # board of the demo still running on 25 November
+# Board published before the second review (tag archi-microservices-v1). Frozen, never regenerated.
+FROZEN_VIEW = "26-cible-microservices"
+FROZEN_SHA256 = "55f57a21aaaacc05936643ff2b0f38d39053aa3cfc76eb8c930c8d35bde31d38"
+DRAWN = {"30-infrastructure": render_infra_view, "31-modules": render_modules_view, "32-mcd": render_mcd_view}
+CONTRACT_VIEW = "33-contrats-api"
 
 
 def run(*args):
@@ -136,19 +146,28 @@ def render(cli, plantuml):
             raise RuntimeError("Structurizr did not export any diagrams")
         implementation = [(path.stem, path.read_text(encoding="utf-8").replace("!include style.iuml", style))
                           for path in sorted(details.glob("*.puml"))]
-        for name, content in [*implementation, *physical_views(migrations, style)]:
+        openapi = contracts.load(folder / "api" / "openapi.yaml")
+        asyncapi = contracts.load(folder / "api" / "asyncapi.yaml")
+        contracts.check_openapi(openapi)
+        contracts.check_asyncapi(asyncapi)
+        generated = [(CONTRACT_VIEW, contracts.rest_uml(openapi, style)),
+                     ("34-schemas-json", contracts.schema_uml(openapi, style))]
+        for name, content in [*implementation, *generated, *physical_views(migrations, style)]:
             puml = work / f"{name}.puml"
             if puml in sources:
                 raise ValueError(f"Duplicate view key {name}")
             puml.write_text(content, encoding="utf-8")
             sources.append(puml)
         catalogue = json.loads((folder / "vues.json").read_text(encoding="utf-8"))
-        levels = [view["id"] for view in catalogue[:-1]]
-        if [key[:3] for key in levels] != ["01-", "02-", "03-", "04-"] or catalogue[-1]["id"] != GLOBAL_VIEW:
-            raise ValueError("The catalogue must have four C4 levels followed by the global presentation")
+        levels = [view["id"] for view in catalogue[:4]]
+        extras = [view["id"] for view in catalogue[5:]]
+        if ([key[:3] for key in levels] != ["01-", "02-", "03-", "04-"] or catalogue[4]["id"] != GLOBAL_VIEW
+                or extras != [*DRAWN, CONTRACT_VIEW]):
+            raise ValueError("Expected four C4 levels, the global board, then the dedicated views")
         records = [record for level in catalogue for record in (level, *level["details"])]
         listed = [record["id"] for record in records]
-        if len(set(listed)) != len(listed) or set(listed) != {GLOBAL_VIEW, DEMO_VIEW, *(p.stem for p in sources)}:
+        expected = {GLOBAL_VIEW, DEMO_VIEW, FROZEN_VIEW, *DRAWN, *(p.stem for p in sources)}
+        if len(set(listed)) != len(listed) or set(listed) != expected:
             raise ValueError("The viewer catalogue and the exported view keys must match")
         for view in records:
             for label, link in view["links"]:
@@ -174,9 +193,12 @@ def render(cli, plantuml):
             (output / svg.name).write_bytes(svg.read_bytes())
         # A classic script works from file:// in Safari and Chromium, without fetch or a local server.
         requested = {name for record in records for name in record.get("tables", [])}
-        documents = ("infrastructure-gcp.md", "architecture-cible.md")
+        documents = ("infrastructure-gcp.md", "dossier-architecture.md")
         inventory = "\n".join((folder / name).read_text(encoding="utf-8") for name in documents)
-        tables = inventory_tables(inventory, requested)
+        contract_tables = {"Routes REST": contracts.rest_table(openapi),
+                           "Topics WebSocket": contracts.topic_table(asyncapi)}
+        tables = inventory_tables(inventory, requested - set(contract_tables))
+        tables.update({name: rows for name, rows in contract_tables.items() if name in requested})
         presentation = render_global_view()
         flow_ids = {flow.split()[0] for flow, *_ in tables["Flux de la cible"][1:]}
         visible_labels = presentation.split("</style>", 1)[1]
@@ -185,6 +207,10 @@ def render(cli, plantuml):
         (output / f"{GLOBAL_VIEW}.svg").write_text(presentation, encoding="utf-8")
         # The original renderer joins its parts with a plain newline, as it did when it was published.
         (output / f"{DEMO_VIEW}.svg").write_text(render_demo_view(), encoding="utf-8")
+        for name, draw in DRAWN.items():
+            (output / f"{name}.svg").write_text(draw(), encoding="utf-8")
+        if hashlib.sha256((output / f"{FROZEN_VIEW}.svg").read_bytes()).hexdigest() != FROZEN_SHA256:
+            raise ValueError("The archived microservices board must stay unchanged")
         viewer_data = {"views": catalogue, "migrations": migrations, "contractGaps": contract_gaps,
                        "inventory": tables}
         (folder / "lecteur.js").write_text("const architecture = " + json.dumps(

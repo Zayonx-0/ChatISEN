@@ -1,0 +1,386 @@
+# Contrat temps réel de la cible ChatISEN. OpenAPI décrit le REST ; AsyncAPI décrit ce qui circule sur la WebSocket.
+# Un seul socket par onglet, découpé en topics. Les enveloppes reprennent packages/contracts/schemas/ws.json.
+# x-code : api = apps/api (non déployé), demo = serveur en ligne (format plus simple), a-faire.
+asyncapi: 3.0.0
+info:
+  title: ChatISEN WebSocket
+  version: 2.0.0-cible
+  description: >-
+    Authentification par le cookie de session à l'ouverture, origine contrôlée. Trames JSON texte avec v = 1.
+    Le serveur annonce heartbeatSeconds (30). Les événements d'une conversation portent un numéro seq croissant :
+    après une coupure, le client se réabonne avec afterSeq et reçoit ce qui manque.
+    Les écritures (messages, signaux d'appel) passent par le REST décrit dans openapi.yaml.
+defaultContentType: application/json
+servers:
+  production:
+    host: ia-pple.isen.fedyna.fr
+    pathname: /api/v1/ws
+    protocol: wss
+
+channels:
+  connection:
+    address: connection
+    summary: Contrôle de la connexion
+    messages:
+      ready: { $ref: '#/components/messages/ready' }
+      ping: { $ref: '#/components/messages/ping' }
+      pong: { $ref: '#/components/messages/pong' }
+      error: { $ref: '#/components/messages/error' }
+  conversation:
+    address: conversation:{conversationId}
+    summary: Fil d'une conversation, réservé à ses membres actifs
+    parameters:
+      conversationId: { description: UUID de la conversation }
+    messages:
+      subscribe: { $ref: '#/components/messages/subscribe' }
+      unsubscribe: { $ref: '#/components/messages/unsubscribe' }
+      ack: { $ref: '#/components/messages/ack' }
+      subscribed: { $ref: '#/components/messages/subscribed' }
+      resyncRequired: { $ref: '#/components/messages/resyncRequired' }
+      conversationCreated: { $ref: '#/components/messages/conversationCreated' }
+      messageCreated: { $ref: '#/components/messages/messageCreated' }
+      conversationRenamed: { $ref: '#/components/messages/conversationRenamed' }
+      memberAdded: { $ref: '#/components/messages/memberAdded' }
+      memberRemoved: { $ref: '#/components/messages/memberRemoved' }
+      memberLeft: { $ref: '#/components/messages/memberLeft' }
+      ownerTransferred: { $ref: '#/components/messages/ownerTransferred' }
+      conversationClosed: { $ref: '#/components/messages/conversationClosed' }
+  user:
+    address: user:{userId}
+    summary: Topic personnel, abonné automatiquement à l'ouverture
+    parameters:
+      userId: { description: UUID de l'utilisateur de la session }
+    messages:
+      conversationListChanged: { $ref: '#/components/messages/conversationListChanged' }
+      callInvitation: { $ref: '#/components/messages/callInvitation' }
+      callUpdated: { $ref: '#/components/messages/callUpdated' }
+      callSignal: { $ref: '#/components/messages/callSignal' }
+
+operations:
+  openConnection:
+    action: send
+    channel: { $ref: '#/channels/connection' }
+    summary: Messages de contrôle envoyés par le serveur
+    messages:
+      - { $ref: '#/channels/connection/messages/ready' }
+      - { $ref: '#/channels/connection/messages/pong' }
+      - { $ref: '#/channels/connection/messages/error' }
+  keepAlive:
+    action: receive
+    channel: { $ref: '#/channels/connection' }
+    summary: Battement envoyé par le client
+    messages:
+      - { $ref: '#/channels/connection/messages/ping' }
+  manageSubscription:
+    action: receive
+    channel: { $ref: '#/channels/conversation' }
+    summary: Le client s'abonne, acquitte ou se désabonne
+    messages:
+      - { $ref: '#/channels/conversation/messages/subscribe' }
+      - { $ref: '#/channels/conversation/messages/unsubscribe' }
+      - { $ref: '#/channels/conversation/messages/ack' }
+  publishConversationEvents:
+    action: send
+    channel: { $ref: '#/channels/conversation' }
+    summary: Le serveur pousse les événements du fil dans l'ordre
+    messages:
+      - { $ref: '#/channels/conversation/messages/subscribed' }
+      - { $ref: '#/channels/conversation/messages/resyncRequired' }
+      - { $ref: '#/channels/conversation/messages/conversationCreated' }
+      - { $ref: '#/channels/conversation/messages/messageCreated' }
+      - { $ref: '#/channels/conversation/messages/conversationRenamed' }
+      - { $ref: '#/channels/conversation/messages/memberAdded' }
+      - { $ref: '#/channels/conversation/messages/memberRemoved' }
+      - { $ref: '#/channels/conversation/messages/memberLeft' }
+      - { $ref: '#/channels/conversation/messages/ownerTransferred' }
+      - { $ref: '#/channels/conversation/messages/conversationClosed' }
+  publishUserEvents:
+    action: send
+    channel: { $ref: '#/channels/user' }
+    summary: Appels et changements de liste destinés à un utilisateur
+    messages:
+      - { $ref: '#/channels/user/messages/conversationListChanged' }
+      - { $ref: '#/channels/user/messages/callInvitation' }
+      - { $ref: '#/channels/user/messages/callUpdated' }
+      - { $ref: '#/channels/user/messages/callSignal' }
+
+components:
+  messages:
+    ready:
+      name: ready
+      summary: Connexion prête, période du heartbeat
+      x-code: [api, demo]
+      payload:
+        type: object
+        required: [v, type, heartbeatSeconds]
+        properties:
+          v: { const: 1 }
+          type: { const: ready }
+          heartbeatSeconds: { type: integer, minimum: 5, maximum: 120 }
+    ping:
+      name: ping
+      summary: Battement du client
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type]
+        properties: { v: { const: 1 }, type: { const: ping } }
+    pong:
+      name: pong
+      summary: Réponse au battement
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type]
+        properties: { v: { const: 1 }, type: { const: pong } }
+    error:
+      name: error
+      summary: Erreur avec code stable
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type, error]
+        properties:
+          v: { const: 1 }
+          type: { const: error }
+          error: { $ref: '#/components/schemas/Error' }
+    subscribe:
+      name: subscribe
+      summary: S'abonner à un fil à partir d'un numéro
+      x-code: [api, demo]
+      payload:
+        type: object
+        required: [v, type, conversationId, afterSeq]
+        properties:
+          v: { const: 1 }
+          type: { const: subscribe }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+          afterSeq: { $ref: '#/components/schemas/Seq' }
+    unsubscribe:
+      name: unsubscribe
+      summary: Quitter un fil
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type, conversationId]
+        properties:
+          v: { const: 1 }
+          type: { const: unsubscribe }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+    ack:
+      name: ack
+      summary: Dernier numéro traité par le client
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type, conversationId, seq]
+        properties:
+          v: { const: 1 }
+          type: { const: ack }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+          seq: { $ref: '#/components/schemas/Seq' }
+    subscribed:
+      name: subscribed
+      summary: Abonnement accepté, dernier numéro connu
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type, conversationId, snapshotSeq]
+        properties:
+          v: { const: 1 }
+          type: { const: subscribed }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+          snapshotSeq: { $ref: '#/components/schemas/Seq' }
+    resyncRequired:
+      name: resync_required
+      summary: Client trop lent, rattraper par REST puis se réabonner
+      x-code: [api]
+      payload:
+        type: object
+        required: [v, type, conversationId, fromSeq]
+        properties:
+          v: { const: 1 }
+          type: { const: resync_required }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+          fromSeq: { $ref: '#/components/schemas/Seq' }
+    conversationCreated:
+      name: conversation.created
+      summary: Groupe créé
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.created }
+              data: { type: object, required: [title, ownerId], properties: { title: { type: string }, ownerId: { $ref: '#/components/schemas/Uuid' } } }
+    messageCreated:
+      name: message.created
+      summary: Nouveau message enregistré
+      x-code: [api, demo]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: message.created }
+              data:
+                type: object
+                required: [id, conversationId, senderId, clientId]
+                properties:
+                  id: { $ref: '#/components/schemas/Uuid' }
+                  conversationId: { $ref: '#/components/schemas/Uuid' }
+                  senderId: { $ref: '#/components/schemas/Uuid' }
+                  clientId: { $ref: '#/components/schemas/Uuid' }
+                  text: { type: string, maxLength: 4000 }
+                  fileId: { $ref: '#/components/schemas/Uuid' }
+    conversationRenamed:
+      name: conversation.renamed
+      summary: Groupe renommé
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.renamed }
+              data: { type: object, required: [title, actorId], properties: { title: { type: string }, actorId: { $ref: '#/components/schemas/Uuid' } } }
+    memberAdded:
+      name: conversation.member_added
+      summary: Membre ajouté
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.member_added }
+              data: { $ref: '#/components/schemas/MembershipChange' }
+    memberRemoved:
+      name: conversation.member_removed
+      summary: Membre retiré, son abonnement est coupé
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.member_removed }
+              data: { $ref: '#/components/schemas/MembershipChange' }
+    memberLeft:
+      name: conversation.member_left
+      summary: Membre parti de lui-même
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.member_left }
+              data: { type: object, required: [userId], properties: { userId: { $ref: '#/components/schemas/Uuid' } } }
+    ownerTransferred:
+      name: conversation.owner_transferred
+      summary: Propriété du groupe transférée
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.owner_transferred }
+              data: { type: object, required: [newOwnerId, actorId], properties: { newOwnerId: { $ref: '#/components/schemas/Uuid' }, actorId: { $ref: '#/components/schemas/Uuid' } } }
+    conversationClosed:
+      name: conversation.closed
+      summary: Groupe fermé par son dernier membre
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.closed }
+              data: { type: object, required: [userId], properties: { userId: { $ref: '#/components/schemas/Uuid' } } }
+    conversationListChanged:
+      name: conversation_list_changed
+      summary: Recharger la liste des conversations (déclaré dans le contrat, pas encore émis)
+      x-code: [a-faire]
+      payload:
+        type: object
+        required: [v, type]
+        properties: { v: { const: 1 }, type: { const: conversation_list_changed } }
+    callInvitation:
+      name: call.invitation
+      summary: Un appel entrant sonne
+      x-code: [demo]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/UserEvent' }
+          - properties:
+              event: { const: call.invitation }
+              data: { $ref: '#/components/schemas/CallState' }
+    callUpdated:
+      name: call.updated
+      summary: Appel accepté, refusé, terminé ou expiré
+      x-code: [demo]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/UserEvent' }
+          - properties:
+              event: { const: call.updated }
+              data: { $ref: '#/components/schemas/CallState' }
+    callSignal:
+      name: call.signal
+      summary: Offre, réponse ou candidat ICE du correspondant
+      x-code: [demo]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/UserEvent' }
+          - properties:
+              event: { const: call.signal }
+              data:
+                type: object
+                required: [callId, from, type, data]
+                properties:
+                  callId: { $ref: '#/components/schemas/Uuid' }
+                  from: { $ref: '#/components/schemas/Uuid' }
+                  type: { enum: [offer, answer, ice] }
+                  data: { type: object }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+    DateTime: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { enum: [BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_MEMBER, NOT_FOUND, RESYNC_REQUIRED, RATE_LIMITED, DEPENDENCY_UNAVAILABLE, INTERNAL_ERROR] }
+        message: { type: string, maxLength: 240 }
+        requestId: { $ref: '#/components/schemas/Uuid' }
+    ConversationEvent:
+      type: object
+      required: [v, type, conversationId, seq, at, event, data]
+      properties:
+        v: { const: 1 }
+        type: { const: event }
+        conversationId: { $ref: '#/components/schemas/Uuid' }
+        seq: { $ref: '#/components/schemas/Seq' }
+        at: { $ref: '#/components/schemas/DateTime' }
+        event: { type: string }
+        data: { type: object }
+    UserEvent:
+      type: object
+      required: [v, type, at, event, data]
+      properties:
+        v: { const: 1 }
+        type: { const: user_event }
+        at: { $ref: '#/components/schemas/DateTime' }
+        event: { type: string }
+        data: { type: object }
+    MembershipChange:
+      type: object
+      required: [userId, actorId]
+      properties:
+        userId: { $ref: '#/components/schemas/Uuid' }
+        actorId: { $ref: '#/components/schemas/Uuid' }
+    CallState:
+      type: object
+      required: [callId, conversationId, mode, state]
+      properties:
+        callId: { $ref: '#/components/schemas/Uuid' }
+        conversationId: { $ref: '#/components/schemas/Uuid' }
+        mode: { enum: [audio, video] }
+        state: { enum: [ringing, active, ended] }
+        reason: { enum: [declined, expired, ended, disconnected, server_restart] }

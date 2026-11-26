@@ -3,16 +3,16 @@ const architecture = {
     {
       "id": "01-contexte",
       "title": "Contexte",
-      "build": "User accède au domaine ISEN. Ops utilise IAP et le monitoring. Admin gère IAM et le projet. GitHub Actions lance les livraisons et les fournisseurs Push remettent les notifications.",
-      "check": "Reconnaître les trois rôles et suivre le domaine, le CD et la remise Push jusqu’à leurs cibles. Chaque dépendance externe a un flux nommé.",
+      "build": "User accède au domaine ISEN. Ops passe par IAP et consulte Grafana. Admin gère IAM et le projet. GitHub Actions lance les livraisons et les fournisseurs Push remettent les notifications.",
+      "check": "Reconnaître les trois rôles et suivre le domaine, le CD et la remise Push jusqu’à leurs cibles.",
       "links": [
         [
-          "Dossier de conception",
-          "architecture-cible.md"
+          "Dossier d’architecture",
+          "dossier-architecture.md"
         ],
         [
-          "Retours de la présentation",
-          "architecture-cible.md#réponses-aux-retours-de-présentation"
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
         ]
       ],
       "details": [
@@ -88,23 +88,23 @@ const architecture = {
         }
       ],
       "tables": [
-        "Réponses aux retours de présentation",
+        "Couverture du sujet attendu",
         "Flux de la cible"
       ]
     },
     {
       "id": "02-conteneurs",
       "title": "Conteneurs",
-      "build": "Le LB distribue le front Nginx et les quatre Fastify sur deux VM privées. Cloud SQL assure la persistance. LiveKit et coturn portent le média sur le sous-réseau dédié.",
-      "check": "Vérifier par zone quels composants tournent, comment on retrouve le même client et quels ports sont publics, privés ou bornés par le pare-feu.",
+      "build": "Le load balancer envoie vers Nginx sur deux VM. Nginx sert React et relaie vers un seul conteneur API, le monolithe modulaire. Cloud SQL persiste. À deux, le média va d’un navigateur à l’autre ; coturn aide ou relaie. Pointillé : V2.",
+      "check": "Vérifier quels conteneurs tournent sur chaque VM, quels ports sont publics et où passe le média.",
       "links": [
         [
-          "Dossier de conception",
-          "architecture-cible.md"
+          "Dossier d’architecture",
+          "dossier-architecture.md"
         ],
         [
-          "Retours de la présentation",
-          "architecture-cible.md#réponses-aux-retours-de-présentation"
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
         ]
       ],
       "details": [
@@ -213,16 +213,16 @@ const architecture = {
     {
       "id": "03-composants-api",
       "title": "Composants",
-      "build": "Nginx route REST et WebSocket vers Identité, Chat, Appels et Notifications. La vue détaille les commandes, les vérifications d’accès et le rattrapage du service Chat.",
-      "check": "Suivre un message qui entre en REST, passe la vérification de session et du rôle, est enregistré puis reçu en WSS. Rejouer avec un tiers et sur une autre VM.",
+      "build": "Les adaptateurs REST et WebSocket appellent les modules. Chaque module n’importe que des modules plus bas. Le noyau partagé porte le journal et l’outbox.",
+      "check": "Suivre un message : auth_request, module messaging, droit vérifié par groups, journal, puis diffusion WebSocket.",
       "links": [
         [
-          "Dossier de conception",
-          "architecture-cible.md"
+          "Dossier d’architecture",
+          "dossier-architecture.md"
         ],
         [
-          "Retours de la présentation",
-          "architecture-cible.md#réponses-aux-retours-de-présentation"
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
         ]
       ],
       "details": [
@@ -441,23 +441,22 @@ const architecture = {
         }
       ],
       "tables": [
-        "Services Fastify et propriétés des données",
-        "Flux de la cible"
+        "Modules et propriété des données"
       ]
     },
     {
       "id": "04-code",
-      "title": "Code et données",
-      "build": "Cloud SQL PostgreSQL 17 porte les données relationnelles. Chaque service possède ses écritures. Le modèle relie utilisateurs, sessions, fils, membres, séquences, appels et notifications.",
-      "check": "Comparer les contraintes et les transactions aux migrations. Tester l’ajout des tables d’outbox/Push, l’idempotence et la restauration sur une instance isolée.",
+      "title": "Données · MLD",
+      "build": "Un schéma PostgreSQL par module. Les clés étrangères restent à l’intérieur d’un schéma ; entre modules, des références par UUID.",
+      "check": "Comparer aux migrations actuelles (annexes SQL), qui utilisent encore un schéma unique.",
       "links": [
         [
-          "Dossier de conception",
-          "architecture-cible.md"
+          "Dossier d’architecture",
+          "dossier-architecture.md"
         ],
         [
-          "Retours de la présentation",
-          "architecture-cible.md#réponses-aux-retours-de-présentation"
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
         ]
       ],
       "details": [
@@ -707,25 +706,25 @@ const architecture = {
         }
       ],
       "tables": [
-        "Services Fastify et propriétés des données"
+        "Modules et propriété des données"
       ]
     },
     {
       "id": "05-architecture-globale",
       "title": "Architecture globale",
-      "build": "Planche de soutenance de la nouvelle cible. L’entrée sert le build React depuis Nginx, puis REST, WSS et WebRTC ont des trajets explicités. Les flèches du CD partent de GitHub Actions.",
-      "check": "Montrer l’implantation, suivre un message et un appel, puis expliquer le CD et la reprise. Les 21 échanges et leurs critères sont détaillés ci-dessous.",
+      "build": "Planche de synthèse de la cible v2. Trait plein : MVP. Orange pointillé : V2. Le bandeau du bas rattache chaque attendu du sujet à une brique et à son état réel.",
+      "check": "Montrer l’implantation, suivre un message puis un appel à deux, expliquer le CD, les SPOF et la couverture du sujet. Les 22 échanges sont détaillés ci-dessous.",
       "links": [
         [
-          "Dossier de conception",
-          "architecture-cible.md"
+          "Dossier d’architecture",
+          "dossier-architecture.md"
         ],
         [
-          "Retours de la présentation",
-          "architecture-cible.md#réponses-aux-retours-de-présentation"
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
         ],
         [
-          "Comparer au déploiement de départ",
+          "Démo de départ",
           "infrastructure-gcp.md"
         ],
         [
@@ -735,13 +734,27 @@ const architecture = {
       ],
       "stepsTitle": "Fil conducteur de soutenance",
       "steps": [
-        "1. T01–T04 · Même application, deux sessions. DNS, HTTPS, LB puis Nginx qui sert le build React et /sw.js.",
-        "2. T05–T09 · REST des quatre services. Identité locale, autorisation dans les fils, transaction relationnelle et livraison WSS.",
-        "3. T10–T13 · Signalisation contrôlée, LiveKit SFU et coturn auto-hébergé en Europe. Redis coordonne les salles.",
-        "4. T14–T15 · Le worker Notifications appelle le fournisseur Web Push. Le navigateur A ou B affiche le message système.",
-        "5. T16–T21 · IAM/IAP, supervision, CI vers Registry, CD vers GCP, lecture des images par digest et reprise PostgreSQL."
+        "1. T01–T04 · Même application, deux sessions : DNS, HTTPS, load balancer, Nginx qui sert React et /sw.js.",
+        "2. T05–T09 · Un monolithe modulaire. Session vérifiée à la passerelle, droit dans le fil, transaction, WebSocket.",
+        "3. T10–T12 · Appel à deux : signalisation par le serveur, média en direct, coturn pour STUN et TURN.",
+        "4. T14–T15 · Onglet fermé : Web Push par le fournisseur du navigateur, pas par la WebSocket.",
+        "5. T16–T21 · IAP, Grafana, journaux, CI vers le registre, CD vers GCP, sauvegardes.",
+        "6. T13 et T22 · V2 : conférence par SFU, fichiers vers l’Object Storage.",
+        "7. Couverture du sujet : ce qui est en ligne, ce qui est codé, ce qui reste à faire."
       ],
       "details": [
+        {
+          "id": "26-cible-microservices",
+          "title": "Annexe · Version précédente : découpage en microservices (trajectoire V3)",
+          "build": "Planche publiée avant la seconde revue, conservée à l’identique (tag archi-microservices-v1). Elle montre le découpage vers lequel les modules pourront évoluer.",
+          "check": "Ne pas la présenter comme l’architecture retenue. Elle sert à expliquer l’évolution possible.",
+          "links": [
+            [
+              "Trajectoire dans le dossier",
+              "dossier-architecture.md#10-disponibilité-et-montée-en-charge"
+            ]
+          ]
+        },
         {
           "id": "25-demo-globale",
           "title": "Annexe · Planche de la démo en service (25 novembre 2026)",
@@ -759,11 +772,146 @@ const architecture = {
         }
       ],
       "tables": [
+        "Couverture du sujet attendu",
         "Flux de la cible",
         "Composants et placement",
         "Pare-feu de la cible",
-        "Web Push dans les deux navigateurs",
+        "Points de défaillance uniques",
+        "Retours de la deuxième revue",
         "Réponses aux retours de présentation"
+      ]
+    },
+    {
+      "id": "30-infrastructure",
+      "title": "Infrastructure et déploiement",
+      "build": "Réseau, VM, conteneurs Docker Compose, services managés, supervision, pare-feu et chaîne TLS.",
+      "check": "Pour chaque flèche : port, chiffrement et règle de pare-feu. Nommer le SPOF restant.",
+      "links": [
+        [
+          "Dossier d’architecture",
+          "dossier-architecture.md"
+        ],
+        [
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
+        ],
+        [
+          "TLS et PKI",
+          "dossier-architecture.md#9-tls-et-pki"
+        ]
+      ],
+      "details": [],
+      "tables": [
+        "Composants et placement",
+        "Pare-feu de la cible",
+        "Points de défaillance uniques"
+      ]
+    },
+    {
+      "id": "31-modules",
+      "title": "Modules et dépendances",
+      "build": "Diagramme de packages du monolithe : adaptateurs entrants, modules par profondeur de dépendance, noyau partagé et anatomie hexagonale. Le rendu échoue si le graphe contient un cycle.",
+      "check": "Toutes les flèches descendent. Citer la dette du code actuel et la règle « pas de SQL sur le schéma d’un autre module ».",
+      "links": [
+        [
+          "Dossier d’architecture",
+          "dossier-architecture.md"
+        ],
+        [
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
+        ],
+        [
+          "Décision d’origine (ADR 001)",
+          "../adr/001-choix.md"
+        ],
+        [
+          "Code actuel",
+          "../../apps/api/src/server.ts"
+        ]
+      ],
+      "details": [],
+      "tables": [
+        "Modules et propriété des données",
+        "Choix techniques justifiés"
+      ]
+    },
+    {
+      "id": "32-mcd",
+      "title": "MCD (Merise)",
+      "build": "Modèle conceptuel : entités, associations porteuses d’attributs et cardinalités (min,max). Les tables techniques sont dans le MLD.",
+      "check": "Lire chaque association dans les deux sens. Une conversation privée est une conversation à deux membres.",
+      "links": [
+        [
+          "Dossier d’architecture",
+          "dossier-architecture.md"
+        ],
+        [
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
+        ]
+      ],
+      "details": [],
+      "tables": [
+        "Modules et propriété des données"
+      ]
+    },
+    {
+      "id": "33-contrats-api",
+      "title": "Contrats REST et temps réel",
+      "build": "Vue UML générée depuis openapi.yaml. Les tableaux viennent d’openapi.yaml et d’asyncapi.yaml, avec l’état du code pour chaque ligne.",
+      "check": "Prendre une ressource : verbe, schéma, erreurs. Prendre un topic : sens, message, reprise.",
+      "links": [
+        [
+          "Dossier d’architecture",
+          "dossier-architecture.md"
+        ],
+        [
+          "Retours de la 2e revue",
+          "dossier-architecture.md#retours-de-la-deuxième-revue"
+        ],
+        [
+          "Contrat REST · OpenAPI 3.1",
+          "api/openapi.yaml"
+        ],
+        [
+          "Contrat WebSocket · AsyncAPI 3.0",
+          "api/asyncapi.yaml"
+        ]
+      ],
+      "tables": [
+        "Routes REST",
+        "Topics WebSocket"
+      ],
+      "details": [
+        {
+          "id": "34-schemas-json",
+          "title": "Annexe · Schémas JSON de l’API (UML)",
+          "build": "Classes générées depuis components.schemas du contrat REST.",
+          "check": "Chaque corps de requête et de réponse du contrat a son schéma.",
+          "links": [
+            [
+              "Contrat REST",
+              "api/openapi.yaml"
+            ]
+          ]
+        },
+        {
+          "id": "35-temps-reel",
+          "title": "Annexe · Séquence : WebSocket, reprise et Web Push",
+          "build": "Abonnement avec curseur, envoi par REST, diffusion, coupure et reprise, puis notification quand l’onglet est fermé.",
+          "check": "Distinguer les deux canaux : la notification ne passe pas par la WebSocket.",
+          "links": [
+            [
+              "Contrat WebSocket",
+              "api/asyncapi.yaml"
+            ],
+            [
+              "Service worker",
+              "../../apps/web/public/sw.js"
+            ]
+          ]
+        }
       ]
     }
   ],
@@ -1144,130 +1292,469 @@ const architecture = {
         "Même disque source et multi-région eu. Tailles ponctuelles de la console. Le stockage facturé sur un mois dépend aussi de leur durée de conservation."
       ]
     ],
+    "Retours de la deuxième revue": [
+      [
+        "Remarque du professeur",
+        "Décision",
+        "Où la voir"
+      ],
+      [
+        "Le schéma unique mélange déploiement, composants, données et flux",
+        "La planche globale reste. Des vues dédiées traitent chaque sujet : infrastructure, modules, MCD, contrats.",
+        "Vues 5 à 9"
+      ],
+      [
+        "Faire un bon monolithe modulaire, les microservices plus tard",
+        "Une application Fastify, une image, des modules isolés sans cycle. Les microservices deviennent une trajectoire V3.",
+        "Vue 7, section 3"
+      ],
+      [
+        "Ajouter la gestion de groupes",
+        "Module `groups` : conversations, membres, rôles et contrôle d'accès.",
+        "Vue 7"
+      ],
+      [
+        "Montrer le découpage : packages, couches ou hexagonal",
+        "Graphe de dépendances et anatomie hexagonale d'un module.",
+        "Vue 7"
+      ],
+      [
+        "Isoler les données par module (*database per service*)",
+        "Un schéma SQL par module, aucune FK entre schémas, accès par ports et événements.",
+        "Vues 4 et 8"
+      ],
+      [
+        "Fournir un MCD Merise séparé",
+        "MCD avec entités, associations et cardinalités.",
+        "Vue 8"
+      ],
+      [
+        "Écrire l'API avant le code, en OpenAPI, orientée ressources",
+        "`openapi.yaml` 3.1 : ressources au pluriel, verbes HTTP, schémas dans `components`. Vue UML générée.",
+        "Vue 9"
+      ],
+      [
+        "Décrire les topics et les messages de la WebSocket",
+        "`asyncapi.yaml` 3.0 : topics, sens, schéma de chaque message.",
+        "Vue 9"
+      ],
+      [
+        "WebSocket ou SSE",
+        "WebSocket conservée, SSE étudié et écarté avec ses raisons.",
+        "Section 5"
+      ],
+      [
+        "Authentification au niveau de Nginx",
+        "Session vérifiée à la passerelle par `auth_request`. Les droits restent dans le module `groups`.",
+        "Section 4"
+      ],
+      [
+        "Ne pas laisser passer en clair entre proxy et application",
+        "TLS rétabli du load balancer à Nginx. Nginx et l'API partagent le réseau Docker d'une même VM.",
+        "Vue 6, section 9"
+      ],
+      [
+        "TLS, certificats X.509, CSR, autorité de certification",
+        "Chaîne TLS et PKI documentées, avec les commandes.",
+        "Section 9"
+      ],
+      [
+        "Identifier les SPOF et la haute disponibilité (Kubernetes)",
+        "Tableau des points de défaillance. MIG autoréparant maintenant, GKE en évolution.",
+        "Section 10"
+      ],
+      [
+        "Prévoir le stockage des fichiers (Object Storage)",
+        "Cloud Storage en V2, envoi direct par URL signée.",
+        "Vues 5 et 6, section 7"
+      ],
+      [
+        "Faire apparaître Grafana, Prometheus et les journaux",
+        "VM de supervision et Cloud Logging pour la centralisation.",
+        "Vue 6, section 11"
+      ],
+      [
+        "Conteneurs et déploiement automatisé",
+        "Docker Compose sur chaque VM, images par digest, CD GitHub Actions.",
+        "Vue 6, section 12"
+      ],
+      [
+        "Placer les fonctions futures dès maintenant, en les marquant",
+        "Tout le périmètre est dessiné. Orange pointillé : V2.",
+        "Toutes les vues"
+      ],
+      [
+        "Justifier chaque choix",
+        "Tableau des choix, alternatives et limites.",
+        "Choix techniques justifiés"
+      ]
+    ],
     "Réponses aux retours de présentation": [
       [
-        "Retour",
+        "Retour (première revue)",
         "Décision visible",
         "Preuve attendue"
       ],
       [
         "VPC, zone et VM",
-        "Projet GCP → VPC global → sous-réseaux régionaux → VM Compute Engine zonales. LB, Cloud SQL, Redis et Artifact Registry ont leur propre frontière de services gérés.",
-        "Inventaire IaC des tags, sous-réseaux et zones."
+        "Projet GCP → VPC → sous-réseaux app, média et ops → VM zonales. Services managés hors sous-réseaux.",
+        "Inventaire IaC des sous-réseaux, tags et zones."
       ],
       [
         "Client statique",
-        "React/Vite produit HTML, CSS, JS et sw.js. Nginx les distribue depuis les deux VM. Les navigateurs A et B utilisent le même build, deux cookies et deux connexions média.",
-        "Même digest de front dans les deux zones, sessions distinctes."
+        "React/Vite produit HTML, CSS, JS et sw.js, servis par Nginx sur les deux VM.",
+        "Même digest d'image dans les deux zones, deux sessions distinctes."
       ],
       [
         "Sens du CD",
-        "GitHub Actions publie les images vers Artifact Registry et déclenche le job de migration et le déploiement vers les API GCP. La VM lit ensuite son image au démarrage.",
-        "Run CD avec SHA, digest, migration et modèle d’instance."
+        "GitHub Actions pousse les images puis déclenche migration et déploiement. La VM lit son image.",
+        "Exécution CD avec SHA, digest et migration."
       ],
       [
-        "STUN/TURN et résidence",
-        "Coturn exploité par l’équipe dans europe-west4-a. La région et le SLA du STUN public de la démo restent à établir.",
-        "Candidats srflx et relay obtenus sur le banc, région prouvée pour coturn."
+        "STUN auto-hébergé",
+        "coturn en europe-west4, plus de STUN Google dans la cible.",
+        "Candidats srflx et relay obtenus avec coturn seul."
       ],
       [
-        "Stockage",
-        "PostgreSQL relationnel et journal durable. Une transaction valide l’appartenance, numérote et écrit le message. Les sauvegardes servent à la reprise à un point dans le temps.",
-        "Écritures concurrentes, import sur base isolée, puis restauration."
+        "Stockage relationnel",
+        "PostgreSQL à la place du fichier JSON.",
+        "Écritures concurrentes puis restauration."
       ],
       [
-        "Web Push et worker",
-        "FCM, Mozilla, Apple ou Windows selon l’abonnement. Le même sw.js s’exécute dans A et B.",
-        "Remise onglet fermé, révocation et cas de refus."
+        "Web Push et service workers",
+        "Fournisseurs nommés, un même /sw.js installé dans chaque navigateur.",
+        "Remise onglet fermé et abonnement révoqué."
+      ]
+    ],
+    "Couverture du sujet attendu": [
+      [
+        "Attendu",
+        "Niveau",
+        "Conception retenue",
+        "État au 26/11",
+        "Critère de recette"
       ],
       [
-        "Scalabilité et disponibilité",
-        "Deux VM applicatives, deux SFU et PostgreSQL régional. Une salle reste sur un SFU. Coturn a une VM pour la première livraison.",
-        "Arrêt d’une API et d’un SFU, avec résultats chat et média séparés."
+        "Authentication and user management",
+        "Socle",
+        "Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2.",
+        "Démo en ligne (scrypt). apps/api : Argon2id.",
+        "Inscription, connexion, déconnexion, session révoquée refusée."
+      ],
+      [
+        "Private and group messaging",
+        "Socle",
+        "Modules groups et messaging.",
+        "Démo : privé, création de groupe, retrait. apps/api : gestion de groupe complète.",
+        "Un tiers ne lit aucun message."
+      ],
+      [
+        "Real-time delivery and history",
+        "Socle",
+        "WebSocket, journal numéroté, historique paginé.",
+        "Démo en ligne. apps/api : reprise par afterSeq.",
+        "Après coupure, aucun message perdu ni doublé."
+      ],
+      [
+        "One-to-one voice call",
+        "Socle",
+        "WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn.",
+        "Démo en ligne avec STUN Google, sans TURN.",
+        "Son reçu entre deux réseaux, y compris en relais forcé."
+      ],
+      [
+        "One-to-one video call",
+        "Socle",
+        "Même chemin que la voix, piste vidéo en plus.",
+        "Démo en ligne avec STUN Google, sans TURN.",
+        "Images décodées des deux côtés."
+      ],
+      [
+        "Basic deployment and monitoring",
+        "Socle",
+        "Docker Compose, CD, Prometheus, Grafana, Cloud Logging.",
+        "Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD à faire.",
+        "Déploiement reproductible, alerte visible sur panne."
+      ],
+      [
+        "Multi-participant video conferences",
+        "Extension V2",
+        "SFU LiveKit auto-hébergé, jeton de salle court.",
+        "Admission expérimentale dans apps/api, désactivée par défaut.",
+        "Conférence à quatre, pistes reçues."
+      ],
+      [
+        "File sharing",
+        "Extension V2",
+        "Cloud Storage, URL signées, métadonnées en SQL.",
+        "À faire. Table attachments présente.",
+        "Envoi et lecture réservés aux membres."
+      ],
+      [
+        "Screen sharing",
+        "Extension V2",
+        "getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU).",
+        "À faire.",
+        "L'écran partagé est reçu, l'arrêt rend la caméra."
+      ],
+      [
+        "Connection recovery",
+        "Extension",
+        "Reprise WebSocket par afterSeq. ICE restart pour les appels.",
+        "Reprise WebSocket codée. ICE restart à faire.",
+        "Changer de réseau pendant un appel et un échange."
+      ],
+      [
+        "Communication quality indicators",
+        "Extension V2",
+        "getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot.",
+        "Table quality_samples seule.",
+        "L'indicateur se dégrade sur réseau bridé."
+      ],
+      [
+        "More advanced access control",
+        "Extension",
+        "Rôles de groupe, rôle moderator et admin global, journal d'audit.",
+        "owner et member codés. Le reste à faire.",
+        "Matrice des droits testée route par route."
+      ],
+      [
+        "Improved scalability and availability",
+        "Extension",
+        "2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant.",
+        "Cible. La démo a une seule VM.",
+        "Arrêt d'une VM : le service continue."
+      ],
+      [
+        "Performance and load testing",
+        "Investigation",
+        "k6 pour REST et WebSocket, lk load-test pour le SFU.",
+        "À faire.",
+        "Rapport avec p95, erreurs et ressources par palier."
+      ],
+      [
+        "Communication quality analysis",
+        "Investigation",
+        "Mesures getStats() comparées entre direct et relais, réseau bridé.",
+        "À faire.",
+        "Graphiques perte, gigue et RTT par scénario."
+      ],
+      [
+        "Infrastructure and resource optimisation",
+        "Investigation",
+        "Mesure CPU, mémoire, trafic TURN, puis dimensionnement et coût.",
+        "À faire.",
+        "Tableau coût et capacité avant et après."
+      ],
+      [
+        "Security testing",
+        "Investigation",
+        "Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc.",
+        "Tests de sécurité partiels dans le dépôt.",
+        "Constats classés, corrigés ou assumés."
+      ],
+      [
+        "Data analysis",
+        "Investigation",
+        "Mesures anonymisées de qualité et d'usage, sans contenu.",
+        "Script d'amorce analysis/study.py, sans données.",
+        "Jeu de données décrit et analyse rejouable."
+      ],
+      [
+        "AI-based feature or proof of concept",
+        "Investigation",
+        "Détection d'anomalies de qualité d'appel (proposition).",
+        "Proposé.",
+        "Comparaison avec de simples seuils sur des pannes provoquées."
+      ]
+    ],
+    "Modules et propriété des données": [
+      [
+        "Module",
+        "Responsabilité",
+        "Importe",
+        "Schéma et tables",
+        "Port public",
+        "Périmètre"
+      ],
+      [
+        "identity",
+        "Comptes, profils, mots de passe, sessions, rôle global.",
+        "Aucun",
+        "identity : users, sessions",
+        "SessionVerifier, UserDirectory",
+        "MVP"
+      ],
+      [
+        "groups",
+        "Conversations privées et de groupe, membres, rôles, contrôle d'accès.",
+        "identity",
+        "groups : conversations, members, creation_commands",
+        "AccessPolicy, ConversationDirectory",
+        "MVP"
+      ],
+      [
+        "files",
+        "Métadonnées, droits, URL signées.",
+        "groups",
+        "files : files",
+        "FileCatalog",
+        "V2"
+      ],
+      [
+        "messaging",
+        "Messages, ordre, historique, rattrapage.",
+        "groups, files",
+        "messaging : messages",
+        "MessageTimeline",
+        "MVP"
+      ],
+      [
+        "calls",
+        "Cycle d'appel, signaux, identifiants ICE, jeton de salle.",
+        "groups",
+        "calls : calls, participants, media_jobs, webhook_receipts",
+        "CallRegistry",
+        "MVP, conférence V2"
+      ],
+      [
+        "quality",
+        "Mesures getStats(), indicateurs, export.",
+        "calls",
+        "quality : samples",
+        "QualityReport",
+        "V2 et investigation"
+      ],
+      [
+        "notifications",
+        "Abonnements Web Push, envoi, retries.",
+        "groups, identity",
+        "notifications : push_subscriptions, push_deliveries",
+        "PushSubscriptions",
+        "MVP+"
       ]
     ],
     "Composants et placement": [
       [
         "Composant",
-        "Technologie et implantation retenues",
+        "Implantation",
         "Rôle et critère de sortie"
       ],
       [
-        "Entrée web",
-        "Google Cloud External Application Load Balancer global, IPv4 Premium, certificat géré. Backend aux Pays-Bas sur deux zones.",
-        "Termine HTTPS/WSS, répartit vers Nginx, redirige 80. Vérifier DNS, TLS, WSS et retrait du backend défaillant."
+        "Load balancer",
+        "External Application Load Balancer global, certificat géré.",
+        "HTTPS et WSS 443, redirection 80, backends en HTTPS 8443. Retrait d'un backend défaillant."
       ],
       [
         "Réseau",
-        "VPC chatisen-cible. Sous-réseaux privés app 10.40.10.0/24 et média 10.40.20.0/24 dans europe-west4. Plage PSA 10.40.32.0/20 proposée, à valider contre les réseaux existants.",
-        "VM app sans IP publique et sorties via Cloud NAT. VM média avec IPv4 réservées pour ICE."
+        "VPC chatisen-cible : app 10.40.10.0/24, média 10.40.20.0/24, ops 10.40.30.0/24. PSA 10.40.32.0/20 proposée.",
+        "VM app sans IP publique, sortie par Cloud NAT."
       ],
       [
-        "Front et API",
-        "Deux groupes d’instances zonaux de 1 VM Debian 13 (a et b), Docker Engine et Compose. Nginx sert le build React/Vite et relaie les quatre Fastify sur un bridge privé.",
-        "Les réplicas portent les mêmes digests. Nginx route par chemin et méthode sous /api/v1. Les ports des Fastify restent sur le bridge."
+        "VM applicatives",
+        "MIG régional de 2 VM Debian 13, zones a et b. Docker Compose : nginx, api, cloud-sql-proxy, node-exporter.",
+        "Mêmes digests sur les deux VM. Une VM en échec est recréée."
       ],
       [
-        "Services métier",
-        "Node.js 24, TypeScript et Fastify 5. Quatre images et processus : svc-identity `:3001`, svc-chat `:3002`, svc-calls `:3003`, svc-notify `:3004`.",
-        "État durable en SQL. La mémoire locale ne garde que les connexions et caches reconstruisibles. Reprise sur une autre VM par curseur."
+        "API",
+        "Monolithe modulaire Fastify, port 3000 non publié, /metrics sur 9091.",
+        "Aucun état durable local : reprise sur l'autre VM par session SQL et curseur."
       ],
       [
         "PostgreSQL",
-        "Cloud SQL PostgreSQL 17 régional HA, IP privée via Private Service Access, primaire et secours multi-zone. Cloud SQL Auth Proxy sur les VM app.",
-        "Le proxy reste sur le réseau Docker. Budget de connexions par service/réplica. Configurer et vérifier sauvegardes et journaux PITR en Europe."
+        "Cloud SQL PostgreSQL 17 régional HA, IP privée.",
+        "Sauvegardes et PITR vérifiés par une restauration."
       ],
       [
-        "Média",
-        "Deux SFU LiveKit, une VM par zone. Nginx route WSS vers leurs IP privées TCP 7880. Memorystore for Redis Standard régional avec TLS et AUTH.",
-        "Redis coordonne le routage. Une salle a un nœud responsable. Tester drain, rejoin et perte d’un nœud."
+        "coturn",
+        "VM dédiée, IPv4 réservée, certificat public.",
+        "STUN et TURN UDP 3478, TLS 5349. Candidats srflx et relay observés."
       ],
       [
-        "ICE",
-        "Coturn sur VM dédiée en europe-west4-a avec IPv4 réservée et certificat TURN/TLS.",
-        "STUN UDP 3478, TURN UDP 3478 ou TLS TCP 5349. Relais UDP borné. Vérifier le SDK, les identifiants courts et la paire ICE sélectionnée."
+        "Supervision",
+        "VM ops : Prometheus et Grafana par Compose, accès IAP.",
+        "Tableau et alerte sur API indisponible."
       ],
       [
-        "Exploitation",
-        "Cloud Logging et Monitoring, Admin via IAM, maintenance Ops par IAP et OS Login.",
-        "Sondes minimales, logs expurgés, alertes. Vérifier emplacement des buckets de logs et rétention."
+        "Journaux",
+        "Ops Agent vers Cloud Logging.",
+        "Recherche par requestId, rétention et région vérifiées."
+      ],
+      [
+        "SFU (V2)",
+        "2 VM LiveKit, une par zone.",
+        "Une salle sur un nœud à la fois. Reconnexion si un nœud tombe."
+      ],
+      [
+        "Redis (V2)",
+        "Memorystore Standard, IP privée, TLS et AUTH.",
+        "Coordination des SFU. Inutile pour le MVP."
+      ],
+      [
+        "Fichiers (V2)",
+        "Bucket Cloud Storage privé europe-west4.",
+        "URL signées courtes, droits revérifiés."
       ],
       [
         "Livraison",
-        "GitHub Actions avec OIDC fédéré par Workload Identity Federation, Artifact Registry régional et API Compute Engine. Secrets dans Secret Manager.",
-        "CI builds/tests, CD avec migration versionnée, canari, puis roulement. Vérifier que l’identité des VM ne peut que lire les images autorisées."
+        "GitHub Actions, OIDC et Workload Identity Federation, Artifact Registry.",
+        "Aucune clé JSON stockée."
       ]
     ],
-    "Services Fastify et propriétés des données": [
+    "Pare-feu de la cible": [
       [
-        "Service",
-        "Contrat et opérations",
-        "Tables qu’il écrit",
-        "Vérification"
+        "Règle",
+        "Sources et cible",
+        "Ports et contrôle",
+        "Recette"
       ],
       [
-        "Identité",
-        "/api/v1/auth/register, login et logout, GET/PATCH /api/v1/me. Argon2id, cookie opaque __Host-chatisen, hash de session et CSRF.",
-        "identity.users et identity.sessions.",
-        "Attributs du cookie, expiration et logout, session utilisable après changement de VM."
+        "Entrée LB (hors VPC)",
+        "Internet → frontend géré.",
+        "TCP 443, TCP 80 redirigé.",
+        "TLS, WSS et redirection."
       ],
       [
-        "Chat",
-        "/api/v1/conversations, membres, historique, fichiers, événements et /api/v1/ws. REST porte les commandes et WSS les événements.",
-        "chat.conversations, conversation_members, messages, conversation_events, attachments, group_creation_commands et outbox.",
-        "Un envoi à A/B avec la même clé rend un seul message. Un tiers ne reçoit aucun historique privé."
+        "FW1",
+        "Proxys et sondes GCP 35.191.0.0/16 et 130.211.0.0/22 → VM app.",
+        "TCP 8443 seulement.",
+        "Backends sains, accès direct refusé."
       ],
       [
-        "Appels",
-        "/api/v1/conversations/{id}/calls, /api/v1/calls/*, admission SFU, webhook, qualité et identifiants TURN courts.",
-        "media.calls, call_participants, media_jobs, webhook_receipts et quality_samples.",
-        "Audio et vidéo reçus, refus après révocation, jobs et webhooks idempotents."
+        "FW2",
+        "IAP 35.235.240.0/20 → VM ; vers la VM de supervision pour Grafana.",
+        "TCP 22, et 3000 sur la supervision.",
+        "Accès par IAP, refus depuis Internet."
       ],
       [
-        "Notifications",
-        "GET /api/v1/push/config, POST/DELETE /api/v1/push/subscriptions et worker de remise. Routes à ajouter au contrat.",
-        "notify.push_subscriptions et notify.push_deliveries. Le worker lit une projection de l’outbox Chat.",
-        "Déduplication par événement/abonnement, retrait sur réponse 404/410 du prestataire et révocation liée à la session."
+        "FW3",
+        "VM de supervision → VM app et média.",
+        "TCP 9091, 9100, 9641 (coturn), 6789 (LiveKit, V2).",
+        "Cibles Prometheus à l'état up."
+      ],
+      [
+        "FW4",
+        "Internet → coturn.",
+        "UDP 3478 et TCP 5349, allocations authentifiées.",
+        "Identifiant expiré refusé."
+      ],
+      [
+        "FW5",
+        "Internet → coturn, relais. Les pairs sont des navigateurs.",
+        "UDP 49160–49200, pairs privés interdits dans coturn.",
+        "Appel en relais forcé réussi ; relais vers 10.0.0.0/8 refusé."
+      ],
+      [
+        "FW6 (V2)",
+        "Internet → SFU ; sous-réseau app → SFU.",
+        "UDP 7882, TCP 7881 ; TCP 7880 depuis l'app seulement.",
+        "API du SFU injoignable depuis Internet."
+      ],
+      [
+        "Tout autre entrant",
+        "Toute source → toutes les VM.",
+        "Refusé. Ni SSH public, ni 5432, ni 3000, ni 9090.",
+        "Balayage de ports externe."
       ]
     ],
     "Flux de la cible": [
@@ -1279,218 +1766,699 @@ const architecture = {
       ],
       [
         "T01 · DNS",
-        "Navigateurs A/B → résolveur et DNS ISEN",
-        "A du LB et nom ICE dédié à coturn.",
-        "Vérifier résolution et certificat depuis deux réseaux."
+        "Navigateurs → DNS de l'ISEN",
+        "Nom web vers le LB, nom TURN vers coturn.",
+        "Résolution depuis deux réseaux."
       ],
       [
         "T02 · Entrée",
-        "A/B → IPv4 du LB global",
-        "HTTPS/WSS TCP 443. TCP 80 redirige.",
-        "GET front, certificat et handshake WSS."
+        "Navigateurs → load balancer",
+        "HTTPS et WSS TCP 443, 80 redirigé.",
+        "Certificat et handshake WSS."
       ],
       [
         "T03 · Distribution",
-        "Proxies et health checks GCP → Nginx a/b",
-        "HTTP TCP 8080 sur réseau privé, /healthz-edge. Le TLS utilisateur termine au LB.",
-        "Retrait d’un backend en panne et absence d’accès direct public."
+        "Load balancer → Nginx a et b",
+        "HTTPS 8443 sur le réseau privé, sondes /healthz-edge.",
+        "Backend arrêté retiré."
       ],
       [
         "T04 · Statique",
-        "Nginx → A/B via LB",
-        "Build React/Vite statique, sw.js et cache des fichiers versionnés.",
-        "Même build et deux sessions distinctes."
+        "Nginx → navigateurs",
+        "Build React et /sw.js.",
+        "Même build sur les deux VM."
       ],
       [
-        "T05 · Routage REST",
-        "Nginx → quatre Fastify",
-        "Bridge privé, chemins et méthodes /api/v1. Upgrade vers Chat pour la socket.",
-        "Contrat des quatre services et ports privés vérifiés."
+        "T05 · Routage",
+        "Nginx → API",
+        "REST /api/v1 et upgrade WebSocket sur le réseau Docker.",
+        "Port 3000 injoignable hors de la VM."
       ],
       [
         "T06 · Authentification",
-        "React → Identité → SQL",
-        "Identifiant et mot de passe via HTTPS, Argon2id, session opaque et hash SQL. Cookie Secure/HttpOnly/SameSite et CSRF.",
-        "Reprise de la session sur l’autre VM, refus après logout."
+        "Navigateur → identity, puis Nginx → identity",
+        "Argon2id, session opaque, cookie, CSRF, puis auth_request.",
+        "Session reconnue sur l'autre VM, refusée après déconnexion."
       ],
       [
-        "T07 · Écriture métier",
-        "React → Chat → SQL",
-        "Clé client, contrôle des droits, séquence, message, journal et outbox atomiques.",
-        "Écriture concurrente sans doublon, historique trié."
+        "T07 · Écriture",
+        "messaging → PostgreSQL",
+        "Clé client, droit, numéro, message, événement et outbox en une transaction.",
+        "Envois concurrents sans doublon."
       ],
       [
         "T08 · Temps réel",
-        "Chat a/b → A/B",
-        "PostgreSQL LISTEN/NOTIFY réveillant la lecture durable. WSS livre et rattrape par séquence.",
-        "Deux clients sur deux VM, arrêt d’un réplica puis reprise sans trou."
+        "API a et b → navigateurs",
+        "LISTEN/NOTIFY, lecture du journal, WSS par topics, reprise afterSeq.",
+        "Deux clients sur deux VM, coupure sans trou."
       ],
       [
-        "T09 · Données privées",
-        "Fastify/migration → Cloud SQL",
-        "Auth Proxy, port serveur Cloud SQL 3307 et accès HTTPS aux API. Un rôle d’écriture par service.",
-        "Connexion via IP privée et refus depuis Internet."
+        "T09 · Données",
+        "API → Cloud SQL",
+        "cloud-sql-proxy, mTLS, IP privée.",
+        "Base injoignable depuis Internet."
       ],
       [
-        "T10 · Admission",
-        "A/B → Appels via REST → Nginx → LiveKit",
-        "Jeton lié à session/salle, WSS /livekit/ puis HTTP/WS privé 7880. Webhook et administration par chemins privés authentifiés.",
-        "SDK réel, renouvellement et refus après révocation."
+        "T10 · Signalisation",
+        "Navigateur → calls → correspondant",
+        "Offre, réponse et candidats : REST à l'aller, topic user au retour.",
+        "Seuls les deux participants reçoivent les signaux."
       ],
       [
         "T11 · Média direct",
-        "A/B ↔ SFU de la salle",
-        "ICE et DTLS-SRTP, UDP 7882 multiplexé, TCP 7881 en secours. IP annoncée par nœud.",
-        "Candidats sélectionnés et compteurs de son/images reçus."
+        "Navigateur A ↔ navigateur B",
+        "WebRTC, ICE, DTLS-SRTP, sans passer par les VM applicatives.",
+        "Paire ICE sélectionnée de type host ou srflx."
       ],
       [
-        "T12 · STUN/TURN",
-        "A/B ↔ coturn ↔ SFU",
-        "STUN Binding UDP 3478. TURN UDP 3478 ou TLS TCP 5349. Relais UDP 49160–49200 côté coturn.",
-        "Obtenir srflx, forcer relay et constater les pistes reçues."
+        "T12 · STUN et TURN",
+        "Navigateurs ↔ coturn",
+        "STUN et TURN UDP 3478, TLS 5349, relais UDP 49160–49200.",
+        "srflx obtenu, puis appel en relais forcé."
       ],
       [
-        "T13 · Coordination",
-        "SFU a/b ↔ Redis privé",
-        "TLS TCP 6378 si activé, port confirmé sur l’instance, AUTH. Routage des salles.",
-        "Créations distribuées, reconnexion lors d’une perte de SFU."
+        "T13 · Conférence (V2)",
+        "API → SFU ; navigateurs ↔ SFU ; SFU ↔ Redis",
+        "Jeton de salle court, média UDP 7882 ou TCP 7881, coordination Redis.",
+        "Conférence à quatre."
       ],
       [
-        "T14 · Abonnement et envoi Push",
-        "A/B → Notifications → fournisseur",
-        "Endpoint et paramètres p256dh/auth en HTTPS. Worker sort par NAT en TCP 443, authentifie par VAPID et chiffre le payload.",
-        "Minimum transmis, droits, expiration et retries."
+        "T14 · Envoi Push",
+        "notifications → fournisseur",
+        "HTTPS 443 via Cloud NAT, VAPID, contenu chiffré, TTL 120 s.",
+        "Droits, expiration et retries."
       ],
       [
         "T15 · Remise Push",
-        "Fournisseur externe → service worker A ou B",
-        "Le même /sw.js reçoit push et appelle showNotification. Le clic rouvre le fil.",
-        "Notifier onglet fermé selon navigateur et autorisations."
+        "Fournisseur → service worker",
+        "Réveil de /sw.js, showNotification, clic vers le fil.",
+        "Notification onglet fermé."
       ],
       [
         "T16 · Exploitation",
-        "Ops → IAP/OS Login → VM. Admin → Console/API GCP.",
-        "HTTPS 443 vers GCP, SSH 22 via plage IAP, rôles IAM distincts.",
-        "Connexion Ops et refus hors accès autorisé."
+        "Ops et Admin → GCP",
+        "IAP et OS Login pour SSH et Grafana, console avec MFA.",
+        "Refus hors IAM."
       ],
       [
         "T17 · Observabilité",
-        "VM → Cloud Logging/Monitoring. Ops → tableaux via IAM.",
-        "Logs et métriques par HTTPS 443, sondes LB minimales.",
-        "Ingestion, alerte, rétention et région des logs."
+        "VM → Prometheus et Cloud Logging",
+        "Métriques collectées toutes les 15 s, journaux centralisés.",
+        "Alerte sur API arrêtée."
       ],
       [
-        "T18 · Build et images",
-        "GitHub Actions CI → Artifact Registry europe-west4",
-        "HTTPS 443 et identité fédérée, images par digest.",
-        "Associer commit, digests, builds et tests."
+        "T18 · Images",
+        "GitHub Actions CI → Artifact Registry",
+        "HTTPS, identité fédérée, images par digest.",
+        "Commit relié au digest."
       ],
       [
         "T19 · Déploiement",
-        "GitHub Actions CD → APIs Cloud Run Jobs et Compute Engine",
-        "OIDC fédéré, migration via job privé avec accès VPC, nouveau modèle d’instance et roulement.",
-        "Migration avant canari, reprise sur digest précédent."
+        "GitHub Actions CD → API GCP",
+        "Migration par Cloud Run Job, puis mise à jour progressive du MIG.",
+        "Retour au digest précédent."
       ],
       [
-        "T20 · Lecture d’image",
-        "VM ou job de migration → Artifact Registry",
-        "GET par digest via HTTPS 443 et compte de service lecteur.",
-        "Comparer le digest effectif sur chaque instance."
+        "T20 · Lecture d'image",
+        "VM → Artifact Registry",
+        "Pull par digest avec un compte de service lecteur.",
+        "Digest effectif comparé."
       ],
       [
         "T21 · Reprise",
-        "Cloud SQL → sauvegardes/PITR → restauration isolée",
-        "Opération gérée, emplacement de sauvegarde européen à configurer.",
-        "Restaurer à un instant choisi, comparer données, mesurer RPO/RTO."
+        "Cloud SQL → sauvegardes et restauration",
+        "PITR, restauration isolée.",
+        "RPO et RTO mesurés."
+      ],
+      [
+        "T22 · Fichiers (V2)",
+        "Navigateur ↔ Cloud Storage",
+        "URL signée par l'API, octets envoyés et lus directement en HTTPS.",
+        "URL expirée et non-membre refusés."
       ]
     ],
-    "Pare-feu de la cible": [
+    "Points de défaillance uniques": [
       [
-        "Surface",
-        "Sources et cible",
-        "Ports et contrôle",
-        "Recette"
+        "Élément",
+        "Démo aujourd'hui",
+        "Cible",
+        "Effet d'une panne dans la cible",
+        "Parade ou évolution"
       ],
       [
-        "Entrée LB (hors VPC)",
-        "Internet → frontend géré de GCP",
-        "TCP 443 HTTPS/WSS, TCP 80 redirigé.",
-        "Jury, TLS, WSS et redirection."
+        "Serveur applicatif",
+        "SPOF : une VM, un processus",
+        "2 VM sur 2 zones",
+        "Les sockets de la VM se reconnectent sur l'autre.",
+        "MIG autoréparant, autoscaling possible."
       ],
       [
-        "FW1 · Backends app",
-        "Proxies et health checks 35.191.0.0/16 et 130.211.0.0/22 → tag app-edge",
-        "TCP 8080 seulement. Fastify sur bridge Docker.",
-        "LB sain sur les deux zones, accès direct ailleurs refusé."
+        "Base de données",
+        "SPOF : fichier JSON sur un disque",
+        "Cloud SQL HA",
+        "Bascule automatique, courte interruption.",
+        "PITR contre l'erreur humaine. Panne de région non couverte."
       ],
       [
-        "FW2 · Administration",
-        "IAP 35.235.240.0/20 → VM ciblées",
-        "TCP 22, IAM et OS Login.",
-        "Tester IAP puis un refus depuis Internet."
+        "STUN et TURN",
+        "STUN Google, aucun TURN",
+        "Une VM coturn : **SPOF restant**",
+        "Les nouveaux appels qui ont besoin de STUN ou du relais échouent.",
+        "Deuxième coturn en zone b, les deux dans iceServers."
       ],
       [
-        "FW3 · LiveKit privé",
-        "App → SFU a/b",
-        "TCP 7880 privé. Route publique de signalisation autorisée au cas par cas. Admin SFU et webhooks signés sur routes privées.",
-        "Une requête d’administration externe ne traverse pas l’edge."
+        "Entrée web",
+        "IP de la VM",
+        "Load balancer géré",
+        "Service géré réparti.",
+        "Aucune action propre au projet."
       ],
       [
-        "FW4 · LiveKit média",
-        "Navigateurs et coturn → IPv4 SFU",
-        "UDP 7882 et TCP 7881 en secours.",
-        "Trafic bidirectionnel et paire ICE mesurée."
+        "DNS de l'ISEN",
+        "SPOF externe",
+        "SPOF externe",
+        "Nom introuvable.",
+        "Assumé et documenté."
       ],
       [
-        "FW5 · Coturn public",
-        "A/B → IPv4 coturn",
-        "UDP 3478 pour STUN/TURN et TCP 5349 pour TURN/TLS. Authentifier et borner les allocations TURN.",
-        "Diagnostic STUN puis TURN avec jeton expiré rejeté."
+        "SFU (V2)",
+        "Absent",
+        "2 nœuds",
+        "La salle du nœud perdu doit se reconnecter.",
+        "Redis réattribue les nouvelles salles."
       ],
       [
-        "FW6 · Relais coturn",
-        "IPv4 des deux SFU → coturn",
-        "UDP 49160–49200, plage d’essai à dimensionner. Coturn limite aussi ses pairs aux SFU.",
-        "Conférence à quatre, ports et comportement de saturation."
+        "Redis (V2)",
+        "Absent",
+        "Memorystore Standard",
+        "Courte coupure de coordination.",
+        "Réplica géré."
       ],
       [
-        "Tout autre entrant",
-        "Toute source → toutes les VM",
-        "Refus implicite du VPC dédié. Aucune règle publique pour SSH, 3389, 5432 ou 3001–3004.",
-        "Balayage de ports depuis un réseau extérieur."
+        "Supervision",
+        "Sans objet",
+        "Une VM : SPOF sans effet métier",
+        "Plus de tableaux, le service continue.",
+        "Sonde externe sur /readyz."
       ],
       [
-        "Services gérés",
-        "App/job migration → Cloud SQL privé. SFU → Redis privé. VM/CI → APIs et Registry.",
-        "3307 pour Auth Proxy, TLS Redis selon port instance, HTTPS 443 pour les APIs.",
-        "DB et Redis privés, vérification des identités et du chiffrement."
+        "GitHub",
+        "Sans objet",
+        "SPOF de livraison seulement",
+        "Aucun déploiement possible.",
+        "Images précédentes conservées dans le registre."
       ]
     ],
-    "Web Push dans les deux navigateurs": [
+    "Choix techniques justifiés": [
       [
-        "Fournisseur",
-        "Endpoint accepté dans le code de référence",
-        "Portée"
+        "Choix",
+        "Alternatives étudiées",
+        "Raison",
+        "Limite ou moment de revoir"
       ],
       [
-        "Google Firebase Cloud Messaging (FCM)",
-        "fcm.googleapis.com",
-        "Dépend du navigateur et de l’abonnement."
+        "Monolithe modulaire",
+        "Microservices, Kubernetes",
+        "Un déploiement, des transactions simples, adapté à trois semaines.",
+        "Équipes ou charges différentes par module."
       ],
       [
-        "Mozilla Push Service",
-        "updates.push.services.mozilla.com",
-        "Dépend du navigateur et de l’abonnement."
+        "React et Vite",
+        "Preact, JavaScript sans framework",
+        "Écosystème large, client TypeScript déjà écrit (apps/web/src). Build statique.",
+        "Preact si le poids du bundle devient mesurable. La démo en ligne utilise encore un client sans framework."
       ],
       [
-        "Apple Web Push",
-        "web.push.apple.com et sous-domaines de push.apple.com",
-        "Dépend de la plateforme et de ses autorisations."
+        "TypeScript et Node.js",
+        "Java et Spring",
+        "Même langage au front et au back, types partageables, E/S asynchrones adaptées à de nombreuses sockets.",
+        "Calcul intensif : à sortir de la boucle d'événements."
       ],
       [
-        "Windows Push Notification Service",
-        "Sous-domaines de notify.windows.com",
-        "Accepté par le code. Vérifier le navigateur et le support de notification en recette."
+        "Fastify",
+        "Express, NestJS",
+        "Validation par schémas, plugins pour isoler les modules, déjà en place.",
+        "NestJS imposerait plus de structure."
+      ],
+      [
+        "PostgreSQL",
+        "MongoDB, fichier JSON",
+        "Relations, transactions, contraintes, LISTEN/NOTIFY.",
+        "Partitionnement ou cache si l'historique grossit beaucoup."
+      ],
+      [
+        "Object Storage pour les fichiers",
+        "bytea en base, base documentaire, pair-à-pair",
+        "Adapté aux gros objets, envoi direct, base légère. Remplace le choix bytea de l'ADR 001, limité à 5 Mio.",
+        "Ajoute une cohérence base et objet à nettoyer."
+      ],
+      [
+        "WebSocket multiplexée",
+        "SSE, polling",
+        "Bidirectionnelle, reprise codée et testée.",
+        "SSE si le client n'envoie plus rien sur le canal."
+      ],
+      [
+        "REST et OpenAPI",
+        "gRPC, SOAP",
+        "Orienté ressources, natif pour le navigateur, outillage.",
+        "gRPC entre services en V3 si utile."
+      ],
+      [
+        "AsyncAPI",
+        "Documentation libre",
+        "Décrit topics et messages dans un format outillé.",
+        "Validation en CI à ajouter."
+      ],
+      [
+        "Sessions opaques en base",
+        "JWT",
+        "Révocation immédiate, rien d'exploitable stocké en clair.",
+        "Une lecture par requête, à mettre en cache si mesuré."
+      ],
+      [
+        "Nginx avec auth_request",
+        "Auth dans chaque module, Kong, APISIX, Keycloak",
+        "Fonction transverse en un point sans nouvelle brique.",
+        "Passerelle dédiée avec plusieurs services, Keycloak avec un SSO."
+      ],
+      [
+        "Pair-à-pair à deux, SFU à plusieurs",
+        "Tout par SFU, maillage, MCU",
+        "Aucun média sur les VM à deux ; débit maîtrisé en conférence.",
+        "Qualité côté serveur et enregistrement demanderaient le SFU."
+      ],
+      [
+        "LiveKit",
+        "mediasoup, Jitsi",
+        "SFU prêt à héberger, SDK web, jetons par salle.",
+        "Dépendance à son protocole."
+      ],
+      [
+        "coturn auto-hébergé",
+        "STUN Google, TURN managé",
+        "Région et données maîtrisées, STUN et TURN ensemble.",
+        "Exploitation à notre charge, SPOF tant qu'unique."
+      ],
+      [
+        "MIG et Docker Compose",
+        "GKE, Cloud Run",
+        "Simple à comprendre, autoréparation, proche du banc local.",
+        "GKE avec les microservices."
+      ],
+      [
+        "Prometheus, Grafana et Cloud Logging",
+        "Cloud Monitoring seul, serveur Syslog",
+        "Déjà configurés dans le dépôt ; journaux centralisés gérés.",
+        "Une VM à maintenir."
+      ],
+      [
+        "GitHub Actions",
+        "Jenkins, Cloud Build",
+        "Au plus près du dépôt, OIDC vers GCP.",
+        "Dépendance à GitHub."
+      ]
+    ],
+    "Routes REST": [
+      [
+        "Méthode et ressource",
+        "Rôle",
+        "Module",
+        "Périmètre",
+        "Code au 26/11"
+      ],
+      [
+        "GET /api/v1/users",
+        "Chercher des utilisateurs par identifiant ou nom",
+        "identity",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "POST /api/v1/users",
+        "Créer un compte",
+        "identity",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/users/me",
+        "Lire son profil et obtenir le jeton CSRF",
+        "identity",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "PATCH /api/v1/users/me",
+        "Modifier son nom affiché",
+        "identity",
+        "MVP",
+        "à faire"
+      ],
+      [
+        "PATCH /api/v1/users/{userId}",
+        "Changer le rôle global ou désactiver un compte (administrateur)",
+        "identity",
+        "V2",
+        "à faire"
+      ],
+      [
+        "POST /api/v1/sessions",
+        "Se connecter",
+        "identity",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "DELETE /api/v1/sessions/current",
+        "Se déconnecter (révocation en base)",
+        "identity",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/conversations",
+        "Lister ses conversations privées et de groupe",
+        "groups",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "POST /api/v1/conversations",
+        "Ouvrir (ou retrouver) une conversation privée",
+        "groups",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/conversations/{conversationId}",
+        "Lire une conversation et ses membres",
+        "groups",
+        "MVP",
+        "apps/api"
+      ],
+      [
+        "POST /api/v1/groups",
+        "Créer un groupe (idempotent grâce à clientId)",
+        "groups",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "PATCH /api/v1/groups/{groupId}",
+        "Renommer un groupe (propriétaire)",
+        "groups",
+        "MVP",
+        "apps/api"
+      ],
+      [
+        "PUT /api/v1/groups/{groupId}/members/{userId}",
+        "Ajouter un membre ou changer son rôle (dont transfert de propriété)",
+        "groups",
+        "MVP",
+        "apps/api"
+      ],
+      [
+        "DELETE /api/v1/groups/{groupId}/members/{userId}",
+        "Retirer un membre, ou quitter le groupe si userId est le sien",
+        "groups",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/conversations/{conversationId}/messages",
+        "Lire l'historique, du plus récent au plus ancien",
+        "messaging",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "POST /api/v1/conversations/{conversationId}/messages",
+        "Envoyer un message (idempotent grâce à clientId)",
+        "messaging",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/conversations/{conversationId}/events",
+        "Rattraper le journal après une coupure",
+        "messaging",
+        "MVP",
+        "apps/api"
+      ],
+      [
+        "POST /api/v1/conversations/{conversationId}/calls",
+        "Lancer un appel audio ou vidéo",
+        "calls",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "GET /api/v1/calls",
+        "Retrouver les appels qui sonnent (reprise après rechargement)",
+        "calls",
+        "MVP",
+        "démo en ligne"
+      ],
+      [
+        "PATCH /api/v1/calls/{callId}",
+        "Terminer un appel",
+        "calls",
+        "MVP",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "PUT /api/v1/calls/{callId}/participants/me",
+        "Accepter, refuser ou quitter un appel",
+        "calls",
+        "MVP",
+        "démo en ligne"
+      ],
+      [
+        "POST /api/v1/calls/{callId}/signals",
+        "Envoyer une offre, une réponse ou un candidat ICE au correspondant",
+        "calls",
+        "MVP",
+        "démo en ligne"
+      ],
+      [
+        "GET /api/v1/ice-servers",
+        "Obtenir les serveurs STUN/TURN ChatISEN et des identifiants courts",
+        "calls",
+        "MVP",
+        "démo en ligne"
+      ],
+      [
+        "POST /api/v1/calls/{callId}/media-tokens",
+        "Obtenir un jeton de salle SFU pour une conférence",
+        "calls",
+        "V2",
+        "apps/api"
+      ],
+      [
+        "GET /api/v1/push-configuration",
+        "Lire la clé publique VAPID",
+        "notifications",
+        "MVP+",
+        "démo en ligne"
+      ],
+      [
+        "POST /api/v1/push-subscriptions",
+        "Enregistrer l'abonnement du navigateur courant",
+        "notifications",
+        "MVP+",
+        "démo en ligne"
+      ],
+      [
+        "DELETE /api/v1/push-subscriptions/{subscriptionId}",
+        "Désactiver les notifications de ce navigateur",
+        "notifications",
+        "MVP+",
+        "démo en ligne"
+      ],
+      [
+        "POST /api/v1/conversations/{conversationId}/files",
+        "Préparer un envoi direct vers l'Object Storage",
+        "files",
+        "V2",
+        "à faire"
+      ],
+      [
+        "GET /api/v1/files/{fileId}",
+        "Obtenir les métadonnées et une URL de téléchargement signée",
+        "files",
+        "V2",
+        "à faire"
+      ],
+      [
+        "PATCH /api/v1/files/{fileId}",
+        "Confirmer la fin de l'envoi (le serveur vérifie l'objet)",
+        "files",
+        "V2",
+        "à faire"
+      ],
+      [
+        "POST /api/v1/calls/{callId}/quality-samples",
+        "Envoyer des mesures getStats() par lot",
+        "quality",
+        "V2",
+        "à faire"
+      ]
+    ],
+    "Topics WebSocket": [
+      [
+        "Topic",
+        "Message",
+        "Sens",
+        "Rôle",
+        "Code au 26/11"
+      ],
+      [
+        "connection",
+        "ready",
+        "serveur → client",
+        "Connexion prête, période du heartbeat",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "connection",
+        "ping",
+        "client → serveur",
+        "Battement du client",
+        "apps/api"
+      ],
+      [
+        "connection",
+        "pong",
+        "serveur → client",
+        "Réponse au battement",
+        "apps/api"
+      ],
+      [
+        "connection",
+        "error",
+        "serveur → client",
+        "Erreur avec code stable",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "subscribe",
+        "client → serveur",
+        "S'abonner à un fil à partir d'un numéro",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "conversation:{conversationId}",
+        "unsubscribe",
+        "client → serveur",
+        "Quitter un fil",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "ack",
+        "client → serveur",
+        "Dernier numéro traité par le client",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "subscribed",
+        "serveur → client",
+        "Abonnement accepté, dernier numéro connu",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "resync_required",
+        "serveur → client",
+        "Client trop lent, rattraper par REST puis se réabonner",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.created",
+        "serveur → client",
+        "Groupe créé",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "message.created",
+        "serveur → client",
+        "Nouveau message enregistré",
+        "apps/api + démo en ligne"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.renamed",
+        "serveur → client",
+        "Groupe renommé",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.member_added",
+        "serveur → client",
+        "Membre ajouté",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.member_removed",
+        "serveur → client",
+        "Membre retiré, son abonnement est coupé",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.member_left",
+        "serveur → client",
+        "Membre parti de lui-même",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.owner_transferred",
+        "serveur → client",
+        "Propriété du groupe transférée",
+        "apps/api"
+      ],
+      [
+        "conversation:{conversationId}",
+        "conversation.closed",
+        "serveur → client",
+        "Groupe fermé par son dernier membre",
+        "apps/api"
+      ],
+      [
+        "user:{userId}",
+        "conversation_list_changed",
+        "serveur → client",
+        "Recharger la liste des conversations (déclaré dans le contrat, pas encore émis)",
+        "à faire"
+      ],
+      [
+        "user:{userId}",
+        "call.invitation",
+        "serveur → client",
+        "Un appel entrant sonne",
+        "démo en ligne"
+      ],
+      [
+        "user:{userId}",
+        "call.updated",
+        "serveur → client",
+        "Appel accepté, refusé, terminé ou expiré",
+        "démo en ligne"
+      ],
+      [
+        "user:{userId}",
+        "call.signal",
+        "serveur → client",
+        "Offre, réponse ou candidat ICE du correspondant",
+        "démo en ligne"
       ]
     ]
   }

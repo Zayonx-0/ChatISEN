@@ -1,0 +1,47 @@
+@startuml
+!include style.iuml
+hide footbox
+autonumber
+title Temps réel · WebSocket quand l’onglet est ouvert, Web Push quand il est fermé
+
+participant "Navigateur A\n(expéditeur)" as A
+participant "Nginx" as N
+participant "API\nmessaging" as M
+database "PostgreSQL" as DB
+participant "API\npasserelle WS" as W
+participant "API\nnotifications" as P
+participant "Service Push\n(FCM, Mozilla, Apple, WNS)" as S
+participant "Navigateur B\n(destinataire)" as B
+
+== B ouvre l’onglet : une seule WebSocket, des topics ==
+B -> N : GET /api/v1/ws (Upgrade, cookie de session)
+N -> W : auth_request réussi, connexion relayée
+W --> B : ready (heartbeatSeconds = 30)
+B -> W : subscribe conversation:{id}, afterSeq = 41
+W -> DB : relit les événements après 41
+W --> B : subscribed, puis les événements manquants dans l’ordre
+
+== A envoie un message par REST ==
+A -> N : POST /conversations/{id}/messages (clientId, CSRF)
+N -> M : session vérifiée, X-User-Id
+M -> DB : une transaction : seq 42 + message + événement + outbox
+M --> A : 201 (ou 200 si le clientId existe déjà)
+DB -> W : NOTIFY (les deux réplicas sont réveillés)
+W --> B : event message.created, seq 42
+B -> W : ack seq 42
+
+== Coupure réseau puis reprise ==
+B ->x W : connexion perdue
+B -> W : reconnexion avec délai croissant, subscribe afterSeq = 42
+W --> B : seuls les événements 43 et suivants
+
+== Onglet de B fermé : la WebSocket n’existe plus ==
+P -> DB : lit l’outbox (message.created)
+P -> S : HTTPS 443, contenu chiffré, signature VAPID, TTL 120 s
+S -> B : réveille le service worker /sw.js
+B -> B : showNotification()
+note over P, B
+  La notification ne passe PAS par la WebSocket.
+  Elle transite par le service Push du navigateur de B.
+end note
+@enduml
