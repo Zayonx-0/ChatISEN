@@ -9,11 +9,11 @@ variable "sfu_count" {
   }
 }
 
-# La région n'autorise que 4 adresses publiques en service : démo, coturn, load
-# balancer et un SFU. Passer à 2 après la bascule, quand la démo libère la sienne.
+# La région autorise 4 adresses publiques en service : démo, coturn et les 2 SFU.
+# L'adresse du load balancer n'entre pas dans ce décompte (constaté à la création).
 variable "sfu_public_ips" {
   type        = number
-  default     = 1
+  default     = 2
   description = "Nombre de SFU, dans l'ordre, qui reçoivent une adresse publique."
 }
 

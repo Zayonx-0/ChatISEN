@@ -9,7 +9,7 @@ Terraform décrit toute la cible de `docs/architecture/`. La démo (branche `sta
 | Application ×2 | groupe régional `chatisen-app`, zones a et b | `e2-small` | `app` 10.40.10.0/24, sans IP publique |
 | STUN et TURN | `chatisen-turn` | `e2-small` | `media` 10.40.20.0/24, IP publique réservée |
 | Supervision | `chatisen-ops` (10.40.30.2) | `e2-medium` | `ops` 10.40.30.0/24, accès par IAP |
-| Conférence ×2 (V2) | `chatisen-sfu-1`, `chatisen-sfu-2` | `e2-highcpu-2` | `media` |
+| Conférence ×2 (V2) | `chatisen-sfu-1`, `chatisen-sfu-2` | `e2-highcpu-2` | `media`, une IP publique chacun |
 | Base | Cloud SQL PostgreSQL 17 régional (HA), PITR | `db-custom-1-3840` | IP privée (10.40.32.0/20) |
 | Redis (V2) | Memorystore Standard HA, TLS et AUTH | 1 Go | IP privée |
 | Entrée web | load balancer applicatif externe **régional** | | proxys 10.40.50.0/24 |
@@ -24,7 +24,6 @@ Terraform décrit toute la cible de `docs/architecture/`. La démo (branche `sta
 | Certificat Let's Encrypt posé sur le load balancer | Un certificat géré régional exige une validation DNS. |
 | Sous-réseau de proxys en 10.40.50.0/24 ; FW1 depuis ces proxys et les sondes GCP | Propre au load balancer régional. |
 | Port 80 ouvert sur coturn et flux 8080 des applications vers la supervision | Preuve ACME des deux certificats. |
-| Une seule adresse publique sur les SFU | 4 adresses en service autorisées dans la région. `sfu_public_ips = 2` après la bascule. |
 | Noms publics en `sslip.io` | Aucun enregistrement DNS à gérer avant la bascule. |
 
 ## Utilisation
