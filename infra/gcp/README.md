@@ -40,7 +40,7 @@ terraform apply plan.tfplan
 
 L'état contient des secrets : il vit dans le bucket privé et versionné du backend et n'est jamais commité.
 
-**Nouvelle version de l'application.** La fusion sur `main` publie les images (workflow « Cible — images »). Reporter leurs digests dans `images.auto.tfvars.json`, exécuter la migration (`gcloud run jobs execute chatisen-migration --region europe-west4 --wait`) quand le schéma change, puis appliquer : le groupe remplace les VM sans coupure. Pour une migration, mettre d'abord à jour l'image du job avec `terraform apply -target=google_cloud_run_v2_job.migrate`. Cette étape n'est pas encore automatisée.
+**Nouvelle version de l'application.** La fusion sur `main` publie les images (workflow « Cible — images »). Reporter leurs digests dans `images.auto.tfvars.json`, exécuter la migration (`gcloud run jobs execute chatisen-migration --region europe-west4 --wait`) quand le schéma change, puis appliquer : le groupe crée les nouvelles VM avant de retirer les anciennes. La région limite à 8 VM : tant que la démo existe, une seule VM de renfort est créée à la fois (erreurs `QUOTA_EXCEEDED` sans gravité, environ 15 minutes au total). L'absence totale de coupure reste à mesurer depuis le cloud. Pour une migration, mettre d'abord à jour l'image du job avec `terraform apply -target=google_cloud_run_v2_job.migrate`. Cette étape n'est pas encore automatisée.
 
 **Certificat du site.** Émis sur la supervision avec `certbot certonly --standalone --http-01-port 8080 -d <nom>`, puis déposé comme certificat SSL régional et rattaché au proxy `chatisen-https`. Il n'est pas renouvelé automatiquement (expiration en février 2027, après la fin du projet).
 
