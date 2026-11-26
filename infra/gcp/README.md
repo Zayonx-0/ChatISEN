@@ -43,7 +43,7 @@ L'état contient des secrets : il vit dans le bucket privé et versionné du bac
 
 ## Déploiement continu (flux T18 et T19)
 
-Une fusion sur `main` lance la CI. Si elle réussit, le workflow « Cible — images et déploiement » construit les deux images, les publie par digest puis lance `cd/deploy.sh` avec une identité fédérée, sans clé stockée :
+Une fusion sur `main` lance la CI. Si elle réussit, le workflow « Cible — images et déploiement » publie les deux images par digest (`cd/publish.sh`) puis lance `cd/deploy.sh` avec une identité fédérée, sans clé stockée. Une image dont les sources n'ont pas changé est reprise telle quelle : une fusion qui ne touche que la documentation ne remplace aucune VM. Étapes du déploiement :
 
 1. la tâche Cloud Run `chatisen-migration` reçoit la nouvelle image et migre la base ;
 2. la « configuration commune » du groupe reçoit les deux digests, et le groupe remplace ses VM sans retirer les anciennes avant que les nouvelles soient saines ;

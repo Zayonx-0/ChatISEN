@@ -57,15 +57,13 @@ jobs:
         id: publish
         run: |
           set -euo pipefail
-          publish() {  # nom, Dockerfile
-            docker build --file "$2" --tag "$REGISTRY/$1:$RELEASE" .
-            docker push --quiet "$REGISTRY/$1:$RELEASE"
-            digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$1:$RELEASE")
-            echo "$1=$digest" >> "$GITHUB_OUTPUT"
-            echo "- $1 : \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
-          }
-          publish api apps/api/Dockerfile
-          publish edge infra/gcp/edge/Dockerfile
+          for name in api edge; do
+            dockerfile=apps/api/Dockerfile
+            [[ $name == edge ]] && dockerfile=infra/gcp/edge/Dockerfile
+            digest=$(bash infra/gcp/cd/publish.sh "$name" "$dockerfile")
+            echo "$name=$digest" >> "$GITHUB_OUTPUT"
+            echo "- $name : \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          done
 
   deploy:
     name: Déployer sur la cible
