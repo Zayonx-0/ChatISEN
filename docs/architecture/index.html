@@ -64,7 +64,7 @@
       text-decoration: none;
     }
     .sidebar a:hover { background: #eaf0f6; }
-    .sidebar li:last-child { margin-top: .55rem; padding-top: .55rem; border-top: 1px solid var(--line); }
+    .sidebar li:nth-child(6) { margin-top: .55rem; padding-top: .55rem; border-top: 1px solid var(--line); }
     .sidebar a[aria-current] {
       background: #dceafa;
       color: #174775;
@@ -247,7 +247,7 @@
   <script src="lecteur.js"></script>
   <script>
     const views = architecture.views;
-    const defaultView = views.length - 1;
+    const defaultView = views.findIndex(({id}) => id === '05-architecture-globale');
     const byId = (id) => document.getElementById(id);
     const viewer = byId('viewer');
     const canvas = byId('canvas');
@@ -554,7 +554,7 @@
         return;
       }
       if (event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('select, pre')) return;
-      if (/^[1-5]$/.test(event.key)) goTo(Number(event.key) - 1);
+      if (/^[1-9]$/.test(event.key)) goTo(Number(event.key) - 1);
       else if (event.key.toLowerCase() === 'f') fit();
       else if (event.key === '+' || event.key === '=') zoomBy(1.25);
       else if (event.key === '-') zoomBy(1 / 1.25);

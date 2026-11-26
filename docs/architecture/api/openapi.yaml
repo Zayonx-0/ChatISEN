@@ -1,0 +1,928 @@
+# Contrat REST de la cible ChatISEN (API-first). Ce fichier précède le code : il fixe l'interface front ↔ back.
+# Le contrat exécuté par les tests actuels reste packages/contracts/schemas/openapi.json.
+#
+# Extensions propres au projet :
+#   x-module : module propriétaire dans le monolithe modulaire
+#   x-scope  : mvp (obligatoire), mvp-plus (déjà fait en plus), v2 (extension prévue)
+#   x-code   : etat du code au 26/11 -> api (apps/api, PostgreSQL, non déployé),
+#              demo (serveur standalone en ligne), a-faire
+#   x-today  : route(s) actuelles correspondantes
+openapi: 3.1.0
+info:
+  title: ChatISEN API
+  version: 2.0.0-cible
+  summary: API REST orientée ressources du monolithe modulaire ChatISEN.
+  description: >-
+    JSON UTF-8, dates UTC, identifiants UUID. Session par cookie __Host-chatisen.
+    Toute écriture authentifiée exige l'en-tête X-CSRF-Token et une origine autorisée.
+    Les événements temps réel sont décrits à part dans asyncapi.yaml.
+servers:
+  - url: https://ia-pple.isen.fedyna.fr/api/v1
+    description: Origine publique visée
+security:
+  - sessionCookie: []
+tags:
+  - { name: identity, description: Comptes, sessions et profils }
+  - { name: groups, description: Conversations, groupes, membres et rôles }
+  - { name: messaging, description: Messages et historique }
+  - { name: calls, description: Appels, signalisation et accès média }
+  - { name: notifications, description: Abonnements Web Push }
+  - { name: files, description: Partage de fichiers (V2) }
+  - { name: quality, description: Qualité des communications (V2) }
+
+paths:
+  /users:
+    post:
+      tags: [identity]
+      operationId: createUser
+      summary: Créer un compte
+      x-module: identity
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/auth/register
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/CreateUser' }
+      responses:
+        '201': { $ref: '#/components/responses/SessionOpened' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+    get:
+      tags: [identity]
+      operationId: searchUsers
+      summary: Chercher des utilisateurs par identifiant ou nom
+      x-module: identity
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: GET /api/v1/users
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 32 } }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Profils publics correspondants
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserList' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /users/me:
+    get:
+      tags: [identity]
+      operationId: getCurrentUser
+      summary: Lire son profil et obtenir le jeton CSRF
+      x-module: identity
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: GET /api/v1/me
+      responses:
+        '200':
+          description: Profil de la session
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserProfile' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [identity]
+      operationId: updateCurrentUser
+      summary: Modifier son nom affiché
+      x-module: identity
+      x-scope: mvp
+      x-code: [a-faire]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody: { $ref: '#/components/requestBodies/UpdateUser' }
+      responses:
+        '200':
+          description: Profil mis à jour
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserProfile' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /users/{userId}:
+    patch:
+      tags: [identity]
+      operationId: administerUser
+      summary: Changer le rôle global ou désactiver un compte (administrateur)
+      x-module: identity
+      x-scope: v2
+      x-code: [a-faire]
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/AdministerUser' }
+      responses:
+        '200':
+          description: Compte mis à jour, action inscrite au journal d'audit
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserPublic' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sessions:
+    post:
+      tags: [identity]
+      operationId: createSession
+      summary: Se connecter
+      x-module: identity
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/auth/login
+      security: []
+      requestBody: { $ref: '#/components/requestBodies/CreateSession' }
+      responses:
+        '201': { $ref: '#/components/responses/SessionOpened' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /sessions/current:
+    delete:
+      tags: [identity]
+      operationId: deleteCurrentSession
+      summary: Se déconnecter (révocation en base)
+      x-module: identity
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/auth/logout
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      responses:
+        '204': { description: Session révoquée et cookie effacé }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /conversations:
+    get:
+      tags: [groups]
+      operationId: listConversations
+      summary: Lister ses conversations privées et de groupe
+      x-module: groups
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: GET /api/v1/conversations
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Page de conversations dont on est membre actif
+          content: { application/json: { schema: { $ref: '#/components/schemas/ConversationList' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [groups]
+      operationId: createDirectConversation
+      summary: Ouvrir (ou retrouver) une conversation privée
+      x-module: groups
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/conversations/direct
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody: { $ref: '#/components/requestBodies/CreateDirectConversation' }
+      responses:
+        '200': { $ref: '#/components/responses/ConversationFound' }
+        '201': { $ref: '#/components/responses/ConversationCreated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /conversations/{conversationId}:
+    get:
+      tags: [groups]
+      operationId: getConversation
+      summary: Lire une conversation et ses membres
+      x-module: groups
+      x-scope: mvp
+      x-code: [api]
+      x-today: GET /api/v1/conversations/{id}
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      responses:
+        '200': { $ref: '#/components/responses/ConversationFound' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /groups:
+    post:
+      tags: [groups]
+      operationId: createGroup
+      summary: Créer un groupe (idempotent grâce à clientId)
+      x-module: groups
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/conversations/groups
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody: { $ref: '#/components/requestBodies/CreateGroup' }
+      responses:
+        '200': { $ref: '#/components/responses/ConversationFound' }
+        '201': { $ref: '#/components/responses/ConversationCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /groups/{groupId}:
+    patch:
+      tags: [groups]
+      operationId: updateGroup
+      summary: Renommer un groupe (propriétaire)
+      x-module: groups
+      x-scope: mvp
+      x-code: [api]
+      x-today: PATCH /api/v1/conversations/{id}
+      parameters:
+        - { $ref: '#/components/parameters/GroupId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/UpdateGroup' }
+      responses:
+        '200': { $ref: '#/components/responses/ConversationFound' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /groups/{groupId}/members/{userId}:
+    put:
+      tags: [groups]
+      operationId: putGroupMember
+      summary: Ajouter un membre ou changer son rôle (dont transfert de propriété)
+      x-module: groups
+      x-scope: mvp
+      x-code: [api]
+      x-today: POST /api/v1/conversations/{id}/members/{userId} et POST /api/v1/conversations/{id}/transfer
+      description: Les rôles owner et member existent dans le code. Le rôle moderator est une extension V2.
+      parameters:
+        - { $ref: '#/components/parameters/GroupId' }
+        - { $ref: '#/components/parameters/UserId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/PutMember' }
+      responses:
+        '200': { $ref: '#/components/responses/ConversationFound' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [groups]
+      operationId: deleteGroupMember
+      summary: Retirer un membre, ou quitter le groupe si userId est le sien
+      x-module: groups
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: DELETE /api/v1/conversations/{id}/members/{userId} et POST /api/v1/conversations/{id}/leave
+      parameters:
+        - { $ref: '#/components/parameters/GroupId' }
+        - { $ref: '#/components/parameters/UserId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '204': { description: Membre retiré, ses abonnements au fil sont coupés }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /conversations/{conversationId}/messages:
+    get:
+      tags: [messaging]
+      operationId: listMessages
+      summary: Lire l'historique, du plus récent au plus ancien
+      x-module: messaging
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: GET /api/v1/conversations/{id}/messages
+      parameters:
+        - { $ref: '#/components/parameters/ConversationId' }
+        - { name: beforeSeq, in: query, required: false, schema: { $ref: '#/components/schemas/Seq' } }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Page de messages triés par séquence
+          content: { application/json: { schema: { $ref: '#/components/schemas/MessagePage' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [messaging]
+      operationId: createMessage
+      summary: Envoyer un message (idempotent grâce à clientId)
+      x-module: messaging
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/conversations/{id}/messages
+      parameters:
+        - { $ref: '#/components/parameters/ConversationId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CreateMessage' }
+      responses:
+        '200':
+          description: Même clientId déjà enregistré, message existant renvoyé
+          content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
+        '201':
+          description: Message enregistré, événement message.created publié
+          content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /conversations/{conversationId}/events:
+    get:
+      tags: [messaging]
+      operationId: listEvents
+      summary: Rattraper le journal après une coupure
+      x-module: messaging
+      x-scope: mvp
+      x-code: [api]
+      x-today: GET /api/v1/conversations/{id}/events
+      parameters:
+        - { $ref: '#/components/parameters/ConversationId' }
+        - { name: afterSeq, in: query, required: true, schema: { $ref: '#/components/schemas/Seq' } }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Événements strictement postérieurs au curseur
+          content: { application/json: { schema: { $ref: '#/components/schemas/EventPage' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /conversations/{conversationId}/calls:
+    post:
+      tags: [calls]
+      operationId: createCall
+      summary: Lancer un appel audio ou vidéo
+      x-module: calls
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/conversations/{id}/calls
+      parameters:
+        - { $ref: '#/components/parameters/ConversationId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CreateCall' }
+      responses:
+        '200': { $ref: '#/components/responses/CallFound' }
+        '201': { $ref: '#/components/responses/CallFound' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /calls:
+    get:
+      tags: [calls]
+      operationId: listCalls
+      summary: Retrouver les appels qui sonnent (reprise après rechargement)
+      x-module: calls
+      x-scope: mvp
+      x-code: [demo]
+      x-today: GET /api/calls/incoming
+      parameters:
+        - { name: state, in: query, required: true, schema: { type: string, enum: [ringing, active] } }
+      responses:
+        '200':
+          description: Appels ouverts qui concernent l'utilisateur
+          content: { application/json: { schema: { $ref: '#/components/schemas/CallList' } } }
+  /calls/{callId}:
+    patch:
+      tags: [calls]
+      operationId: updateCall
+      summary: Terminer un appel
+      x-module: calls
+      x-scope: mvp
+      x-code: [api, demo]
+      x-today: POST /api/v1/calls/{id}/end
+      parameters:
+        - { $ref: '#/components/parameters/CallId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/UpdateCall' }
+      responses:
+        '200': { $ref: '#/components/responses/CallFound' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /calls/{callId}/participants/me:
+    put:
+      tags: [calls]
+      operationId: putOwnCallParticipation
+      summary: Accepter, refuser ou quitter un appel
+      x-module: calls
+      x-scope: mvp
+      x-code: [demo]
+      x-today: POST /api/calls/{id}/answer
+      parameters:
+        - { $ref: '#/components/parameters/CallId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/PutParticipation' }
+      responses:
+        '200': { $ref: '#/components/responses/CallFound' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /calls/{callId}/signals:
+    post:
+      tags: [calls]
+      operationId: createCallSignal
+      summary: Envoyer une offre, une réponse ou un candidat ICE au correspondant
+      description: >-
+        Le serveur relaie le signal sur le topic WebSocket user:{userId} du correspondant.
+        Une nouvelle offre avec iceRestart sert à reprendre un appel après un changement de réseau (V2).
+      x-module: calls
+      x-scope: mvp
+      x-code: [demo]
+      x-today: POST /api/calls/{id}/signal
+      parameters:
+        - { $ref: '#/components/parameters/CallId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CreateSignal' }
+      responses:
+        '202': { description: Signal accepté pour remise à la session du correspondant }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /ice-servers:
+    get:
+      tags: [calls]
+      operationId: listIceServers
+      summary: Obtenir les serveurs STUN/TURN ChatISEN et des identifiants courts
+      x-module: calls
+      x-scope: mvp
+      x-code: [demo]
+      x-today: GET /api/config (STUN seul, sans identifiants)
+      responses:
+        '200':
+          description: Configuration ICE à passer à RTCPeerConnection
+          content: { application/json: { schema: { $ref: '#/components/schemas/IceServerList' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /calls/{callId}/media-tokens:
+    post:
+      tags: [calls]
+      operationId: createMediaToken
+      summary: Obtenir un jeton de salle SFU pour une conférence
+      x-module: calls
+      x-scope: v2
+      x-code: [api]
+      x-today: POST /api/v1/calls/{id}/join (expérimental, désactivé par défaut)
+      parameters:
+        - { $ref: '#/components/parameters/CallId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '201':
+          description: Jeton court limité à une salle et à un membre
+          content: { application/json: { schema: { $ref: '#/components/schemas/MediaToken' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /push-configuration:
+    get:
+      tags: [notifications]
+      operationId: getPushConfiguration
+      summary: Lire la clé publique VAPID
+      x-module: notifications
+      x-scope: mvp-plus
+      x-code: [demo]
+      x-today: GET /api/push/config
+      responses:
+        '200':
+          description: Disponibilité et clé publique
+          content: { application/json: { schema: { $ref: '#/components/schemas/PushConfiguration' } } }
+  /push-subscriptions:
+    post:
+      tags: [notifications]
+      operationId: createPushSubscription
+      summary: Enregistrer l'abonnement du navigateur courant
+      x-module: notifications
+      x-scope: mvp-plus
+      x-code: [demo]
+      x-today: POST /api/push/subscriptions
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody: { $ref: '#/components/requestBodies/CreatePushSubscription' }
+      responses:
+        '201':
+          description: Abonnement lié à la session
+          content: { application/json: { schema: { $ref: '#/components/schemas/PushSubscriptionRef' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /push-subscriptions/{subscriptionId}:
+    delete:
+      tags: [notifications]
+      operationId: deletePushSubscription
+      summary: Désactiver les notifications de ce navigateur
+      x-module: notifications
+      x-scope: mvp-plus
+      x-code: [demo]
+      x-today: DELETE /api/push/subscriptions
+      parameters:
+        - { name: subscriptionId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      responses:
+        '204': { description: Abonnement supprimé }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /conversations/{conversationId}/files:
+    post:
+      tags: [files]
+      operationId: createFile
+      summary: Préparer un envoi direct vers l'Object Storage
+      description: >-
+        L'API vérifie le membre, le type et la taille, puis rend une URL signée. Le navigateur envoie
+        les octets directement à Cloud Storage : ils ne traversent pas les VM applicatives.
+      x-module: files
+      x-scope: v2
+      x-code: [a-faire]
+      x-today: Aucun équivalent (l'ancienne route /api garde 5 Mio en mémoire)
+      parameters:
+        - { $ref: '#/components/parameters/ConversationId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CreateFile' }
+      responses:
+        '201':
+          description: Fichier en attente et URL d'envoi à durée courte
+          content: { application/json: { schema: { $ref: '#/components/schemas/FileUpload' } } }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
+  /files/{fileId}:
+    patch:
+      tags: [files]
+      operationId: completeFile
+      summary: Confirmer la fin de l'envoi (le serveur vérifie l'objet)
+      x-module: files
+      x-scope: v2
+      x-code: [a-faire]
+      parameters:
+        - { $ref: '#/components/parameters/FileId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CompleteFile' }
+      responses:
+        '200':
+          description: Fichier utilisable dans un message
+          content: { application/json: { schema: { $ref: '#/components/schemas/File' } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [files]
+      operationId: getFile
+      summary: Obtenir les métadonnées et une URL de téléchargement signée
+      x-module: files
+      x-scope: v2
+      x-code: [a-faire]
+      parameters: [{ $ref: '#/components/parameters/FileId' }]
+      responses:
+        '200':
+          description: Réservé aux membres actifs de la conversation
+          content: { application/json: { schema: { $ref: '#/components/schemas/FileDownload' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /calls/{callId}/quality-samples:
+    post:
+      tags: [quality]
+      operationId: createQualitySamples
+      summary: Envoyer des mesures getStats() par lot
+      x-module: quality
+      x-scope: v2
+      x-code: [a-faire]
+      x-today: Table quality_samples présente, aucune route
+      parameters:
+        - { $ref: '#/components/parameters/CallId' }
+        - { $ref: '#/components/parameters/CsrfToken' }
+      requestBody: { $ref: '#/components/requestBodies/CreateQualitySamples' }
+      responses:
+        '202': { description: Lot accepté }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-chatisen
+      description: Jeton opaque de 24 h. Seul son SHA-256 est stocké en base.
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: HMAC de la session, fourni par GET /users/me
+      schema: { type: string, minLength: 32, maxLength: 256 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    UserId: { name: userId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    ConversationId: { name: conversationId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    GroupId: { name: groupId, in: path, required: true, description: Même identifiant que la conversation du groupe, schema: { $ref: '#/components/schemas/Uuid' } }
+    CallId: { name: callId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    FileId: { name: fileId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+
+  requestBodies:
+    CreateUser: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateUserRequest' } } } }
+    UpdateUser: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateUserRequest' } } } }
+    AdministerUser: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdministerUserRequest' } } } }
+    CreateSession: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateSessionRequest' } } } }
+    CreateDirectConversation: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDirectRequest' } } } }
+    CreateGroup: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateGroupRequest' } } } }
+    UpdateGroup: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateGroupRequest' } } } }
+    PutMember: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PutMemberRequest' } } } }
+    CreateMessage: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateMessageRequest' } } } }
+    CreateCall: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateCallRequest' } } } }
+    UpdateCall: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateCallRequest' } } } }
+    PutParticipation: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PutParticipationRequest' } } } }
+    CreateSignal: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CallSignal' } } } }
+    CreatePushSubscription: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreatePushSubscriptionRequest' } } } }
+    CreateFile: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateFileRequest' } } } }
+    CompleteFile: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CompleteFileRequest' } } } }
+    CreateQualitySamples: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/QualityBatch' } } } }
+
+  responses:
+    SessionOpened:
+      description: Session créée. Le cookie est posé (Secure, HttpOnly, SameSite=Lax).
+      headers:
+        Set-Cookie: { schema: { type: string } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/UserProfile' } } }
+    ConversationFound: { description: Conversation, content: { application/json: { schema: { $ref: '#/components/schemas/ConversationDetail' } } } }
+    ConversationCreated: { description: Conversation créée, content: { application/json: { schema: { $ref: '#/components/schemas/ConversationDetail' } } } }
+    CallFound: { description: Appel, content: { application/json: { schema: { $ref: '#/components/schemas/Call' } } } }
+    BadRequest: { description: Entrée invalide, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Unauthorized: { description: Session absente ou expirée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Forbidden: { description: Origine, CSRF ou rôle refusé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    NotFound: { description: Absent ou non visible par cet utilisateur, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Conflict: { description: État incompatible ou clé réutilisée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    TooLarge: { description: Fichier trop volumineux, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    UnsupportedType: { description: Type refusé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    TooManyRequests: { description: Limite de débit atteinte (à mettre en place), content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Unavailable: { description: Fonction non configurée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$', description: Entier 64 bits transmis en texte }
+    DateTime: { type: string, format: date-time }
+    Handle: { type: string, pattern: '^[a-z0-9_]{3,32}$' }
+    DisplayName: { type: string, minLength: 1, maxLength: 80 }
+    Password: { type: string, minLength: 12, maxLength: 128 }
+    CallMode: { type: string, enum: [audio, video] }
+    CallState: { type: string, enum: [ringing, active, ended] }
+    MemberRole: { type: string, enum: [owner, moderator, member], description: moderator est prévu en V2 }
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [handle, displayName, password]
+      properties:
+        handle: { $ref: '#/components/schemas/Handle' }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+        password: { $ref: '#/components/schemas/Password' }
+    CreateSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [handle, password]
+      properties:
+        handle: { $ref: '#/components/schemas/Handle' }
+        password: { $ref: '#/components/schemas/Password' }
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [displayName]
+      properties:
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+    AdministerUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        globalRole: { type: string, enum: [user, admin] }
+        disabled: { type: boolean }
+    UserPublic:
+      type: object
+      required: [id, handle, displayName]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        handle: { $ref: '#/components/schemas/Handle' }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+    UserProfile:
+      type: object
+      required: [id, handle, displayName, createdAt, csrfToken]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        handle: { $ref: '#/components/schemas/Handle' }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+        createdAt: { $ref: '#/components/schemas/DateTime' }
+        csrfToken: { type: string }
+    UserList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/UserPublic' } }
+    CreateDirectRequest:
+      type: object
+      additionalProperties: false
+      required: [peerId]
+      properties:
+        peerId: { $ref: '#/components/schemas/Uuid' }
+    CreateGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [clientId, title, memberIds]
+      properties:
+        clientId: { $ref: '#/components/schemas/Uuid' }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        memberIds: { type: array, minItems: 1, maxItems: 99, uniqueItems: true, items: { $ref: '#/components/schemas/Uuid' } }
+    UpdateGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+    PutMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/MemberRole' }
+    Member:
+      type: object
+      required: [user, role, joinedAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserPublic' }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        joinedAt: { $ref: '#/components/schemas/DateTime' }
+    ConversationSummary:
+      type: object
+      required: [id, type, title, lastSeq, role, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [direct, group] }
+        title: { type: [string, 'null'], maxLength: 120 }
+        lastSeq: { $ref: '#/components/schemas/Seq' }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        updatedAt: { $ref: '#/components/schemas/DateTime' }
+    ConversationList:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ConversationSummary' } }
+        nextCursor: { type: [string, 'null'] }
+    ConversationDetail:
+      allOf:
+        - { $ref: '#/components/schemas/ConversationSummary' }
+        - type: object
+          required: [members]
+          properties:
+            members: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/Member' } }
+    CreateMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [clientId]
+      anyOf:
+        - required: [text]
+        - required: [fileId]
+      properties:
+        clientId: { $ref: '#/components/schemas/Uuid' }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+        fileId: { $ref: '#/components/schemas/Uuid' }
+    Message:
+      type: object
+      required: [id, conversationId, seq, senderId, clientId, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        conversationId: { $ref: '#/components/schemas/Uuid' }
+        seq: { $ref: '#/components/schemas/Seq' }
+        senderId: { $ref: '#/components/schemas/Uuid' }
+        clientId: { $ref: '#/components/schemas/Uuid' }
+        text: { type: string, maxLength: 4000 }
+        fileId: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/DateTime' }
+    MessagePage:
+      type: object
+      required: [items, nextBeforeSeq]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Message' } }
+        nextBeforeSeq: { type: [string, 'null'] }
+    Event:
+      type: object
+      required: [seq, at, event, data]
+      properties:
+        seq: { $ref: '#/components/schemas/Seq' }
+        at: { $ref: '#/components/schemas/DateTime' }
+        event: { type: string, examples: [message.created] }
+        data: { type: object }
+    EventPage:
+      type: object
+      required: [items, nextAfterSeq, hasMore]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Event' } }
+        nextAfterSeq: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    CreateCallRequest:
+      type: object
+      additionalProperties: false
+      required: [clientId, mode]
+      properties:
+        clientId: { $ref: '#/components/schemas/Uuid' }
+        mode: { $ref: '#/components/schemas/CallMode' }
+    Call:
+      type: object
+      required: [id, conversationId, initiatorId, mode, topology, state, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        conversationId: { $ref: '#/components/schemas/Uuid' }
+        initiatorId: { $ref: '#/components/schemas/Uuid' }
+        mode: { $ref: '#/components/schemas/CallMode' }
+        topology: { type: string, enum: [p2p, sfu], description: p2p à deux, sfu pour une conférence (V2) }
+        state: { $ref: '#/components/schemas/CallState' }
+        createdAt: { $ref: '#/components/schemas/DateTime' }
+        endedAt: { $ref: '#/components/schemas/DateTime' }
+    CallList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Call' } }
+    UpdateCallRequest:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state: { type: string, const: ended }
+    PutParticipationRequest:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state: { type: string, enum: [joined, declined, left] }
+    CallSignal:
+      type: object
+      additionalProperties: false
+      required: [type, data]
+      properties:
+        type: { type: string, enum: [offer, answer, ice] }
+        data: { type: object, description: RTCSessionDescriptionInit ou RTCIceCandidateInit, 30 000 caractères au plus }
+    IceServer:
+      type: object
+      required: [urls]
+      properties:
+        urls: { type: array, items: { type: string }, examples: [['stun:turn.example:3478', 'turns:turn.example:5349?transport=tcp']] }
+        username: { type: string, description: Échéance et identifiant utilisateur }
+        credential: { type: string, description: HMAC à durée courte (mécanisme REST de coturn) }
+    IceServerList:
+      type: object
+      required: [iceServers, expiresAt]
+      properties:
+        iceServers: { type: array, items: { $ref: '#/components/schemas/IceServer' } }
+        expiresAt: { $ref: '#/components/schemas/DateTime' }
+    MediaToken:
+      type: object
+      required: [serverUrl, token, expiresAt]
+      properties:
+        serverUrl: { type: string, format: uri }
+        token: { type: string }
+        expiresAt: { $ref: '#/components/schemas/DateTime' }
+    PushConfiguration:
+      type: object
+      required: [available, publicKey]
+      properties:
+        available: { type: boolean }
+        publicKey: { type: [string, 'null'] }
+    CreatePushSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [endpoint, keys]
+      properties:
+        endpoint: { type: string, format: uri, maxLength: 2048, description: Fournisseurs autorisés uniquement }
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh: { type: string }
+            auth: { type: string }
+    PushSubscriptionRef:
+      type: object
+      required: [id]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+    CreateFileRequest:
+      type: object
+      additionalProperties: false
+      required: [fileName, mediaType, size, sha256]
+      properties:
+        fileName: { type: string, minLength: 1, maxLength: 255 }
+        mediaType: { type: string, enum: [image/png, image/jpeg, application/pdf, text/plain] }
+        size: { type: integer, minimum: 1, maximum: 26214400, description: Plafond proposé de 25 Mio, à valider }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    File:
+      type: object
+      required: [id, fileName, mediaType, size, state]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        fileName: { type: string }
+        mediaType: { type: string }
+        size: { type: integer }
+        state: { type: string, enum: [pending, available, rejected] }
+    FileUpload:
+      type: object
+      required: [file, uploadUrl, expiresAt]
+      properties:
+        file: { $ref: '#/components/schemas/File' }
+        uploadUrl: { type: string, format: uri, description: URL signée Cloud Storage }
+        expiresAt: { $ref: '#/components/schemas/DateTime' }
+    CompleteFileRequest:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state: { type: string, const: available }
+    FileDownload:
+      type: object
+      required: [file, downloadUrl, expiresAt]
+      properties:
+        file: { $ref: '#/components/schemas/File' }
+        downloadUrl: { type: string, format: uri }
+        expiresAt: { $ref: '#/components/schemas/DateTime' }
+    QualitySample:
+      type: object
+      additionalProperties: false
+      required: [capturedAt, packetsReceived, packetsLost, jitterMs, rttMs, bitrateKbps, candidateType]
+      properties:
+        capturedAt: { $ref: '#/components/schemas/DateTime' }
+        packetsReceived: { type: integer, minimum: 0 }
+        packetsLost: { type: integer, minimum: 0 }
+        jitterMs: { type: number, minimum: 0 }
+        rttMs: { type: number, minimum: 0 }
+        bitrateKbps: { type: number, minimum: 0 }
+        candidateType: { type: string, enum: [host, srflx, prflx, relay] }
+    QualityBatch:
+      type: object
+      additionalProperties: false
+      required: [samples]
+      properties:
+        samples: { type: array, minItems: 1, maxItems: 30, items: { $ref: '#/components/schemas/QualitySample' } }
+    ApiError:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string, examples: [VALIDATION_ERROR, UNAUTHORIZED, NOT_FOUND, IDEMPOTENCY_CONFLICT] }
+        message: { type: string, maxLength: 240 }
+        requestId: { $ref: '#/components/schemas/Uuid' }

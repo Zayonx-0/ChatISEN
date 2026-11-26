@@ -76,9 +76,9 @@ def badges(right, top, letters):
 
 
 def card(x, y, w, h, title, body=(), *, symbol=None, brand=None, kind="web", who="", stroke="#c3d0e0",
-         fill="#ffffff", style="small", step=19):
+         fill="#ffffff", style="small", step=19, dash=""):
     """A block with a brand logo or a pictogram, a title, detail lines and persona badges."""
-    parts = [rect(x, y, w, h, fill, stroke, 10)]
+    parts = [rect(x, y, w, h, fill, stroke, 10, width=1.5 if dash else 1.2, dash=dash)]
     offset = 12
     if brand:
         parts.append(logo(brand, x + 11, y + 9, 30))

@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1980" height="1485" viewBox="0 0 1980 1485" role="img" aria-labelledby="title">
+<title id="title">ChatISEN · Modèle conceptuel de données (Merise)</title>
+<defs><marker id="web-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#1f56c9"/></marker><marker id="media-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#0b7a83"/></marker><marker id="data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#146c43"/></marker><marker id="ops-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#a8470c"/></marker><marker id="admin-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#6d31a3"/></marker><marker id="push-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#a82f63"/></marker></defs>
+<style>
+text { font-family: Arial, Helvetica, "Liberation Sans", sans-serif; fill:#13263c; font-size:14px; }
+.title { font-size:36px; font-weight:700; }
+.subtitle { font-size:18px; fill:#425971; }
+.zone { font-size:16px; font-weight:700; letter-spacing:.3px; }
+.section { font-size:13.5px; font-weight:700; }
+.card { font-size:15.5px; font-weight:700; }
+.small { font-size:13.5px; fill:#27405b; }
+.micro { font-size:12.5px; fill:#34506d; }
+.mono { font-size:12.5px; fill:#1d3a5c; font-weight:700; }
+.id { font-size:13px; font-weight:700; }
+.flowtext { font-size:12.5px; }
+.badge { font-size:12.5px; font-weight:700; fill:#ffffff; }
+text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fill:#a8470c}text.admin{fill:#6d31a3}text.push{fill:#a82f63}
+</style>
+<rect x="0" y="0" width="1980" height="1485" rx="0" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="40" y="56" class="title" text-anchor="start">MCD · Modèle conceptuel de données (Merise)</text>
+<text x="42" y="86" class="subtitle" text-anchor="start">Entités, associations et cardinalités (min,max). Identifiant souligné. (1,1) R : identifiant relatif à la conversation. Cadre pointillé : V2.</text>
+<g transform="translate(0 110)">
+<path class="relation" d="M200 150V260" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M200 392V480" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M400 560H860" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M370 480V70H1680V150" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1010 480V280" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1160 205H1520" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1120 480V330H1520" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1680 350V490" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1160 560H1520" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M80 600H40V1300H1920V560H1840" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1010 640V860" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M330 660V900H860" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M240 660V1030H860" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M150 660V1180H1520" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<path class="relation" d="M1160 1010H1520" fill="none" stroke="#3b556f" stroke-width="1.700"/>
+<rect x="80" y="20" width="240" height="130" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="81" y="21" width="238" height="32" rx="5" fill="#f6d9d4" stroke="none" stroke-width="1.2"/>
+<text x="200.0" y="43" class="card" text-anchor="middle">ABONNEMENT PUSH</text>
+<text x="94" y="75" class="small" text-decoration="underline" font-weight="700">id_abonnement</text>
+<text x="94" y="96" class="small" text-anchor="start">adresse (endpoint)</text>
+<text x="94" y="117" class="small" text-anchor="start">clé p256dh, secret auth</text>
+<text x="94" y="138" class="small" text-anchor="start">créé_le</text>
+<rect x="80" y="260" width="240" height="132" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="81" y="261" width="238" height="32" rx="5" fill="#dbe7ff" stroke="none" stroke-width="1.2"/>
+<text x="200.0" y="283" class="card" text-anchor="middle">SESSION</text>
+<text x="94" y="315" class="small" text-decoration="underline" font-weight="700">id_session</text>
+<text x="94" y="336" class="small" text-anchor="start">empreinte_jeton (SHA-256)</text>
+<text x="94" y="357" class="small" text-anchor="start">expire_le</text>
+<text x="94" y="378" class="small" text-anchor="start">révoquée_le</text>
+<rect x="80" y="480" width="320" height="180" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="81" y="481" width="318" height="32" rx="5" fill="#dbe7ff" stroke="none" stroke-width="1.2"/>
+<text x="240.0" y="503" class="card" text-anchor="middle">UTILISATEUR</text>
+<text x="94" y="535" class="small" text-decoration="underline" font-weight="700">id_utilisateur</text>
+<text x="94" y="556" class="small" text-anchor="start">identifiant (unique)</text>
+<text x="94" y="577" class="small" text-anchor="start">nom_affiché</text>
+<text x="94" y="598" class="small" text-anchor="start">hash_mot_de_passe</text>
+<text x="94" y="619" class="small" text-anchor="start">rôle_global (V2)</text>
+<text x="94" y="640" class="small" text-anchor="start">créé_le</text>
+<rect x="860" y="150" width="300" height="130" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="861" y="151" width="298" height="32" rx="5" fill="#d8efdf" stroke="none" stroke-width="1.2"/>
+<text x="1010.0" y="173" class="card" text-anchor="middle">ÉVÉNEMENT</text>
+<text x="874" y="205" class="small" text-decoration="underline" font-weight="700">numéro_seq (relatif)</text>
+<text x="874" y="226" class="small" text-anchor="start">type</text>
+<text x="874" y="247" class="small" text-anchor="start">contenu</text>
+<text x="874" y="268" class="small" text-anchor="start">survenu_le</text>
+<rect x="1520" y="150" width="320" height="200" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="1521" y="151" width="318" height="32" rx="5" fill="#d8efdf" stroke="none" stroke-width="1.2"/>
+<text x="1680.0" y="173" class="card" text-anchor="middle">MESSAGE</text>
+<text x="1534" y="205" class="small" text-decoration="underline" font-weight="700">id_message</text>
+<text x="1534" y="226" class="small" text-anchor="start">clé_client (anti-doublon)</text>
+<text x="1534" y="247" class="small" text-anchor="start">texte</text>
+<text x="1534" y="268" class="small" text-anchor="start">créé_le</text>
+<rect x="860" y="480" width="300" height="160" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="861" y="481" width="298" height="32" rx="5" fill="#e8defa" stroke="none" stroke-width="1.2"/>
+<text x="1010.0" y="503" class="card" text-anchor="middle">CONVERSATION</text>
+<text x="874" y="535" class="small" text-decoration="underline" font-weight="700">id_conversation</text>
+<text x="874" y="556" class="small" text-anchor="start">type : privée ou groupe</text>
+<text x="874" y="577" class="small" text-anchor="start">titre</text>
+<text x="874" y="598" class="small" text-anchor="start">créée_le</text>
+<text x="874" y="619" class="small" text-anchor="start">fermée_le</text>
+<rect x="1520" y="490" width="320" height="150" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6" stroke-dasharray="8 5"/>
+<rect x="1521" y="491" width="318" height="32" rx="5" fill="#fde9c8" stroke="none" stroke-width="1.2"/>
+<text x="1680.0" y="513" class="card" text-anchor="middle">FICHIER</text>
+<text x="1534" y="545" class="small" text-decoration="underline" font-weight="700">id_fichier</text>
+<text x="1534" y="566" class="small" text-anchor="start">nom, type_mime, taille</text>
+<text x="1534" y="587" class="small" text-anchor="start">empreinte SHA-256</text>
+<text x="1534" y="608" class="small" text-anchor="start">clé_objet, état</text>
+<rect x="860" y="860" width="300" height="200" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6"/>
+<rect x="861" y="861" width="298" height="32" rx="5" fill="#d3eef0" stroke="none" stroke-width="1.2"/>
+<text x="1010.0" y="883" class="card" text-anchor="middle">APPEL</text>
+<text x="874" y="915" class="small" text-decoration="underline" font-weight="700">id_appel</text>
+<text x="874" y="936" class="small" text-anchor="start">mode : audio ou vidéo</text>
+<text x="874" y="957" class="small" text-anchor="start">topologie : p2p ou sfu</text>
+<text x="874" y="978" class="small" text-anchor="start">état</text>
+<text x="874" y="999" class="small" text-anchor="start">créé_le, terminé_le</text>
+<rect x="1520" y="940" width="320" height="270" rx="6" fill="#ffffff" stroke="#27405b" stroke-width="1.6" stroke-dasharray="8 5"/>
+<rect x="1521" y="941" width="318" height="32" rx="5" fill="#f8dce8" stroke="none" stroke-width="1.2"/>
+<text x="1680.0" y="963" class="card" text-anchor="middle">MESURE QUALITÉ</text>
+<text x="1534" y="995" class="small" text-decoration="underline" font-weight="700">id_mesure</text>
+<text x="1534" y="1016" class="small" text-anchor="start">début_de_fenêtre</text>
+<text x="1534" y="1037" class="small" text-anchor="start">paquets reçus et perdus</text>
+<text x="1534" y="1058" class="small" text-anchor="start">gigue_ms, rtt_ms</text>
+<text x="1534" y="1079" class="small" text-anchor="start">débit_kbps</text>
+<text x="1534" y="1100" class="small" text-anchor="start">type_de_candidat</text>
+<rect x="125.0" y="185.0" width="150" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="200" y="212.0" class="section" text-anchor="middle">RATTACHER</text>
+<rect x="135.0" y="420.0" width="130" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="200" y="447.0" class="section" text-anchor="middle">OUVRIR</text>
+<rect x="525.0" y="520.0" width="210" height="80" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="630" y="547.0" class="section" text-anchor="middle">ÊTRE MEMBRE</text>
+<text x="630" y="566.0" class="micro" text-anchor="middle">rôle</text>
+<text x="630" y="584.0" class="micro" text-anchor="middle">rejoint_le, quitté_le</text>
+<rect x="870.0" y="48.0" width="140" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="940" y="75.0" class="section" text-anchor="middle">ENVOYER</text>
+<rect x="925.0" y="356.0" width="170" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1010" y="383.0" class="section" text-anchor="middle">JOURNALISER</text>
+<rect x="1250.0" y="183.0" width="180" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1340" y="210.0" class="section" text-anchor="middle">MATÉRIALISER</text>
+<rect x="1265.0" y="308.0" width="150" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1340" y="335.0" class="section" text-anchor="middle">CONTENIR</text>
+<rect x="1610.0" y="398.0" width="140" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1680" y="425.0" class="section" text-anchor="middle">JOINDRE</text>
+<rect x="1265.0" y="538.0" width="150" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1340" y="565.0" class="section" text-anchor="middle">PARTAGER</text>
+<rect x="870.0" y="1278.0" width="140" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="940" y="1305.0" class="section" text-anchor="middle">DÉPOSER</text>
+<rect x="930.0" y="723.0" width="160" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1010" y="750.0" class="section" text-anchor="middle">CONCERNER</text>
+<rect x="565.0" y="878.0" width="130" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="630" y="905.0" class="section" text-anchor="middle">LANCER</text>
+<rect x="535.0" y="999.0" width="190" height="62" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="630" y="1026.0" class="section" text-anchor="middle">PARTICIPER</text>
+<text x="630" y="1045.0" class="micro" text-anchor="middle">état, rejoint_le, quitté_le</text>
+<rect x="870.0" y="1158.0" width="140" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="940" y="1185.0" class="section" text-anchor="middle">MESURER</text>
+<rect x="1265.0" y="988.0" width="150" height="44" rx="22" fill="#fffdf3" stroke="#8a6d1d" stroke-width="1.6" class="flow-label"/>
+<text x="1340" y="1015.0" class="section" text-anchor="middle">PRODUIRE</text>
+<rect x="208" y="156" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="212" y="170" class="mono" text-anchor="start">1,1</text>
+<rect x="208" y="240" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="212" y="254" class="mono" text-anchor="start">0,n</text>
+<rect x="208" y="400" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="212" y="414" class="mono" text-anchor="start">1,1</text>
+<rect x="208" y="460" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="212" y="474" class="mono" text-anchor="start">0,n</text>
+<rect x="406" y="536" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="410" y="550" class="mono" text-anchor="start">0,n</text>
+<rect x="818" y="536" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="822" y="550" class="mono" text-anchor="start">1,n</text>
+<rect x="376" y="452" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="380" y="466" class="mono" text-anchor="start">0,n</text>
+<rect x="1688" y="126" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1692" y="140" class="mono" text-anchor="start">1,1</text>
+<rect x="1018" y="460" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1022" y="474" class="mono" text-anchor="start">0,n</text>
+<rect x="1018" y="290" width="64" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1022" y="304" class="mono" text-anchor="start">(1,1) R</text>
+<rect x="1166" y="181" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1170" y="195" class="mono" text-anchor="start">0,1</text>
+<rect x="1478" y="181" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1482" y="195" class="mono" text-anchor="start">1,1</text>
+<rect x="1128" y="442" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1132" y="456" class="mono" text-anchor="start">0,n</text>
+<rect x="1478" y="306" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1482" y="320" class="mono" text-anchor="start">1,1</text>
+<rect x="1688" y="356" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1692" y="370" class="mono" text-anchor="start">0,1</text>
+<rect x="1688" y="468" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1692" y="482" class="mono" text-anchor="start">0,1</text>
+<rect x="1166" y="536" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1170" y="550" class="mono" text-anchor="start">0,n</text>
+<rect x="1478" y="536" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1482" y="550" class="mono" text-anchor="start">1,1</text>
+<rect x="40" y="576" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="44" y="590" class="mono" text-anchor="start">0,n</text>
+<rect x="1848" y="536" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1852" y="550" class="mono" text-anchor="start">1,1</text>
+<rect x="1018" y="650" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1022" y="664" class="mono" text-anchor="start">0,n</text>
+<rect x="1018" y="838" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1022" y="852" class="mono" text-anchor="start">1,1</text>
+<rect x="338" y="664" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="342" y="678" class="mono" text-anchor="start">0,n</text>
+<rect x="818" y="876" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="822" y="890" class="mono" text-anchor="start">1,1</text>
+<rect x="248" y="664" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="252" y="678" class="mono" text-anchor="start">0,n</text>
+<rect x="818" y="1006" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="822" y="1020" class="mono" text-anchor="start">1,n</text>
+<rect x="158" y="664" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="162" y="678" class="mono" text-anchor="start">0,n</text>
+<rect x="1478" y="1156" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1482" y="1170" class="mono" text-anchor="start">1,1</text>
+<rect x="1166" y="986" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1170" y="1000" class="mono" text-anchor="start">0,n</text>
+<rect x="1478" y="986" width="32" height="19" rx="3" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<text x="1482" y="1000" class="mono" text-anchor="start">1,1</text>
+</g>
+<rect x="40" y="1450" width="20" height="16" rx="3" fill="#dbe7ff" stroke="#27405b" stroke-width="1.2"/>
+<text x="68" y="1463" class="small" text-anchor="start">module identity</text>
+<rect x="245" y="1450" width="20" height="16" rx="3" fill="#e8defa" stroke="#27405b" stroke-width="1.2"/>
+<text x="273" y="1463" class="small" text-anchor="start">module groups</text>
+<rect x="450" y="1450" width="20" height="16" rx="3" fill="#d8efdf" stroke="#27405b" stroke-width="1.2"/>
+<text x="478" y="1463" class="small" text-anchor="start">module messaging</text>
+<rect x="655" y="1450" width="20" height="16" rx="3" fill="#fde9c8" stroke="#27405b" stroke-width="1.2"/>
+<text x="683" y="1463" class="small" text-anchor="start">module files</text>
+<rect x="860" y="1450" width="20" height="16" rx="3" fill="#d3eef0" stroke="#27405b" stroke-width="1.2"/>
+<text x="888" y="1463" class="small" text-anchor="start">module calls</text>
+<rect x="1065" y="1450" width="20" height="16" rx="3" fill="#f8dce8" stroke="#27405b" stroke-width="1.2"/>
+<text x="1093" y="1463" class="small" text-anchor="start">module quality</text>
+<rect x="1270" y="1450" width="20" height="16" rx="3" fill="#f6d9d4" stroke="#27405b" stroke-width="1.2"/>
+<text x="1298" y="1463" class="small" text-anchor="start">module notifications</text>
+<text x="1520" y="1463" class="small" text-anchor="start">Tables techniques : voir le MLD (vue 4).</text>
+</svg>

@@ -1,84 +1,125 @@
 @startuml
 !pragma layout smetana
 !include style.iuml
-hide methods
 hide circle
-title 04 · Code et données — frontières d’écriture PostgreSQL de la cible
-together {
-class "identity.users" as U {
-  PK id · handle UNIQUE
-  password_hash Argon2id
+title 04 · MLD · un schéma PostgreSQL par module, aucune clé étrangère entre schémas
+
+package "identity" #E9EFFD {
+class "users" as U {
+  PK id
+  handle UNIQUE · display_name
+  {field} password_hash (Argon2id)
+  {field} global_role (V2) · disabled_at (V2)
 }
-class "identity.sessions" as S {
+class "sessions" as S {
   PK id · FK user_id
-  token_hash UNIQUE · expires_at · revoked_at
+  token_hash UNIQUE
+  expires_at · revoked_at
 }
 }
-together {
-class "chat.conversations" as C {
-  PK id · type · last_seq · closed_at
-  paire canonique UNIQUE pour un direct actif
+package "groups" #EFE8FA {
+class "conversations" as C {
+  PK id · type · title · closed_at
+  paire UNIQUE pour une conversation privée
 }
-class "chat.conversation_members" as M {
+class "members" as M {
   PK conversation_id + user_id
+  FK conversation_id
   role · joined_at · left_at
 }
-class "chat.conversation_events" as E {
+class "creation_commands" as Cmd {
+  PK user_id + client_id
+  FK conversation_id
+}
+}
+package "realtime (noyau partagé)" #EEF6F0 {
+class "streams" as St {
+  PK conversation_id
+  last_seq
+}
+class "events" as E {
   PK conversation_id + seq
+  FK conversation_id → streams
   event_type · payload · occurred_at
 }
-class "chat.messages" as Msg {
-  PK id · FK sender_id
-  FK (conversation_id, seq)
-  UNIQUE conversation_id + sender_id + client_id
-}
-class "chat.attachments" as A {
-  PK id · FK message_id UNIQUE
-  media_type · SHA-256 · bytea
-}
-class "chat.outbox" as O {
-  PK event_id · FK conversation_id + seq
-  projection pour les notifications
+class "outbox" as O {
+  PK event_id
+  FK conversation_id + seq
+  destinataire · publié_le
 }
 }
-together {
-class "media.calls" as Call {
-  PK id · FK conversation_id
-  state · room_name UNIQUE
-  au plus un appel ouvert par conversation
-}
-class "media.call_participants" as Part {
-  PK call_id + user_id · FK session_id
-  state · livekit_identity
+package "messaging" #E6F5EA {
+class "messages" as Msg {
+  PK id
+  conversation_id + seq UNIQUE
+  {field} sender_id · file_id (V2)
+  {field} client_id (UNIQUE par expéditeur) · text
 }
 }
-together {
-class "notify.push_subscriptions" as Sub {
-  PK id · FK session_id
-  endpoint · p256dh · auth
+package "files (V2)" #FDF1DC {
+class "files" as F {
+  PK id · conversation_id · owner_id
+  object_key UNIQUE · media_type
+  size_bytes · sha256 · state
 }
-class "notify.push_deliveries" as Deliver {
+}
+package "calls" #E3F3F4 {
+class "calls" as Call {
+  PK id · conversation_id · initiator_id
+  {field} mode · topology (p2p, sfu) · state
+}
+class "participants" as P {
+  PK call_id + user_id · FK call_id
+  session_id · state
+}
+class "media_jobs · webhook_receipts (V2)" as Jobs {
+  travaux et anti-rejeu liés au SFU
+}
+}
+package "quality (V2)" #FBE8EF {
+class "samples" as Q {
+  PK id · call_id · user_id
+  window_start · packets_lost
+  jitter_ms · rtt_ms · bitrate_kbps
+  candidate_type
+}
+}
+package "notifications" #FBEDEA {
+class "push_subscriptions" as Sub {
+  PK id · user_id · session_id
+  endpoint UNIQUE · p256dh · auth
+}
+class "push_deliveries" as D {
   PK event_id + subscription_id
+  FK subscription_id
   state · attempts · lease_until
 }
 }
-U "1" -- "0..*" S : ouvre
-U "1" -- "0..*" M : adhère
-C "1" -- "1..*" M : regroupe
-U "1" -- "0..*" Msg : envoie
-C "1" -- "0..*" E : ordonne par seq
-E "1" -- "0..1" Msg : alimente
-Msg "1" -- "0..1" A : attache
-E "1" -- "0..1" O : prévoit une remise
-C "1" -- "0..*" Call : porte
-Call "1" -- "0..*" Part : contient
-S "0..1" -- "0..*" Part : associe
-S "1" -- "0..*" Sub : associe
-Sub "1" -- "0..*" Deliver : reçoit
-O "1" -- "0..*" Deliver : déclenche
+
+U "1" -- "0..*" S
+C "1" -- "1..*" M
+C "1" -- "0..1" Cmd
+St "1" -- "0..*" E
+E "1" -- "0..1" O
+Call "1" -- "1..*" P
+Call "1" -- "0..*" Jobs
+Sub "1" -- "0..*" D
+
+M ..> U : user_id
+St ..> C : conversation_id
+Msg ..> E : seq
+Msg ..> F : file_id
+F ..> C
+Call ..> C
+P ..> U
+Q ..> Call
+Sub ..> S : session_id
+D ..> O : event_id
+
 legend bottom
-  Cible de conception. Un rôle SQL d’écriture par service et un rôle de migration distinct.
-  T07 : séquence, message, journal et outbox en une transaction. T08 : lecture des événements après le curseur.
-  Les tables d’outbox et de notifications restent à ajouter. Les migrations du banc sont dépliables dans le lecteur.
+  Trait plein : clé étrangère à l’intérieur d’un schéma. Pointillé : référence logique par UUID, sans FK.
+  L’intégrité entre modules passe par leurs ports et leurs événements (prêt pour « une base par service »).
+  Envoi d’un message : séquence, événement, message et outbox dans une seule transaction.
+  État au 26/11 : les migrations actuelles utilisent un schéma unique avec des FK entre domaines (annexes SQL).
 endlegend
 @enduml

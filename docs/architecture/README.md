@@ -1,6 +1,16 @@
 # Reconstruire ChatISEN depuis ses diagrammes
 
-**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG](svg/05-architecture-globale.svg). La vue d’accueil présente l’**architecture cible**, à mettre en œuvre : personas, navigateurs et service workers, VPC et pare-feu, quatre services Fastify, PostgreSQL, LiveKit, coturn, CI/CD GitHub, modèle relationnel et les flux `T01` à `T21`. Les touches `1` à `4` ouvrent les niveaux C4 et `5` ramène à la planche. [Dossier de conception de la cible](architecture-cible.md)
+**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG](svg/05-architecture-globale.svg). La vue d’accueil présente l’**architecture cible v2** (après la seconde revue du 26 novembre) : un monolithe modulaire Fastify, PostgreSQL, un appel à deux en pair-à-pair avec coturn, les extensions V2 en orange pointillé, les flux `T01` à `T22` et la couverture du sujet. Les touches `1` à `9` changent de vue.
+
+| Document | Contenu |
+|---|---|
+| [Dossier d’architecture](dossier-architecture.md) | Retours des revues, périmètre, modules, sécurité, TLS et PKI, SPOF, choix justifiés, état réel. |
+| [Infrastructure et déploiement](svg/30-infrastructure.svg) | VM, conteneurs, réseau, pare-feu, supervision, chaîne TLS. |
+| [Modules et dépendances](svg/31-modules.svg) | Packages, architecture hexagonale, graphe sans cycle. |
+| [MCD Merise](svg/32-mcd.svg) · [MLD](svg/04-code.svg) | Modèle conceptuel, puis un schéma SQL par module. |
+| [OpenAPI](api/openapi.yaml) · [AsyncAPI](api/asyncapi.yaml) | Contrats REST et WebSocket de la cible. Vues : [ressources](svg/33-contrats-api.svg), [schémas](svg/34-schemas-json.svg), [temps réel](svg/35-temps-reel.svg). |
+
+**Version précédente (microservices)** : conservée dans le tag Git `archi-microservices-v1` (commit `5b81b48`) et en [annexe de la vue 5](svg/26-cible-microservices.svg).
 
 **La démo du 25 novembre reste documentée** : sa planche d’origine est une annexe de la vue 5. [Planche de la démo](svg/25-demo-globale.svg) · [Inventaire](infrastructure-gcp.md)
 
@@ -21,13 +31,13 @@ Le sujet classe les comptes, la messagerie privée et de groupe, l’historique,
 | Niveau | Ce qu’il faut reproduire | Diagramme |
 |---|---|---|
 | 1. Contexte | User, Ops et Admin, domaines de confiance et accès distincts. | [Contexte](svg/01-contexte.svg) |
-| 2. Conteneurs | Cible : navigateur, load balancer, Nginx, quatre services Fastify, PostgreSQL, Redis, LiveKit et coturn. | [Conteneurs](svg/02-conteneurs.svg) |
-| 3. Composants | Cible : routage Nginx et détail du service Chat (contrôle d’accès, transaction, temps réel et reprise). | [Composants](svg/03-composants-api.svg) |
-| 4. Code et données | Cible : schéma relationnel PostgreSQL, clés et frontières d’écriture par service. | [Code et données](svg/04-code.svg) |
+| 2. Conteneurs | Cible : navigateur, load balancer, Nginx, API monolithe modulaire, PostgreSQL, coturn, supervision ; en pointillé les briques V2. | [Conteneurs](svg/02-conteneurs.svg) |
+| 3. Composants | Cible : adaptateurs, modules de l’API et noyau partagé. | [Composants](svg/03-composants-api.svg) |
+| 4. Données (MLD) | Cible : un schéma PostgreSQL par module, aucune clé étrangère entre schémas. | [MLD](svg/04-code.svg) |
 
 En bleu figurent les composants applicatifs, en gris la configuration, en ambre l’admission expérimentale et en violet la cible réseau ou média à éprouver. Les séquences se lisent de haut en bas. Sur les schémas physiques, `PK` désigne la clé primaire, `FK` la clé étrangère et `UQ` l’unicité.
 
-Le lecteur fonctionne hors ligne. Utiliser `1` à `4` pour changer de niveau, la molette pour zoomer et `F` pour ajuster. Déplier un sujet sous le diagramme, puis cliquer sur son aperçu pour l’agrandir dans le même lecteur. Les liens directs vers les diagrammes de détail restent utilisables.
+Le lecteur fonctionne hors ligne. Utiliser `1` à `9` pour changer de vue, la molette pour zoomer et `F` pour ajuster. Déplier un sujet sous le diagramme, puis cliquer sur son aperçu pour l’agrandir dans le même lecteur. Les liens directs vers les diagrammes de détail restent utilisables.
 
 ## Plateformes par environnement
 
@@ -166,12 +176,12 @@ Caddy termine le TLS sur la VM Debian 13 et transmet HTTP et l’Upgrade WebSock
 
 Le workspace **Structurizr** ouvre les quatre niveaux. Les trois premiers sont des vues natives du DSL. Le quatrième est un diagramme PlantUML rattaché au composant de messagerie du serveur Node. Les séquences et le déploiement utilisent le même modèle DSL. Les autres détails sont produits en PlantUML, dont les schémas de données tirés des migrations. Le lecteur rattache chaque détail à son niveau C4. [Workspace à ouvrir dans Structurizr](workspace.dsl) · [Modèle C4](c4.dsl) · [Sources des détails](details/) · [Catalogue des fiches](vues.json)
 
-Depuis la racine du dépôt, exécuter la commande suivante avec Python 3.9+, Java, Structurizr CLI `v2025.11.09` et PlantUML `1.2025.10`. Les rendus de ce dossier utilisent Java 25.
+Depuis la racine du dépôt, exécuter la commande suivante avec Python 3.9+ et PyYAML, Java, Structurizr CLI `v2025.11.09` et PlantUML `1.2025.10`. Les rendus de ce dossier utilisent Java 25.
 
 ```sh
 python3 docs/architecture/render.py /chemin/structurizr.sh /chemin/plantuml-1.2025.10.jar
 ```
 
-Le rendu valide le DSL, compare les planches HTTP v1 aux handlers Fastify, calcule l’écart avec OpenAPI et vérifie les quatre clés C4 dans Structurizr. La planche de soutenance provient de `global_view.py` et de la boîte à dessin `svgkit.py`, avec les logos recolorés de `logos.json` (issus de la bibliothèque `logos` embarquée dans PlantUML). Le rendu compare ses identifiants de flux avec la table « Flux de la cible » d’`architecture-cible.md`. La planche de la démo vient de `global_view_demo.py`. Versionner ensemble les sources, `vues.json`, les SVG et le fichier généré `lecteur.js`. [Générateur](render.py) · [Source de la planche](global_view.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
+Le rendu valide le DSL, compare les planches HTTP v1 aux handlers Fastify, calcule l’écart avec OpenAPI et vérifie les quatre clés C4 dans Structurizr. La planche de soutenance provient de `global_view.py` et de la boîte à dessin `svgkit.py`, avec les logos recolorés de `logos.json` (issus de la bibliothèque `logos` embarquée dans PlantUML). Le rendu compare ses identifiants de flux avec la table « Flux de la cible » de `dossier-architecture.md`. Les vues 6 à 8 viennent d’`infra_view.py`, `modules_view.py` (qui refuse un cycle de dépendances) et `mcd_view.py` (qui refuse un trait ne touchant aucune entité). `contracts.py` contrôle les références des deux contrats et en tire les vues UML et les tableaux. La planche archivée est vérifiée par son empreinte. La planche de la démo vient de `global_view_demo.py`. Versionner ensemble les sources, `vues.json`, les SVG et le fichier généré `lecteur.js`. [Générateur](render.py) · [Source de la planche](global_view.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
 
 La planche reprend le logo du client ChatISEN et embarque les marques Google Cloud, Caddy, Node.js et GitHub depuis Simple Icons pour permettre l’affichage hors ligne. [Client ChatISEN](../../apps/web/public/app.js) · [Simple Icons](https://github.com/simple-icons/simple-icons)

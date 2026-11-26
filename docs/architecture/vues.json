@@ -2,16 +2,16 @@
   {
     "id": "01-contexte",
     "title": "Contexte",
-    "build": "User accède au domaine ISEN. Ops utilise IAP et le monitoring. Admin gère IAM et le projet. GitHub Actions lance les livraisons et les fournisseurs Push remettent les notifications.",
-    "check": "Reconnaître les trois rôles et suivre le domaine, le CD et la remise Push jusqu’à leurs cibles. Chaque dépendance externe a un flux nommé.",
+    "build": "User accède au domaine ISEN. Ops passe par IAP et consulte Grafana. Admin gère IAM et le projet. GitHub Actions lance les livraisons et les fournisseurs Push remettent les notifications.",
+    "check": "Reconnaître les trois rôles et suivre le domaine, le CD et la remise Push jusqu’à leurs cibles.",
     "links": [
       [
-        "Dossier de conception",
-        "architecture-cible.md"
+        "Dossier d’architecture",
+        "dossier-architecture.md"
       ],
       [
-        "Retours de la présentation",
-        "architecture-cible.md#réponses-aux-retours-de-présentation"
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
       ]
     ],
     "details": [
@@ -87,23 +87,23 @@
       }
     ],
     "tables": [
-      "Réponses aux retours de présentation",
+      "Couverture du sujet attendu",
       "Flux de la cible"
     ]
   },
   {
     "id": "02-conteneurs",
     "title": "Conteneurs",
-    "build": "Le LB distribue le front Nginx et les quatre Fastify sur deux VM privées. Cloud SQL assure la persistance. LiveKit et coturn portent le média sur le sous-réseau dédié.",
-    "check": "Vérifier par zone quels composants tournent, comment on retrouve le même client et quels ports sont publics, privés ou bornés par le pare-feu.",
+    "build": "Le load balancer envoie vers Nginx sur deux VM. Nginx sert React et relaie vers un seul conteneur API, le monolithe modulaire. Cloud SQL persiste. À deux, le média va d’un navigateur à l’autre ; coturn aide ou relaie. Pointillé : V2.",
+    "check": "Vérifier quels conteneurs tournent sur chaque VM, quels ports sont publics et où passe le média.",
     "links": [
       [
-        "Dossier de conception",
-        "architecture-cible.md"
+        "Dossier d’architecture",
+        "dossier-architecture.md"
       ],
       [
-        "Retours de la présentation",
-        "architecture-cible.md#réponses-aux-retours-de-présentation"
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
       ]
     ],
     "details": [
@@ -212,16 +212,16 @@
   {
     "id": "03-composants-api",
     "title": "Composants",
-    "build": "Nginx route REST et WebSocket vers Identité, Chat, Appels et Notifications. La vue détaille les commandes, les vérifications d’accès et le rattrapage du service Chat.",
-    "check": "Suivre un message qui entre en REST, passe la vérification de session et du rôle, est enregistré puis reçu en WSS. Rejouer avec un tiers et sur une autre VM.",
+    "build": "Les adaptateurs REST et WebSocket appellent les modules. Chaque module n’importe que des modules plus bas. Le noyau partagé porte le journal et l’outbox.",
+    "check": "Suivre un message : auth_request, module messaging, droit vérifié par groups, journal, puis diffusion WebSocket.",
     "links": [
       [
-        "Dossier de conception",
-        "architecture-cible.md"
+        "Dossier d’architecture",
+        "dossier-architecture.md"
       ],
       [
-        "Retours de la présentation",
-        "architecture-cible.md#réponses-aux-retours-de-présentation"
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
       ]
     ],
     "details": [
@@ -440,23 +440,22 @@
       }
     ],
     "tables": [
-      "Services Fastify et propriétés des données",
-      "Flux de la cible"
+      "Modules et propriété des données"
     ]
   },
   {
     "id": "04-code",
-    "title": "Code et données",
-    "build": "Cloud SQL PostgreSQL 17 porte les données relationnelles. Chaque service possède ses écritures. Le modèle relie utilisateurs, sessions, fils, membres, séquences, appels et notifications.",
-    "check": "Comparer les contraintes et les transactions aux migrations. Tester l’ajout des tables d’outbox/Push, l’idempotence et la restauration sur une instance isolée.",
+    "title": "Données · MLD",
+    "build": "Un schéma PostgreSQL par module. Les clés étrangères restent à l’intérieur d’un schéma ; entre modules, des références par UUID.",
+    "check": "Comparer aux migrations actuelles (annexes SQL), qui utilisent encore un schéma unique.",
     "links": [
       [
-        "Dossier de conception",
-        "architecture-cible.md"
+        "Dossier d’architecture",
+        "dossier-architecture.md"
       ],
       [
-        "Retours de la présentation",
-        "architecture-cible.md#réponses-aux-retours-de-présentation"
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
       ]
     ],
     "details": [
@@ -706,25 +705,25 @@
       }
     ],
     "tables": [
-      "Services Fastify et propriétés des données"
+      "Modules et propriété des données"
     ]
   },
   {
     "id": "05-architecture-globale",
     "title": "Architecture globale",
-    "build": "Planche de soutenance de la nouvelle cible. L’entrée sert le build React depuis Nginx, puis REST, WSS et WebRTC ont des trajets explicités. Les flèches du CD partent de GitHub Actions.",
-    "check": "Montrer l’implantation, suivre un message et un appel, puis expliquer le CD et la reprise. Les 21 échanges et leurs critères sont détaillés ci-dessous.",
+    "build": "Planche de synthèse de la cible v2. Trait plein : MVP. Orange pointillé : V2. Le bandeau du bas rattache chaque attendu du sujet à une brique et à son état réel.",
+    "check": "Montrer l’implantation, suivre un message puis un appel à deux, expliquer le CD, les SPOF et la couverture du sujet. Les 22 échanges sont détaillés ci-dessous.",
     "links": [
       [
-        "Dossier de conception",
-        "architecture-cible.md"
+        "Dossier d’architecture",
+        "dossier-architecture.md"
       ],
       [
-        "Retours de la présentation",
-        "architecture-cible.md#réponses-aux-retours-de-présentation"
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
       ],
       [
-        "Comparer au déploiement de départ",
+        "Démo de départ",
         "infrastructure-gcp.md"
       ],
       [
@@ -734,13 +733,27 @@
     ],
     "stepsTitle": "Fil conducteur de soutenance",
     "steps": [
-      "1. T01–T04 · Même application, deux sessions. DNS, HTTPS, LB puis Nginx qui sert le build React et /sw.js.",
-      "2. T05–T09 · REST des quatre services. Identité locale, autorisation dans les fils, transaction relationnelle et livraison WSS.",
-      "3. T10–T13 · Signalisation contrôlée, LiveKit SFU et coturn auto-hébergé en Europe. Redis coordonne les salles.",
-      "4. T14–T15 · Le worker Notifications appelle le fournisseur Web Push. Le navigateur A ou B affiche le message système.",
-      "5. T16–T21 · IAM/IAP, supervision, CI vers Registry, CD vers GCP, lecture des images par digest et reprise PostgreSQL."
+      "1. T01–T04 · Même application, deux sessions : DNS, HTTPS, load balancer, Nginx qui sert React et /sw.js.",
+      "2. T05–T09 · Un monolithe modulaire. Session vérifiée à la passerelle, droit dans le fil, transaction, WebSocket.",
+      "3. T10–T12 · Appel à deux : signalisation par le serveur, média en direct, coturn pour STUN et TURN.",
+      "4. T14–T15 · Onglet fermé : Web Push par le fournisseur du navigateur, pas par la WebSocket.",
+      "5. T16–T21 · IAP, Grafana, journaux, CI vers le registre, CD vers GCP, sauvegardes.",
+      "6. T13 et T22 · V2 : conférence par SFU, fichiers vers l’Object Storage.",
+      "7. Couverture du sujet : ce qui est en ligne, ce qui est codé, ce qui reste à faire."
     ],
     "details": [
+      {
+        "id": "26-cible-microservices",
+        "title": "Annexe · Version précédente : découpage en microservices (trajectoire V3)",
+        "build": "Planche publiée avant la seconde revue, conservée à l’identique (tag archi-microservices-v1). Elle montre le découpage vers lequel les modules pourront évoluer.",
+        "check": "Ne pas la présenter comme l’architecture retenue. Elle sert à expliquer l’évolution possible.",
+        "links": [
+          [
+            "Trajectoire dans le dossier",
+            "dossier-architecture.md#10-disponibilité-et-montée-en-charge"
+          ]
+        ]
+      },
       {
         "id": "25-demo-globale",
         "title": "Annexe · Planche de la démo en service (25 novembre 2026)",
@@ -758,11 +771,146 @@
       }
     ],
     "tables": [
+      "Couverture du sujet attendu",
       "Flux de la cible",
       "Composants et placement",
       "Pare-feu de la cible",
-      "Web Push dans les deux navigateurs",
+      "Points de défaillance uniques",
+      "Retours de la deuxième revue",
       "Réponses aux retours de présentation"
+    ]
+  },
+  {
+    "id": "30-infrastructure",
+    "title": "Infrastructure et déploiement",
+    "build": "Réseau, VM, conteneurs Docker Compose, services managés, supervision, pare-feu et chaîne TLS.",
+    "check": "Pour chaque flèche : port, chiffrement et règle de pare-feu. Nommer le SPOF restant.",
+    "links": [
+      [
+        "Dossier d’architecture",
+        "dossier-architecture.md"
+      ],
+      [
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
+      ],
+      [
+        "TLS et PKI",
+        "dossier-architecture.md#9-tls-et-pki"
+      ]
+    ],
+    "details": [],
+    "tables": [
+      "Composants et placement",
+      "Pare-feu de la cible",
+      "Points de défaillance uniques"
+    ]
+  },
+  {
+    "id": "31-modules",
+    "title": "Modules et dépendances",
+    "build": "Diagramme de packages du monolithe : adaptateurs entrants, modules par profondeur de dépendance, noyau partagé et anatomie hexagonale. Le rendu échoue si le graphe contient un cycle.",
+    "check": "Toutes les flèches descendent. Citer la dette du code actuel et la règle « pas de SQL sur le schéma d’un autre module ».",
+    "links": [
+      [
+        "Dossier d’architecture",
+        "dossier-architecture.md"
+      ],
+      [
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
+      ],
+      [
+        "Décision d’origine (ADR 001)",
+        "../adr/001-choix.md"
+      ],
+      [
+        "Code actuel",
+        "../../apps/api/src/server.ts"
+      ]
+    ],
+    "details": [],
+    "tables": [
+      "Modules et propriété des données",
+      "Choix techniques justifiés"
+    ]
+  },
+  {
+    "id": "32-mcd",
+    "title": "MCD (Merise)",
+    "build": "Modèle conceptuel : entités, associations porteuses d’attributs et cardinalités (min,max). Les tables techniques sont dans le MLD.",
+    "check": "Lire chaque association dans les deux sens. Une conversation privée est une conversation à deux membres.",
+    "links": [
+      [
+        "Dossier d’architecture",
+        "dossier-architecture.md"
+      ],
+      [
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
+      ]
+    ],
+    "details": [],
+    "tables": [
+      "Modules et propriété des données"
+    ]
+  },
+  {
+    "id": "33-contrats-api",
+    "title": "Contrats REST et temps réel",
+    "build": "Vue UML générée depuis openapi.yaml. Les tableaux viennent d’openapi.yaml et d’asyncapi.yaml, avec l’état du code pour chaque ligne.",
+    "check": "Prendre une ressource : verbe, schéma, erreurs. Prendre un topic : sens, message, reprise.",
+    "links": [
+      [
+        "Dossier d’architecture",
+        "dossier-architecture.md"
+      ],
+      [
+        "Retours de la 2e revue",
+        "dossier-architecture.md#retours-de-la-deuxième-revue"
+      ],
+      [
+        "Contrat REST · OpenAPI 3.1",
+        "api/openapi.yaml"
+      ],
+      [
+        "Contrat WebSocket · AsyncAPI 3.0",
+        "api/asyncapi.yaml"
+      ]
+    ],
+    "tables": [
+      "Routes REST",
+      "Topics WebSocket"
+    ],
+    "details": [
+      {
+        "id": "34-schemas-json",
+        "title": "Annexe · Schémas JSON de l’API (UML)",
+        "build": "Classes générées depuis components.schemas du contrat REST.",
+        "check": "Chaque corps de requête et de réponse du contrat a son schéma.",
+        "links": [
+          [
+            "Contrat REST",
+            "api/openapi.yaml"
+          ]
+        ]
+      },
+      {
+        "id": "35-temps-reel",
+        "title": "Annexe · Séquence : WebSocket, reprise et Web Push",
+        "build": "Abonnement avec curseur, envoi par REST, diffusion, coupure et reprise, puis notification quand l’onglet est fermé.",
+        "check": "Distinguer les deux canaux : la notification ne passe pas par la WebSocket.",
+        "links": [
+          [
+            "Contrat WebSocket",
+            "api/asyncapi.yaml"
+          ],
+          [
+            "Service worker",
+            "../../apps/web/public/sw.js"
+          ]
+        ]
+      }
     ]
   }
 ]
