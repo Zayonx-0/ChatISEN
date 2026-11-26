@@ -50,15 +50,19 @@ http {
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Request-ID $request_id;
-    # Les en-têtes d'identité ne viennent jamais du navigateur.
-    proxy_set_header X-User-Id "";
+    # L'identité vient de la vérification de session, jamais du navigateur.
+    set $chat_user "";
+    proxy_set_header X-User-Id $chat_user;
     proxy_set_header X-Session-Id "";
+    # La limite de débit peut s'appliquer après une première redirection interne.
+    recursive_error_pages on;
+    error_page 429 = @trop_de_requetes;
 
     # Passerelle : la session est vérifiée avant tout accès à l'API. L'API la revérifie et
     # garde les décisions de droits ; elle ne fait pas confiance aux en-têtes du client.
     location = /_session {
       internal;
-      proxy_pass http://api/internal/auth/session;
+      proxy_pass http://api/internal/auth/verify;
       proxy_pass_request_body off;
       proxy_set_header Content-Length "";
       proxy_set_header Connection "";
@@ -71,6 +75,12 @@ http {
       add_header X-Content-Type-Options nosniff always;
       return 401 '{"code":"UNAUTHORIZED","message":"Authentification requise","requestId":"$request_id"}';
     }
+    location @trop_de_requetes {
+      default_type application/json;
+      add_header Cache-Control "no-store" always;
+      add_header X-Content-Type-Options nosniff always;
+      return 429 '{"code":"RATE_LIMITED","message":"Trop de tentatives, patientez une minute","requestId":"$request_id"}';
+    }
 
     location = /healthz-edge { access_log off; proxy_pass http://api/readyz; }
 
@@ -79,6 +89,7 @@ http {
 
     location = /api/v1/ws {
       auth_request /_session;
+      auth_request_set $chat_user $upstream_http_x_user_id;
       error_page 401 = @session_requise;
       proxy_pass http://api;
       proxy_set_header Upgrade $http_upgrade;
@@ -87,17 +98,32 @@ http {
       proxy_set_header X-Forwarded-For $remote_addr;
       proxy_set_header X-Forwarded-Proto https;
       proxy_set_header X-Request-ID $request_id;
-      proxy_set_header X-User-Id "";
+      proxy_set_header X-User-Id $chat_user;
       proxy_set_header X-Session-Id "";
       proxy_read_timeout 3600s;
       proxy_send_timeout 3600s;
     }
-    location ~ ^/api/v1/auth/(login|register)$ {
+    # Seules routes publiques : créer un compte et ouvrir une session, à débit limité.
+    location = /api/v1/sessions {
+      limit_req zone=authentification burst=10 nodelay;
+      proxy_pass http://api;
+    }
+    location = /api/v1/users {
+      error_page 418 = @inscription;
+      error_page 401 = @session_requise;
+      # « return » précède le contrôle d'accès : la recherche (GET) reste protégée.
+      if ($request_method = POST) { return 418; }
+      auth_request /_session;
+      auth_request_set $chat_user $upstream_http_x_user_id;
+      proxy_pass http://api;
+    }
+    location @inscription {
       limit_req zone=authentification burst=10 nodelay;
       proxy_pass http://api;
     }
     location /api/v1/ {
       auth_request /_session;
+      auth_request_set $chat_user $upstream_http_x_user_id;
       error_page 401 = @session_requise;
       proxy_pass http://api;
     }

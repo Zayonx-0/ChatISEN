@@ -1,5 +1,5 @@
 # VM applicative : Nginx, API, Cloud SQL Auth Proxy et node-exporter par Docker Compose.
-export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM TURN_HOST SFU_1_HOST SFU_2_HOST
+export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM TURN_HOST SFU_1_HOST SFU_2_HOST FILES_BUCKET
 SFU_1_HOST=$(meta instance/attributes/sfu-1-host)
 SFU_2_HOST=$(meta instance/attributes/sfu-2-host)
 API_IMAGE=$(meta instance/attributes/api-image)
@@ -10,6 +10,7 @@ LB_PUBLIC_IP=$(meta instance/attributes/lb-public-ip)
 PROXY_CIDR=$(meta instance/attributes/proxy-cidr)
 ACME_UPSTREAM=$(meta instance/attributes/acme-upstream)
 TURN_HOST=$(meta instance/attributes/turn-host)
+FILES_BUCKET=$(meta instance/attributes/files-bucket)
 
 umask 077
 {
@@ -46,6 +47,8 @@ services:
       COOKIE_SECURE: "true"
       TRUST_PROXY: "true"
       LIVEKIT_URL: wss://${PUBLIC_HOST}/livekit
+      LIVEKIT_API_URL: http://${SFU_1_HOST}:7880
+      FILES_BUCKET: ${FILES_BUCKET}
       TURN_HOST: ${TURN_HOST}
       VAPID_SUBJECT: https://${PUBLIC_HOST}
     ports: ["9091:9091"]
