@@ -116,4 +116,5 @@ services:
     ports: ["3000:3000"]
 volumes: {prometheus: {}, grafana: {}}
 EOF
-docker compose -f /opt/chatisen/compose.yml up -d --remove-orphans
+# La configuration est montée depuis des fichiers : les conteneurs sont recréés pour la relire.
+docker compose -f /opt/chatisen/compose.yml up -d --force-recreate --remove-orphans
