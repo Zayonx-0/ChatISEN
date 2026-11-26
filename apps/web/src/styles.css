@@ -68,3 +68,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid #5271d7; outline-
 .composer .icon{height:auto;width:44px}
 .admin-panel{width:min(100%,640px)}
 @media (max-width:800px){.group-panel{padding-inline:12px}.attached{margin-inline:12px}.status .ghost{font-size:.75rem}header{height:auto;min-height:70px;flex-wrap:wrap}.status{flex-wrap:wrap;justify-content:flex-end}}
+
+/* Conférence */
+.conference-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;min-height:160px}
+.tile{position:relative;margin:0;background:#0f172a;border-radius:10px;aspect-ratio:16/9;overflow:hidden;display:grid;place-items:center;border:2px solid transparent}
+.tile.speaking{border-color:#40c057}
+.tile.screen{grid-column:1/-1}
+.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile.screen video{object-fit:contain}
+.tile video.mirrored{transform:scaleX(-1)}
+.tile .avatar{z-index:1}
+.tile figcaption{position:absolute;left:8px;bottom:6px;z-index:2;color:#fff;background:#0f172ab3;border-radius:6px;padding:2px 8px;font-size:.8rem}

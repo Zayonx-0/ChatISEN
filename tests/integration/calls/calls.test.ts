@@ -119,6 +119,11 @@ test('calls: conference admission, eviction of a removed member and room closing
     assert.equal(claims.sub,bob.id);assert.equal(claims.video.room,`chatisen_${call.id}`);assert.ok(claims.exp-claims.iat<=60);assert.notEqual(claims.video.roomAdmin,true);
     assert.equal((await token(await h.login(bob))).statusCode,409,'another session of the same user is not admitted');
     assert.equal((await h.call(carol,'PUT',`/calls/${call.id}/participants/me`,{state:'joined'})).statusCode,200);
+    // Revenir : relancer dans le groupe renvoie la conférence ouverte.
+    await h.call(carol,'PUT',`/calls/${call.id}/participants/me`,{state:'left'});
+    const back=await h.call(carol,'POST',`/conversations/${group.id}/calls`,{clientId:randomUUID(),mode:'audio'});
+    assert.deepEqual([back.statusCode,back.json().id],[200,call.id]);
+    assert.equal((await h.call(carol,'PUT',`/calls/${call.id}/participants/me`,{state:'joined'})).statusCode,200);
 
     assert.equal((await h.call(alice,'DELETE',`/groups/${group.id}/members/${bob.id}`)).statusCode,204);
     await h.services.calls.removeDepartedMembers();

@@ -339,6 +339,7 @@ paths:
       tags: [calls]
       operationId: createCall
       summary: Lancer un appel audio ou vidéo
+      description: Dans un groupe dont une conférence est ouverte, celle-ci est renvoyée (200) pour être rejointe.
       x-module: calls
       x-scope: mvp
       x-code: [api, demo]

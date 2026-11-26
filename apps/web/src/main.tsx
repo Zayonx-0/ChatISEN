@@ -11,7 +11,7 @@ import {acceptedTypes,sizeText,uploadFile} from './files.js';
 import {GroupPanel} from './GroupPanel.js';
 import {usePush} from './push.js';
 import {useRealtime,type Frame} from './realtime.js';
-import {errorText,type Conversation,type Message,type User} from './types.js';
+import {errorText,type Conversation,type Member,type Message,type User} from './types.js';
 import {UserSearch} from './UserSearch.js';
 
 type Page={items:Message[];nextBeforeSeq:string|null};
@@ -25,6 +25,7 @@ function App(){
   const [draft,setDraft]=useState('');const [attached,setAttached]=useState<File|null>(null);const [error,setError]=useState('');const [sendBusy,setSendBusy]=useState(false);const [showList,setShowList]=useState(true);const [unread,setUnread]=useState<Record<string,number>>({});
   const [showMembers,setShowMembers]=useState(false);const [showAdmin,setShowAdmin]=useState(false);
   const cursor=useRef('0');const selection=useRef(0);const selectedId=useRef<string|null>(null);const drafts=useRef<Record<string,string>>({});const pending=useRef<Record<string,Pending>>({});const sending=useRef(false);const picker=useRef<HTMLInputElement>(null);
+  const [callMembers,setCallMembers]=useState<Member[]>([]);
   const csrf=user?.csrfToken||'';
   const mutation=useCallback((method:string,body?:unknown)=>write(csrf,method,body),[csrf]);
   const calls=useCalls(user?.id,csrf);const push=usePush(user?.id,csrf);const wanted=useRef<string|null>(new URLSearchParams(location.search).get('conversation'));
@@ -94,6 +95,12 @@ function App(){
     }else if(frame.event?.startsWith('conversation.')){void loadConversations().catch(()=>{});void refreshSelected();}
   };
   const connection=useRealtime(user?.id,selected?.id,cursor,onFrame,()=>{void loadConversations().catch(()=>{});void refreshSelected();void calls.recover().catch(()=>{});});
+  // Noms des participants d'une conférence, même si une autre conversation est ouverte.
+  useEffect(()=>{
+    const id=calls.view.conversationId;if(!id||calls.view.topology!=='sfu'){setCallMembers([]);return;}
+    let active=true;api<Conversation>(`/conversations/${id}`).then(detail=>{if(active)setCallMembers(detail.members??[]);}).catch(()=>{});
+    return()=>{active=false;};
+  },[calls.view.conversationId,calls.view.topology,calls.view.tiles?.length]);
   useEffect(()=>{if(!calls.notice)return;const timer=setTimeout(()=>calls.setNotice(''),5000);return()=>clearTimeout(timer);},[calls.notice,calls.setNotice]);
 
   const send=async(event:React.FormEvent)=>{
@@ -165,7 +172,8 @@ function App(){
       {calls.notice&&<div className="toast" role="status">{calls.notice}</div>}
       {push.error&&<div className="error inline" role="alert">{push.error}</div>}
       {showAdmin&&<AdminPanel user={user} csrf={csrf} onClose={()=>setShowAdmin(false)}/>}
-      <CallPanel calls={calls} peerName={(()=>{const c=conversations.find(x=>x.id===calls.view.conversationId);return c?nameOf(c,user.id):'Correspondant';})()}/>
+      <CallPanel calls={calls} peerName={(()=>{const c=conversations.find(x=>x.id===calls.view.conversationId);return c?nameOf(c,user.id):'Correspondant';})()}
+        memberName={id=>callMembers.find(m=>m.user.id===id)?.user.displayName??'Participant'}/>
       <div className={`layout ${showList?'show-list':'show-chat'}`}>
         <aside>
           {showList&&pageError}
@@ -195,10 +203,8 @@ function App(){
               </div>
               <div className="call-buttons">
                 {selected.type==='group'&&<button aria-expanded={showMembers} onClick={()=>setShowMembers(value=>!value)}>Membres</button>}
-                {selected.type==='direct'&&<>
-                  <button disabled={callBusy} onClick={()=>void calls.start(selected.id,'audio')}>Appel audio</button>
-                  <button disabled={callBusy} onClick={()=>void calls.start(selected.id,'video')}>Appel vidéo</button>
-                </>}
+                <button disabled={callBusy} onClick={()=>void calls.start(selected.id,'audio',selected.type==='group'?'sfu':'p2p')}>{selected.type==='group'?'Conférence audio':'Appel audio'}</button>
+                <button disabled={callBusy} onClick={()=>void calls.start(selected.id,'video',selected.type==='group'?'sfu':'p2p')}>{selected.type==='group'?'Conférence vidéo':'Appel vidéo'}</button>
               </div>
             </div>
             {showMembers&&selected.type==='group'&&<GroupPanel key={selected.id+selected.title} conversation={selected} userId={user.id} csrf={csrf} onError={setError}

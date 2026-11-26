@@ -49,7 +49,9 @@ export class CallService implements CallRegistry{
       const topology=member.type==='direct'?'p2p' as const:'sfu' as const;
       if(topology==='sfu'&&!this.media)throw conflict('Les conférences de groupe ne sont pas activées','CONFERENCE_UNAVAILABLE');
       for(const id of await store.unansweredIn(tx,conversationId))await this.finish(tx,id,'expired');
-      if((await store.openIn(tx,conversationId)).length)throw busy();
+      const open=(await store.openIn(tx,conversationId))[0];
+      // Un membre revient ainsi dans la conférence en cours de son groupe.
+      if(open){if(open.topology==='sfu'&&this.media)return {call:open,created:false};throw busy();}
       const call=await store.insert(tx,{id:randomUUID(),conversationId,initiatorId:userId,clientId,mode,topology});
       const others=(await this.access.memberIds(conversationId,tx)).filter(id=>id!==userId);
       await store.join(tx,call.id,userId,sessionId);

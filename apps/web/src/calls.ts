@@ -1,24 +1,34 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {api,ApiError,write} from './api.js';
+import {joinConference,type Conference,type Tile} from './conference.js';
 
 export type CallMode='audio'|'video';
 export type CallPhase='idle'|'outgoing'|'incoming'|'connecting'|'active';
 export type Quality={level:'bonne'|'moyenne'|'faible';rttMs:number|null;lossPercent:number;jitterMs:number|null;bitrateKbps:number;candidateType:string};
-export type CallView={phase:CallPhase;callId?:string;conversationId?:string;mode:CallMode;initiator:boolean;muted:boolean;cameraOff:boolean;sharing:boolean;quality?:Quality};
+export type Topology='p2p'|'sfu';
+export type Admission={serverUrl:string;token:string;expiresAt:string};
+export type CallView={phase:CallPhase;callId?:string;conversationId?:string;mode:CallMode;topology:Topology;initiator:boolean;muted:boolean;cameraOff:boolean;sharing:boolean;quality?:Quality;
+  /** Conférence seulement : vignettes des participants, qualité estimée par le SFU. */
+  tiles?:Tile[];level?:Quality['level'];reconnecting?:boolean};
 type CallDto={id:string;conversationId:string;initiatorId:string;mode:CallMode;topology:'p2p'|'sfu';state:'ringing'|'active'|'ended'};
 type Signal={type:'offer'|'answer'|'ice';data:any};
-const idle:CallView={phase:'idle',mode:'audio',initiator:false,muted:false,cameraOff:false,sharing:false};
+const idle:CallView={phase:'idle',mode:'audio',topology:'p2p',initiator:false,muted:false,cameraOff:false,sharing:false};
 const reasons:Record<string,string>={declined:'Appel refusé.',expired:'Pas de réponse.',disconnected:'Le correspondant a été déconnecté.',ended:'Appel terminé.'};
 
+// « ?relay » force le passage par TURN : sert à démontrer le relais.
+const relayOnly=()=>new URLSearchParams(location.search).has('relay');
+const iceConfiguration=()=>api<{iceServers:RTCIceServer[]}>('/ice-servers');
+
 /**
- * Appels à deux en WebRTC pair-à-pair. Le serveur ne transporte que la signalisation ;
- * les médias passent directement, ou par le relais TURN du projet.
+ * Appels à deux en WebRTC pair-à-pair : le serveur ne transporte que la signalisation, les
+ * médias passent directement ou par le relais TURN. Les conférences de groupe passent par un SFU.
  */
 export function useCalls(userId:string|undefined,csrf:string){
   const [view,setView]=useState<CallView>(idle);const [notice,setNotice]=useState('');
   const [localStream,setLocal]=useState<MediaStream|null>(null);const [remoteStream,setRemote]=useState<MediaStream|null>(null);
   const state=useRef<CallView>(idle);const peer=useRef<RTCPeerConnection|null>(null);const media=useRef<MediaStream|null>(null);const screen=useRef<MediaStream|null>(null);
   const pendingIce=useRef<RTCIceCandidateInit[]>([]);const queued=useRef(new Map<string,Signal[]>());const chain=useRef(Promise.resolve());
+  const conference=useRef<Conference|null>(null);
   const lastState=useRef(new Map<string,string>());const timers=useRef<ReturnType<typeof setTimeout>[]>([]);const previous=useRef<{bytes:number;lost:number;received:number;at:number}|null>(null);
 
   const update=useCallback((patch:Partial<CallView>)=>{state.current={...state.current,...patch};setView(state.current);},[]);
@@ -26,6 +36,7 @@ export function useCalls(userId:string|undefined,csrf:string){
   const cleanup=useCallback((message='')=>{
     timers.current.forEach(t=>{clearTimeout(t);clearInterval(t);});timers.current=[];previous.current=null;
     peer.current?.close();peer.current=null;pendingIce.current=[];queued.current.clear();
+    void conference.current?.leave();conference.current=null;
     media.current?.getTracks().forEach(t=>t.stop());media.current=null;screen.current?.getTracks().forEach(t=>t.stop());screen.current=null;
     setLocal(null);setRemote(null);state.current=idle;setView(idle);if(message)setNotice(message);
   },[]);
@@ -62,9 +73,8 @@ export function useCalls(userId:string|undefined,csrf:string){
   },[csrf,update]);
 
   const createPeer=useCallback(async(initiator:boolean)=>{
-    const {iceServers}=await api<{iceServers:RTCIceServer[]}>('/ice-servers');
-    // « ?relay » force le passage par TURN : sert à démontrer le relais.
-    const pc=new RTCPeerConnection({iceServers,...(new URLSearchParams(location.search).has('relay')?{iceTransportPolicy:'relay' as const}:{})});
+    const {iceServers}=await iceConfiguration();
+    const pc=new RTCPeerConnection({iceServers,...(relayOnly()?{iceTransportPolicy:'relay' as const}:{})});
     peer.current=pc;const remote=new MediaStream();
     if(initiator){
       media.current?.getTracks().forEach(track=>pc.addTrack(track,media.current!));
@@ -109,20 +119,44 @@ export function useCalls(userId:string|undefined,csrf:string){
 
   const leave=useCallback((callId:string,keepalive=false)=>api(`/calls/${callId}/participants/me`,{...write(csrf,'PUT',{state:'left'}),keepalive}).catch(()=>{}),[csrf]);
 
-  const start=useCallback(async(conversationId:string,mode:CallMode)=>{
-    if(state.current.phase!=='idle')return;setNotice('');update({...idle,phase:'outgoing',conversationId,mode,initiator:true});
-    if(!await capture(mode)){state.current=idle;setView(idle);return;}
+  /** Rejoint la salle d'une conférence : participation, jeton court, puis connexion au SFU. */
+  const enterConference=useCallback(async(callId:string,mode:CallMode)=>{
+    update({phase:'connecting',callId,topology:'sfu'});
+    const current=()=>state.current.callId===callId;
+    try{
+      await api(`/calls/${callId}/participants/me`,write(csrf,'PUT',{state:'joined'}));
+      const [admission,{iceServers}]=await Promise.all([api<Admission>(`/calls/${callId}/media-tokens`,write(csrf,'POST')),iceConfiguration()]);
+      const room=await joinConference(admission,mode==='video',iceServers,relayOnly(),{
+        tiles:tiles=>{if(current())update({tiles});},quality:level=>{if(current())update({level});},
+        reconnecting:reconnecting=>{if(current())update({reconnecting});},
+        closed:()=>{if(current()){cleanup('Conférence terminée.');void leave(callId);}},
+      });
+      if(!current()){void room.leave();return;}
+      conference.current=room;update({phase:'active'});
+    }catch(error){
+      if(!current())return;
+      void leave(callId);
+      cleanup(error instanceof ApiError&&error.status===409?'Conférence déjà rejointe sur un autre appareil, ou terminée.':'Impossible de rejoindre la conférence. Vérifiez le micro et la caméra.');
+    }
+  },[cleanup,csrf,leave,update]);
+
+  const start=useCallback(async(conversationId:string,mode:CallMode,topology:Topology)=>{
+    if(state.current.phase!=='idle')return;setNotice('');update({...idle,phase:'outgoing',conversationId,mode,topology,initiator:true});
+    if(topology==='p2p'&&!await capture(mode)){state.current=idle;setView(idle);return;}
     try{
       const call=await api<CallDto>(`/conversations/${conversationId}/calls`,write(csrf,'POST',{clientId:crypto.randomUUID(),mode}));
       if((state.current as CallView).phase!=='outgoing'){void leave(call.id);return;}
+      // Une conférence déjà ouverte dans ce groupe est rejointe plutôt que doublée.
+      if(call.topology==='sfu')return void enterConference(call.id,call.mode);
       update({callId:call.id});
       if(lastState.current.get(call.id)==='active')void connect();
       if(lastState.current.get(call.id)==='ended')cleanup(reasons.ended);
     }catch(error){cleanup(error instanceof ApiError&&error.status===409?'Un appel est déjà en cours dans cette conversation.':error instanceof Error?error.message:'Appel impossible.');}
-  },[cleanup,connect,csrf,leave,update]);
+  },[cleanup,connect,csrf,enterConference,leave,update]);
 
   const accept=useCallback(async()=>{
-    const {callId,mode,phase}=state.current;if(phase!=='incoming'||!callId)return;
+    const {callId,mode,phase,topology}=state.current;if(phase!=='incoming'||!callId)return;
+    if(topology==='sfu')return enterConference(callId,mode);
     update({phase:'connecting'});
     if(!await capture(mode)){await api(`/calls/${callId}/participants/me`,write(csrf,'PUT',{state:'declined'})).catch(()=>{});cleanup();setNotice('Appel refusé : micro ou caméra indisponible.');return;}
     try{
@@ -132,7 +166,7 @@ export function useCalls(userId:string|undefined,csrf:string){
       for(const item of queued.current.get(callId)??[])chain.current=chain.current.then(()=>applySignal(item)).catch(()=>{});
       queued.current.delete(callId);
     }catch(error){cleanup(error instanceof ApiError&&error.status===409?'Appel déjà pris sur un autre appareil ou terminé.':'Impossible de rejoindre l’appel.');}
-  },[applySignal,cleanup,createPeer,csrf,update]);
+  },[applySignal,cleanup,createPeer,csrf,enterConference,update]);
 
   const decline=useCallback(async()=>{
     const {callId}=state.current;cleanup();
@@ -141,8 +175,8 @@ export function useCalls(userId:string|undefined,csrf:string){
 
   const hangup=useCallback(async()=>{const {callId}=state.current;cleanup('Appel terminé.');if(callId)await leave(callId);},[cleanup,leave]);
 
-  const toggleMute=useCallback(()=>{const muted=!state.current.muted;media.current?.getAudioTracks().forEach(t=>{t.enabled=!muted;});update({muted});},[update]);
-  const toggleCamera=useCallback(()=>{const cameraOff=!state.current.cameraOff;media.current?.getVideoTracks().forEach(t=>{t.enabled=!cameraOff;});update({cameraOff});},[update]);
+  const toggleMute=useCallback(()=>{const muted=!state.current.muted;media.current?.getAudioTracks().forEach(t=>{t.enabled=!muted;});void conference.current?.setMuted(muted);update({muted});},[update]);
+  const toggleCamera=useCallback(()=>{const cameraOff=!state.current.cameraOff;media.current?.getVideoTracks().forEach(t=>{t.enabled=!cameraOff;});void conference.current?.setCameraOff(cameraOff);update({cameraOff});},[update]);
 
   const videoSender=()=>peer.current?.getTransceivers().find(t=>t.receiver.track.kind==='video')?.sender;
   const stopSharing=useCallback(async()=>{
@@ -150,6 +184,11 @@ export function useCalls(userId:string|undefined,csrf:string){
     await videoSender()?.replaceTrack(media.current?.getVideoTracks()[0]??null);setLocal(media.current);update({sharing:false});
   },[update]);
   const toggleShare=useCallback(async()=>{
+    if(conference.current){
+      const sharing=!state.current.sharing;
+      try{await conference.current.setSharing(sharing);update({sharing});}catch{setNotice('Partage d’écran annulé ou indisponible.');}
+      return;
+    }
     if(state.current.sharing)return stopSharing();
     try{
       const display=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});const track=display.getVideoTracks()[0];
@@ -161,14 +200,15 @@ export function useCalls(userId:string|undefined,csrf:string){
   const onEvent=useCallback((event:string,data:any)=>{
     if(!userId||!data?.callId)return;
     if(event==='call.invitation'){
-      if(state.current.phase==='idle'&&data.initiatorId!==userId&&data.topology==='p2p'){setNotice('');update({...idle,phase:'incoming',callId:data.callId,conversationId:data.conversationId,mode:data.mode});}
+      if(state.current.phase==='idle'&&data.initiatorId!==userId){setNotice('');update({...idle,phase:'incoming',callId:data.callId,conversationId:data.conversationId,mode:data.mode,topology:data.topology});}
       return;
     }
     if(event==='call.updated'){
       lastState.current.set(data.callId,data.state);
       if(data.callId!==state.current.callId)return;
       if(data.state==='ended')return cleanup(reasons[data.reason]??reasons.ended);
-      if(data.state==='active'){
+      // Dans une conférence, « active » signifie seulement qu'un autre membre a rejoint.
+      if(data.state==='active'&&state.current.topology==='p2p'){
         if(state.current.phase==='outgoing')void connect();
         // Un autre onglet ou appareil du même compte a répondu.
         else if(state.current.phase==='incoming')cleanup('Appel pris sur un autre appareil.');
@@ -187,14 +227,16 @@ export function useCalls(userId:string|undefined,csrf:string){
     if(!userId||state.current.phase!=='idle')return;
     const {items}=await api<{items:CallDto[]}>('/calls');if(state.current.phase!=='idle')return;
     for(const call of items){
-      if(call.topology!=='p2p')continue;
-      if(call.state==='ringing'&&call.initiatorId!==userId){update({...idle,phase:'incoming',callId:call.id,conversationId:call.conversationId,mode:call.mode});return;}
+      const incoming=()=>update({...idle,phase:'incoming',callId:call.id,conversationId:call.conversationId,mode:call.mode,topology:call.topology});
+      if(call.topology==='sfu'){incoming();return;}
+      if(call.state==='ringing'&&call.initiatorId!==userId){incoming();return;}
       // Refusé par le serveur si l'appel est tenu par une autre session.
       await leave(call.id);
     }
   },[leave,update,userId]);
 
   useEffect(()=>{
+    // Un changement de réseau pendant une conférence est repris par le SDK du SFU.
     const online=()=>{if(peer.current&&state.current.initiator)void offer(true).catch(()=>{});};
     const pagehide=()=>{const {callId,phase}=state.current;if(callId&&phase!=='incoming')void leave(callId,true);};
     window.addEventListener('online',online);window.addEventListener('pagehide',pagehide);
