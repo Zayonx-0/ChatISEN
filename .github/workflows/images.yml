@@ -1,30 +1,47 @@
-name: Cible — images
-# Flux T18 : la CI construit les images et les envoie au registre avec une identité
-# fédérée (aucune clé stockée). L'accès GCP n'est accordé qu'à main et à l'environnement « cible ».
+name: Cible — images et déploiement
+# Flux T18 et T19 : après des tests réussis sur main, la CI construit les images, les envoie
+# au registre et les déploie avec une identité fédérée (aucune clé stockée). L'accès GCP
+# n'est accordé qu'à main et à l'environnement « cible ».
 on:
-  push:
+  workflow_run:
+    workflows: ['R01 — contrôles automatisés']
+    types: [completed]
     branches: [main]
-    paths: ['apps/**', 'packages/**', 'db/**', 'infra/gcp/edge/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/images.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Un seul déploiement à la fois ; un déploiement commencé n'est jamais interrompu.
+concurrency:
+  group: cible
+  cancel-in-progress: false
+
 env:
   REGISTRY: europe-west4-docker.pkg.dev/project-fd23d3d9-a7e8-4002-a7a/chatisen
+  RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   images:
     name: Construire et publier les images
-    if: github.ref == 'refs/heads/main'
+    # Un push de ce dépôt dont les tests ont réussi, ou un lancement manuel sur main.
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: cible
     permissions:
       contents: read
       id-token: write
+    outputs:
+      api: ${{ steps.publish.outputs.api }}
+      edge: ${{ steps.publish.outputs.edge }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE }}
       - id: auth
         uses: google-github-actions/auth@v2
         with:
@@ -37,13 +54,48 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
       - name: Construire et publier
+        id: publish
         run: |
           set -euo pipefail
           publish() {  # nom, Dockerfile
-            docker build --file "$2" --tag "$REGISTRY/$1:$GITHUB_SHA" .
-            docker push --quiet "$REGISTRY/$1:$GITHUB_SHA"
-            digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$1:$GITHUB_SHA")
+            docker build --file "$2" --tag "$REGISTRY/$1:$RELEASE" .
+            docker push --quiet "$REGISTRY/$1:$RELEASE"
+            digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$1:$RELEASE")
+            echo "$1=$digest" >> "$GITHUB_OUTPUT"
             echo "- $1 : \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
           }
           publish api apps/api/Dockerfile
           publish edge infra/gcp/edge/Dockerfile
+
+  deploy:
+    name: Déployer sur la cible
+    needs: images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: cible
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE }}
+      - name: Ignorer une version déjà dépassée
+        id: recent
+        run: |
+          head=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [[ $head == "$RELEASE" ]]; then echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else echo "main a avancé : la version suivante sera déployée." >> "$GITHUB_STEP_SUMMARY"; fi
+      - if: steps.recent.outputs.deploy == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/424540770012/locations/global/workloadIdentityPools/github/providers/chatisen
+          service_account: sa-deploy@project-fd23d3d9-a7e8-4002-a7a.iam.gserviceaccount.com
+      - if: steps.recent.outputs.deploy == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+      - if: steps.recent.outputs.deploy == 'true'
+        name: Migrer, remplacer les VM et vérifier
+        run: bash infra/gcp/cd/deploy.sh "$API_IMAGE" "$EDGE_IMAGE"
+        env:
+          API_IMAGE: ${{ needs.images.outputs.api }}
+          EDGE_IMAGE: ${{ needs.images.outputs.edge }}

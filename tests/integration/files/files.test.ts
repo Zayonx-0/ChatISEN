@@ -68,6 +68,10 @@ test('files: signed upload, server-side verification, membership and single use'
     await h.services.files.sweep();
     assert.ok(!bucket.has(abandoned.key));assert.ok(bucket.has(good.key));
 
+    const refused=await startApp({objects:{...objects,signUpload:async()=>{throw new Error('signBlob: 403');}}});
+    try{const user=await refused.register('refus'),peer=await refused.register('pair');const other=await refused.direct(user,peer);
+      const answer=await refused.call(user,'POST',`/conversations/${other}/files`,declare(pdf));
+      assert.deepEqual([answer.statusCode,answer.json().code],[503,'SERVICE_UNAVAILABLE']);assert.ok(!answer.body.includes('signBlob'));}finally{await refused.close();}
     const without=await startApp();
     try{const user=await without.register('solo'),peer=await without.register('peer');const other=await without.direct(user,peer);
       assert.equal((await without.call(user,'POST',`/conversations/${other}/files`,declare(pdf))).statusCode,503);}finally{await without.close();}

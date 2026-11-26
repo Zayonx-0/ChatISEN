@@ -46,23 +46,23 @@ ChatISEN est une messagerie web avec comptes, conversations privées et de group
 
 | Attendu | Niveau | Conception retenue | État au 26/11 | Critère de recette |
 |---|---|---|---|---|
-| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | Démo en ligne (scrypt). apps/api : Argon2id. | Inscription, connexion, déconnexion, session révoquée refusée. |
-| Private and group messaging | Socle | Modules groups et messaging. | Démo : privé, création de groupe, retrait. apps/api : gestion de groupe complète. | Un tiers ne lit aucun message. |
-| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Démo en ligne. apps/api : reprise par afterSeq. | Après coupure, aucun message perdu ni doublé. |
-| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Démo en ligne avec STUN Google, sans TURN. | Son reçu entre deux réseaux, y compris en relais forcé. |
-| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Démo en ligne avec STUN Google, sans TURN. | Images décodées des deux côtés. |
-| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD automatique après CI verte. | Déploiement reproductible, alerte visible sur panne. |
-| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Admission expérimentale dans apps/api, désactivée par défaut. | Conférence à quatre, pistes reçues. |
-| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | À faire. Table attachments présente. | Envoi et lecture réservés aux membres. |
-| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | À faire. | L'écran partagé est reçu, l'arrêt rend la caméra. |
-| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Reprise WebSocket codée. ICE restart à faire. | Changer de réseau pendant un appel et un échange. |
-| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Table quality_samples seule. | L'indicateur se dégrade sur réseau bridé. |
-| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | owner et member codés. Le reste à faire. | Matrice des droits testée route par route. |
-| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | Cible. La démo a une seule VM. | Arrêt d'une VM : le service continue. |
+| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | Cible : Argon2id, sessions révocables, auth_request, rôle admin et journal d’audit. Démo en ligne : scrypt. | Inscription, connexion, déconnexion, session révoquée refusée. |
+| Private and group messaging | Socle | Modules groups et messaging. | Cible : conversations privées et groupes gérés depuis l’interface. Démo : privé, création et retrait. | Un tiers ne lit aucun message. |
+| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Cible : livraison à 6 sockets à travers le load balancer vérifiée ; reprise afterSeq testée en CI. | Après coupure, aucun message perdu ni doublé. |
+| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Cible : son reçu en direct (deux navigateurs d’un même poste) et par le relais coturn. Reste : deux réseaux distincts. | Son reçu entre deux réseaux, y compris en relais forcé. |
+| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Cible : images décodées des deux côtés, en direct et par le relais. Reste : deux réseaux distincts. | Images décodées des deux côtés. |
+| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Cible : Terraform, déploiement continu, Prometheus, Grafana, Cloud Logging et alerte externe (destinataire à fournir). | Déploiement reproductible, alerte visible sur panne. |
+| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Cible : conférence à trois vérifiée, y compris par le relais ; un membre retiré est sorti de la salle. Reste : à quatre. | Conférence à quatre, pistes reçues. |
+| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Codé et testé en CI. Sur la cible, attend le droit IAM de signature des URL. | Envoi et lecture réservés aux membres. |
+| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Codé. Réception vérifiée en test navigateur à deux avec un écran simulé. Reste : écran réel et conférence. | L'écran partagé est reçu, l'arrêt rend la caméra. |
+| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Reprise WebSocket testée. ICE restart codé, pas encore éprouvé par un changement de réseau. | Changer de réseau pendant un appel et un échange. |
+| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Cible : indicateur affiché, mesures enregistrées et comptées dans Prometheus. Reste : essai sur réseau bridé. | L'indicateur se dégrade sur réseau bridé. |
+| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | Cible : owner, moderator, member et administrateur ; matrice testée route par route en CI. | Matrice des droits testée route par route. |
+| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | Cible : arrêt d’une API (4 échecs sur 295, VM recréée en 7 min) ; mise à jour mesurée sans échec du point de santé (775 requêtes). | Arrêt d'une VM : le service continue. |
 | Performance and load testing | Investigation | k6 pour REST et WebSocket, lk load-test pour le SFU. | À faire. | Rapport avec p95, erreurs et ressources par palier. |
 | Communication quality analysis | Investigation | Mesures getStats() comparées entre direct et relais, réseau bridé. | À faire. | Graphiques perte, gigue et RTT par scénario. |
 | Infrastructure and resource optimisation | Investigation | Mesure CPU, mémoire, trafic TURN, puis dimensionnement et coût. | À faire. | Tableau coût et capacité avant et après. |
-| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests de sécurité partiels dans le dépôt. | Constats classés, corrigés ou assumés. |
+| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests d’accès, de passerelle et de conformité au contrat en CI. Audit de dépendances, Trivy et ZAP à faire. | Constats classés, corrigés ou assumés. |
 | Data analysis | Investigation | Mesures anonymisées de qualité et d'usage, sans contenu. | Script d'amorce analysis/study.py, sans données. | Jeu de données décrit et analyse rejouable. |
 | AI-based feature or proof of concept | Investigation | Détection d'anomalies de qualité d'appel (proposition). | Proposé. | Comparaison avec de simples seuils sur des pannes provoquées. |
 
@@ -114,7 +114,7 @@ Pourquoi pas des microservices maintenant : le projet dure trois semaines, l'éq
 
 Le journal d'événements et l'outbox (schéma `realtime` : streams, events, outbox) appartiennent au noyau. `groups` et `messaging` y écrivent dans leur propre transaction. `notifications` y lit `message.created` et `call.invitation` : `messaging` et `calls` ne le connaissent pas.
 
-**Dette actuelle à rembourser** : `apps/api` est organisé en `identity/`, `chat/` et `calls/`, mais il partage un seul `PostgresRepository`, `calls/` lit directement les tables des conversations, membres et sessions, et les migrations utilisent un schéma unique avec des FK entre domaines. Le passage à la cible : extraire `groups` de `chat/`, créer les ports, puis déplacer les tables par migrations rétrocompatibles.
+**État du code le 26/11** : `apps/api` suit ce découpage (noyau `platform/`, sept modules, un schéma SQL par module, migration 004). Un test de la CI refuse les cycles, les imports qui contournent une façade et les requêtes sur le schéma d'un autre module (`scripts/check-boundaries.mjs`).
 
 **Limite assumée** : dans le monolithe, un contrôle d'accès peut participer à la même transaction que l'écriture (verrou sur le membre pendant l'envoi). Après un découpage en services, ce contrôle deviendrait un appel réseau et la cohérence serait à terme. Il faudrait alors revoir la révocation d'un membre.
 
@@ -125,7 +125,7 @@ Le journal d'événements et l'outbox (schéma `realtime` : streams, events, out
 - **Lecture** : la vue 9 montre l'UML des ressources et des schémas, générés depuis `openapi.yaml`.
 - **Usage prévu** : générer les types du front et du back, importer dans Bruno ou Postman, ajouter en CI un contrôle des réponses réelles.
 
-Écarts voulus avec les routes actuelles : `POST /sessions` au lieu de `/auth/login`, `POST /users` au lieu de `/auth/register`, `/groups/{groupId}/members/{userId}` avec `PUT` et `DELETE` (le transfert de propriété et le départ deviennent des opérations sur la ressource membre), `PATCH /calls/{callId}` au lieu de `/end`. La colonne `x-today` du contrat donne la correspondance. Le contrat testé aujourd'hui reste [packages/contracts](../../packages/contracts/schemas/openapi.json) : la bascule se fera route par route.
+**État du code le 26/11** : `apps/api` sert exactement les opérations d'`openapi.yaml`. Un test de la CI échoue si une route manque ou si une route hors contrat est servie, et valide des réponses réelles contre les schémas. La colonne `x-today` garde la correspondance avec les routes antérieures. [packages/contracts](../../packages/contracts/schemas/openapi.json) est l'ancien contrat du laboratoire R01.
 
 ## Authentification d'un utilisateur
 
@@ -171,7 +171,7 @@ Pourquoi garder Nginx plutôt qu'ajouter Kong ou APISIX : il est déjà là et `
 | Nommer un moderator, transférer la propriété | Non | Non | Oui | Non |
 | Désactiver un compte, lire le journal d'audit | Non | Non | Non | Oui |
 
-Aujourd'hui : `owner` et `member` dans apps/api. L'administrateur ne lit pas les conversations par son rôle. Un accès direct à la base reste possible pour qui administre le projet GCP : il est à limiter par IAM et à journaliser. Il n'y a pas de chiffrement de bout en bout des messages.
+La matrice est codée dans la cible et testée route par route. Le premier administrateur est nommé par l'exploitant (`db/promote-admin.mjs`). L'administrateur ne lit pas les conversations par son rôle. Un accès direct à la base reste possible pour qui administre le projet GCP : il est à limiter par IAM et à journaliser. Il n'y a pas de chiffrement de bout en bout des messages.
 
 ## 5. Temps réel
 
@@ -194,7 +194,7 @@ Mécanismes **déjà codés** dans apps/api : numéro `seq` croissant par conver
 | `notificationclick` | Met au premier plan la fenêtre existante ou en ouvre une sur la conversation. |
 | `pushsubscriptionchange` | Se réabonne avec la même clé VAPID et envoie le nouvel abonnement au serveur. |
 
-**À reprendre pour la cible :** le worker actuel appelle `/api/auth/me` et `/api/push/subscriptions`. Il doit passer à `/api/v1/users/me` et `/api/v1/push-subscriptions`. Le champ `senderName` est une donnée transmise (chiffrée) : à retirer ou à assumer.
+**Cible** : `apps/web/sw/sw.js` appelle `/api/v1/users/me` et `/api/v1/push-subscriptions`. Le champ `senderName` est une donnée transmise (chiffrée) : à retirer ou à assumer.
 
 ## Web Push dans les deux navigateurs
 
@@ -233,7 +233,7 @@ Le **MCD** (vue 8) décrit les objets métier. Le **MLD** (vue 4) les répartit 
 - **PostgreSQL** : données relationnelles, transactions (numéro, message, événement et outbox ensemble), contraintes d'unicité contre les doublons, `LISTEN/NOTIFY` pour le temps réel.
 - **Pas de base NoSQL** : aucun besoin de schéma libre, et les transactions comptent plus que la souplesse. Le contenu des événements utilise déjà `jsonb`.
 - **Fichiers (V2) dans un Object Storage** (Cloud Storage, équivalent de S3 ou Blob Storage) : 1. `POST /conversations/{id}/files` vérifie le membre, le type et la taille ; 2. l'API rend une **URL signée** courte ; 3. le navigateur envoie les octets **directement** au bucket ; 4. `PATCH /files/{id}` confirme, et le serveur contrôle l'objet ; 5. un message référence `fileId`. Les gros envois ne passent pas par les VM applicatives. Le bucket est privé. Un transfert pair-à-pair ne conserverait pas d'historique et exigerait les deux personnes en ligne. Le plafond de 25 Mio du contrat est une proposition.
-- **Aujourd'hui** : le schéma SQL garde les pièces jointes en `bytea` (5 Mio au plus), et seule une ancienne route d'apps/api accepte un envoi, en mémoire.
+- **État du code le 26/11** : ce parcours est codé. La taille, l'empreinte SHA-256 et la signature du type sont vérifiées à la confirmation ; les envois abandonnés sont effacés.
 
 ## 8. Infrastructure et déploiement
 
@@ -358,8 +358,8 @@ Pendant une panne du serveur, un appel **direct déjà établi** peut continuer 
 1. **CI** sur chaque pull request : types, build, tests, Playwright (en place) ; à ajouter : contrôle des dépendances entre modules, validation des deux contrats, `pnpm audit`, Trivy.
 2. **Images** construites une fois, poussées dans Artifact Registry et désignées par digest.
 3. **CD de la démo** (en place) : chaque minute, la VM compare son commit à la tête de `main` et ne le déploie que si la CI a réussi. Copie des données avant redémarrage, contrôle de santé, retour arrière automatique, résultat publié dans `/version.json` et repris par le job GitHub « Déploiement en production ». Aucun secret côté GitHub. Détails dans `ops/gcp/README.md`.
-4. **CD de la cible** (à faire) sur environnement protégé avec approbation : OIDC sans clé stockée, migration par Cloud Run Job, nouveau modèle d'instance, mise à jour d'une VM puis de l'autre, retour arrière sur le digest précédent. Chaque VM démarre ses conteneurs avec Docker Compose.
-5. Les migrations restent rétrocompatibles le temps que deux versions cohabitent.
+4. **CD de la cible** : après une CI réussie sur `main`, identité fédérée sans clé, migration par Cloud Run Job, nouveaux digests posés sur le groupe de VM, remplacement sans retirer une VM avant que sa remplaçante soit saine, retour arrière sur les digests précédents. L'environnement `cible` est limité à `main`, sans approbation manuelle. Détails dans `infra/gcp/README.md`.
+5. Les migrations restent rétrocompatibles le temps que deux versions cohabitent. Seule exception, avant la mise en service : la migration 004, qui répartit les tables en schémas.
 
 ## 13. Travail d'investigation
 
@@ -398,19 +398,21 @@ L'IA proposée n'utilise **ni message ni média** : seulement des mesures résea
 
 ## 14. État réel et écarts
 
-Trois choses existent et ne doivent pas être confondues.
+Deux choses sont en ligne et ne doivent pas être confondues.
 
-| | Démo en ligne | `apps/api` et `apps/web/src` (dépôt) | Cible |
-|---|---|---|---|
-| Serveur | Node sans framework, un fichier (standalone) | Fastify et PostgreSQL, testés en CI, non déployés | Monolithe modulaire sur 2 VM |
-| Interface | HTML et JavaScript sans framework | React 19 et Vite | React servi par Nginx |
-| Données | Fichier JSON | PostgreSQL, schéma unique | Cloud SQL HA, un schéma par module |
-| Authentification | scrypt, session 24 h | Argon2id, session 24 h | Argon2id et auth_request |
-| Appels | Pair-à-pair, STUN Google, sans TURN | Jeton LiveKit expérimental, désactivé | Pair-à-pair et coturn ; SFU en V2 |
-| Notifications Push | Oui | Non | Module notifications |
-| TLS | Caddy et Let's Encrypt | Nginx auto-signé en local | LB, Nginx et coturn |
-| Supervision | /healthz, /readyz, /metrics | Prometheus et Grafana en Compose | VM de supervision et Cloud Logging |
-| Déploiement | Automatique après CI verte : la VM tire le commit | CI GitHub Actions | CD GitHub Actions |
+| | Démo en ligne (branche `standalone`) | Cible (adresse provisoire en sslip.io) |
+|---|---|---|
+| Serveur | Node sans framework, un fichier | Monolithe modulaire Fastify sur 2 VM |
+| Interface | HTML et JavaScript sans framework | React servi par Nginx |
+| Données | Fichier JSON | Cloud SQL HA, un schéma par module |
+| Authentification | scrypt, session 24 h | Argon2id, session 24 h, auth_request |
+| Appels | Pair-à-pair, STUN Google, sans TURN | Pair-à-pair et coturn ; conférences par 2 SFU |
+| Notifications Push | Oui | Oui, vérifiées avec le service Push de Chrome |
+| TLS | Caddy et Let's Encrypt | Load balancer, Nginx et coturn |
+| Supervision | /healthz, /readyz, /metrics | Prometheus, Grafana, Cloud Logging, alerte externe |
+| Déploiement | Automatique après CI verte : la VM tire le commit | Automatique après CI verte : GitHub pousse les digests |
+
+**Reste avant la bascule du domaine** : droit de signature des fichiers, essais d'appel entre deux réseaux distincts, reprise après changement de réseau, destinataire des alertes, import des données de la démo, puis déplacement de l'adresse. Les schémas dessinés n'ont pas encore été régénérés. Les écarts d'infrastructure sont listés dans `infra/gcp/README.md`.
 
 Constats à traiter : `/metrics` de la démo répond publiquement (nombre de comptes et de messages) ; aucune limite de débit sur la connexion ; un arrêt pendant l'écriture du JSON peut le corrompre.
 
