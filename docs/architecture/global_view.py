@@ -378,7 +378,7 @@ COVERAGE = (
         ("Temps réel et historique", "démo", "data"),
         ("Appel audio à deux", "démo (STUN Google)", "data"),
         ("Appel vidéo à deux", "démo (STUN Google)", "data"),
-        ("Déploiement et supervision", "base en démo · CD à faire", "ops"),
+        ("Déploiement et supervision", "démo en CD · Grafana local", "ops"),
     )),
     ("EXTENSIONS", (
         ("Conférences vidéo à plusieurs", "V2 · SFU LiveKit", "ops"),

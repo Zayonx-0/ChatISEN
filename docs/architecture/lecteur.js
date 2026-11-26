@@ -1473,7 +1473,7 @@ const architecture = {
         "Basic deployment and monitoring",
         "Socle",
         "Docker Compose, CD, Prometheus, Grafana, Cloud Logging.",
-        "Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD à faire.",
+        "Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD automatique après CI verte.",
         "Déploiement reproductible, alerte visible sur panne."
       ],
       [

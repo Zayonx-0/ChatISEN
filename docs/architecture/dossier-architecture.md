@@ -51,7 +51,7 @@ ChatISEN est une messagerie web avec comptes, conversations privées et de group
 | Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Démo en ligne. apps/api : reprise par afterSeq. | Après coupure, aucun message perdu ni doublé. |
 | One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Démo en ligne avec STUN Google, sans TURN. | Son reçu entre deux réseaux, y compris en relais forcé. |
 | One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Démo en ligne avec STUN Google, sans TURN. | Images décodées des deux côtés. |
-| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD à faire. | Déploiement reproductible, alerte visible sur panne. |
+| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Démo : VM GCP, sondes et deux compteurs. Compose local avec Grafana. CD automatique après CI verte. | Déploiement reproductible, alerte visible sur panne. |
 | Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Admission expérimentale dans apps/api, désactivée par défaut. | Conférence à quatre, pistes reçues. |
 | File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | À faire. Table attachments présente. | Envoi et lecture réservés aux membres. |
 | Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | À faire. | L'écran partagé est reçu, l'arrêt rend la caméra. |
@@ -357,8 +357,9 @@ Pendant une panne du serveur, un appel **direct déjà établi** peut continuer 
 
 1. **CI** sur chaque pull request : types, build, tests, Playwright (en place) ; à ajouter : contrôle des dépendances entre modules, validation des deux contrats, `pnpm audit`, Trivy.
 2. **Images** construites une fois, poussées dans Artifact Registry et désignées par digest.
-3. **CD** (à faire) sur environnement protégé avec approbation : OIDC sans clé stockée, migration par Cloud Run Job, nouveau modèle d'instance, mise à jour d'une VM puis de l'autre, retour arrière sur le digest précédent. Chaque VM démarre ses conteneurs avec Docker Compose.
-4. Les migrations restent rétrocompatibles le temps que deux versions cohabitent.
+3. **CD de la démo** (en place) : chaque minute, la VM compare son commit à la tête de `main` et ne le déploie que si la CI a réussi. Copie des données avant redémarrage, contrôle de santé, retour arrière automatique, résultat publié dans `/version.json` et repris par le job GitHub « Déploiement en production ». Aucun secret côté GitHub. Détails dans `ops/gcp/README.md`.
+4. **CD de la cible** (à faire) sur environnement protégé avec approbation : OIDC sans clé stockée, migration par Cloud Run Job, nouveau modèle d'instance, mise à jour d'une VM puis de l'autre, retour arrière sur le digest précédent. Chaque VM démarre ses conteneurs avec Docker Compose.
+5. Les migrations restent rétrocompatibles le temps que deux versions cohabitent.
 
 ## 13. Travail d'investigation
 
@@ -409,7 +410,7 @@ Trois choses existent et ne doivent pas être confondues.
 | Notifications Push | Oui | Non | Module notifications |
 | TLS | Caddy et Let's Encrypt | Nginx auto-signé en local | LB, Nginx et coturn |
 | Supervision | /healthz, /readyz, /metrics | Prometheus et Grafana en Compose | VM de supervision et Cloud Logging |
-| Déploiement | Manuel sur une VM | CI GitHub Actions | CD GitHub Actions |
+| Déploiement | Automatique après CI verte : la VM tire le commit | CI GitHub Actions | CD GitHub Actions |
 
 Constats à traiter : `/metrics` de la démo répond publiquement (nombre de comptes et de messages) ; aucune limite de débit sur la connexion ; un arrêt pendant l'écriture du JSON peut le corrompre.
 

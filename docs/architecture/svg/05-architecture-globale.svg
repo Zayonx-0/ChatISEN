@@ -207,7 +207,7 @@ text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fi
 <text x="44" y="1670" class="small" text-anchor="start">Appel vidéo à deux</text>
 <text x="562" y="1670" class="id data" text-anchor="end">démo (STUN Google)</text>
 <text x="44" y="1696" class="small" text-anchor="start">Déploiement et supervision</text>
-<text x="562" y="1696" class="id ops" text-anchor="end">base en démo · CD à faire</text>
+<text x="562" y="1696" class="id ops" text-anchor="end">démo en CD · Grafana local</text>
 <rect x="582" y="1517" width="534" height="26" rx="5" fill="#eef2f8" stroke="none" stroke-width="1.2"/>
 <text x="590" y="1535" class="section" text-anchor="start">EXTENSIONS</text>
 <text x="590" y="1566" class="small" text-anchor="start">Conférences vidéo à plusieurs</text>
