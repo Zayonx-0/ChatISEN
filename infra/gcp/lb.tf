@@ -9,10 +9,10 @@ resource "tls_private_key" "lb_initial" {
 resource "tls_self_signed_cert" "lb_initial" {
   private_key_pem       = tls_private_key.lb_initial.private_key_pem
   validity_period_hours = 24 * 30
-  dns_names             = [local.web_host]
+  dns_names             = [local.sslip_host]
   allowed_uses          = ["key_encipherment", "digital_signature", "server_auth"]
   subject {
-    common_name = local.web_host
+    common_name = local.sslip_host
   }
 }
 
@@ -79,7 +79,8 @@ resource "google_compute_region_target_https_proxy" "web" {
   url_map          = google_compute_region_url_map.https[0].id
   ssl_certificates = [google_compute_region_ssl_certificate.initial.id]
   lifecycle {
-    ignore_changes = [ssl_certificates] # le certificat public est posé après l'émission ACME
+    # Les certificats publics sont posés hors Terraform : leurs clés restent hors de l'état.
+    ignore_changes = [ssl_certificates]
   }
 }
 
@@ -160,7 +161,7 @@ resource "google_cloud_run_v2_job" "migrate" {
         }
       }
       containers {
-        image   = var.api_image
+        image = var.api_image
         # Les arguments sont remplaçables à l'exécution, par exemple pour nommer un administrateur.
         command = ["node"]
         args    = ["db/migrate.mjs"]

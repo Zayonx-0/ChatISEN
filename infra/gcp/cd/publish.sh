@@ -11,7 +11,8 @@ dockerfile=${2:?usage: publish.sh <nom> <Dockerfile>}
 : "${REGISTRY:?}" "${RELEASE:?}"
 
 # Tout ce que les deux Dockerfile copient. Un fichier ajouté ailleurs doit être ajouté ici.
-sources=(apps packages db infra/gcp/edge package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json)
+sources=(apps packages db infra/gcp/edge package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json
+  docs/architecture/index.html docs/architecture/lecteur.js docs/architecture/svg)
 content=$(git ls-tree -r HEAD -- "${sources[@]}" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-40)
 tag=$REGISTRY/$name:src-$content
 

@@ -39,6 +39,8 @@ export async function setDisabled(db:Queryable,id:string,disabled:boolean){
   await db.query('update identity.users set disabled_at=case when $2 then coalesce(disabled_at,now()) end where id=$1',[id,disabled]);
 }
 
+export async function setPasswordHash(db:Queryable,id:string,hash:string){await db.query('update identity.users set password_hash=$2 where id=$1',[id,hash]);}
+
 export async function insertSession(db:Queryable,userId:string,hash:Buffer,hours:number){
   await db.query(`insert into identity.sessions(user_id,token_hash,expires_at,absolute_expires_at)
     values($1,$2,now()+make_interval(hours=>$3),now()+make_interval(hours=>$3))`,[userId,hash,hours]);

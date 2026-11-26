@@ -71,7 +71,7 @@ resource "google_storage_bucket" "files" {
   labels                      = local.labels
 
   cors {
-    origin          = ["https://ia-pple.isen.fedyna.fr", "https://${local.web_host}"]
+    origin          = distinct(["https://ia-pple.isen.fedyna.fr", "https://${local.web_host}", "https://${local.sslip_host}"])
     method          = ["GET", "PUT", "HEAD"]
     response_header = ["Content-Type", "Content-Length", "x-goog-content-length-range"]
     max_age_seconds = 3600
