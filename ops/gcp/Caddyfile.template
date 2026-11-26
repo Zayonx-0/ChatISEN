@@ -14,6 +14,12 @@ CHATISEN_DOMAIN {
         }
         respond 404
     }
+    # Version en service, écrite par l'agent de déploiement continu.
+    handle /version.json {
+        header Cache-Control no-store
+        root * /var/lib/chatisen-deploy/public
+        file_server
+    }
     handle {
         reverse_proxy 127.0.0.1:3000
     }
