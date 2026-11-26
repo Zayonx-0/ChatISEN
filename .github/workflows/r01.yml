@@ -2,7 +2,7 @@ name: R01 — contrôles automatisés
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [standalone]
   workflow_dispatch:
 permissions:
   contents: read
@@ -75,7 +75,7 @@ jobs:
   deploy:
     name: Déploiement en production
     needs: checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/standalone'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     permissions: {}

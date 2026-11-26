@@ -21,7 +21,7 @@ install -d -o root -g root -m 700 /var/backups/chatisen /etc/chatisen
 install -o root -g root -m 755 "$here/chatisen_deploy.py" /usr/local/sbin/chatisen-deploy
 install -o root -g root -m 644 "$here/chatisen-deploy.service" /etc/systemd/system/chatisen-deploy.service
 install -o root -g root -m 644 "$here/chatisen-deploy.timer" /etc/systemd/system/chatisen-deploy.timer
-printf 'CHATISEN_CD_VIEWER_URL=https://%s/architecture/\n' "$domain" > /etc/chatisen/deploy.env
+printf 'CHATISEN_CD_BRANCH=standalone\nCHATISEN_CD_VIEWER_URL=https://%s/architecture/\n' "$domain" > /etc/chatisen/deploy.env
 chmod 600 /etc/chatisen/deploy.env
 
 # Seul le bloc HTTPS du domaine est remplacé ; les autres blocs sont conservés.

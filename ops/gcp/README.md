@@ -16,7 +16,7 @@ La signalisation WebRTC utilise HTTPS/WSS et, dans ce profil, un serveur STUN pu
 
 ## Déploiement continu
 
-Une fois l'agent installé, tout commit fusionné dans `main` est mis en production sans action manuelle.
+Cette branche `standalone` porte la démo. `main` porte l'architecture cible. Une fois l'agent installé, tout commit poussé sur `standalone` est mis en production sans action manuelle.
 
 1. GitHub Actions lance les contrôles (`Builds, tests et configuration Compose`).
 2. Chaque minute, la VM compare son commit à la tête de `main`. Si elle diffère, l'agent lit le résultat de ce contrôle par l'API publique de GitHub.
