@@ -161,7 +161,9 @@ resource "google_cloud_run_v2_job" "migrate" {
       }
       containers {
         image   = var.api_image
-        command = ["node", "db/migrate.mjs"]
+        # Les arguments sont remplaçables à l'exécution, par exemple pour nommer un administrateur.
+        command = ["node"]
+        args    = ["db/migrate.mjs"]
         env {
           name = "DATABASE_URL"
           value_source {
@@ -173,6 +175,10 @@ resource "google_cloud_run_v2_job" "migrate" {
         }
       }
     }
+  }
+  # Après sa création, l'image de la tâche suit le déploiement continu.
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
   }
   depends_on = [google_secret_manager_secret_version.migration_url, google_secret_manager_secret_iam_member.migration_url]
 }

@@ -1,10 +1,10 @@
 # Contrat REST de la cible ChatISEN (API-first). Ce fichier précède le code : il fixe l'interface front ↔ back.
-# Le contrat exécuté par les tests actuels reste packages/contracts/schemas/openapi.json.
+# La CI vérifie que apps/api sert exactement ces opérations (tests/integration/conformance.test.ts).
 #
 # Extensions propres au projet :
 #   x-module : module propriétaire dans le monolithe modulaire
 #   x-scope  : mvp (obligatoire), mvp-plus (déjà fait en plus), v2 (extension prévue)
-#   x-code   : etat du code au 26/11 -> api (apps/api, PostgreSQL, non déployé),
+#   x-code   : etat du code au 26/11 -> api (apps/api, PostgreSQL, cible),
 #              demo (serveur standalone en ligne), a-faire
 #   x-today  : route(s) actuelles correspondantes
 openapi: 3.1.0
@@ -83,7 +83,7 @@ paths:
       summary: Modifier son nom affiché
       x-module: identity
       x-scope: mvp
-      x-code: [a-faire]
+      x-code: [api]
       parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
       requestBody: { $ref: '#/components/requestBodies/UpdateUser' }
       responses:
@@ -100,7 +100,7 @@ paths:
       summary: Changer le rôle global ou désactiver un compte (administrateur)
       x-module: identity
       x-scope: v2
-      x-code: [a-faire]
+      x-code: [api]
       parameters:
         - { $ref: '#/components/parameters/UserId' }
         - { $ref: '#/components/parameters/CsrfToken' }
@@ -360,7 +360,7 @@ paths:
       summary: Retrouver les appels qui sonnent (reprise après rechargement)
       x-module: calls
       x-scope: mvp
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: GET /api/calls/incoming
       parameters:
         - { name: state, in: query, required: true, schema: { type: string, enum: [ringing, active] } }
@@ -392,7 +392,7 @@ paths:
       summary: Accepter, refuser ou quitter un appel
       x-module: calls
       x-scope: mvp
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: POST /api/calls/{id}/answer
       parameters:
         - { $ref: '#/components/parameters/CallId' }
@@ -412,7 +412,7 @@ paths:
         Une nouvelle offre avec iceRestart sert à reprendre un appel après un changement de réseau (V2).
       x-module: calls
       x-scope: mvp
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: POST /api/calls/{id}/signal
       parameters:
         - { $ref: '#/components/parameters/CallId' }
@@ -430,7 +430,7 @@ paths:
       summary: Obtenir les serveurs STUN/TURN ChatISEN et des identifiants courts
       x-module: calls
       x-scope: mvp
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: GET /api/config (STUN seul, sans identifiants)
       responses:
         '200':
@@ -463,7 +463,7 @@ paths:
       summary: Lire la clé publique VAPID
       x-module: notifications
       x-scope: mvp-plus
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: GET /api/push/config
       responses:
         '200':
@@ -476,7 +476,7 @@ paths:
       summary: Enregistrer l'abonnement du navigateur courant
       x-module: notifications
       x-scope: mvp-plus
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: POST /api/push/subscriptions
       parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
       requestBody: { $ref: '#/components/requestBodies/CreatePushSubscription' }
@@ -493,7 +493,7 @@ paths:
       summary: Désactiver les notifications de ce navigateur
       x-module: notifications
       x-scope: mvp-plus
-      x-code: [demo]
+      x-code: [api, demo]
       x-today: DELETE /api/push/subscriptions
       parameters:
         - { name: subscriptionId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
@@ -512,7 +512,7 @@ paths:
         les octets directement à Cloud Storage : ils ne traversent pas les VM applicatives.
       x-module: files
       x-scope: v2
-      x-code: [a-faire]
+      x-code: [api]
       x-today: Aucun équivalent (l'ancienne route /api garde 5 Mio en mémoire)
       parameters:
         - { $ref: '#/components/parameters/ConversationId' }
@@ -531,7 +531,7 @@ paths:
       summary: Confirmer la fin de l'envoi (le serveur vérifie l'objet)
       x-module: files
       x-scope: v2
-      x-code: [a-faire]
+      x-code: [api]
       parameters:
         - { $ref: '#/components/parameters/FileId' }
         - { $ref: '#/components/parameters/CsrfToken' }
@@ -547,7 +547,7 @@ paths:
       summary: Obtenir les métadonnées et une URL de téléchargement signée
       x-module: files
       x-scope: v2
-      x-code: [a-faire]
+      x-code: [api]
       parameters: [{ $ref: '#/components/parameters/FileId' }]
       responses:
         '200':
@@ -562,7 +562,7 @@ paths:
       summary: Envoyer des mesures getStats() par lot
       x-module: quality
       x-scope: v2
-      x-code: [a-faire]
+      x-code: [api]
       x-today: Table quality_samples présente, aucune route
       parameters:
         - { $ref: '#/components/parameters/CallId' }

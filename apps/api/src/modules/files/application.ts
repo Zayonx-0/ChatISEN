@@ -13,11 +13,14 @@ const unknownFile=()=>notFound('Fichier indisponible');
 
 export class FileService implements FileCatalog{
   private allowed=budget(20);
-  constructor(private db:Database,private access:AccessPolicy,private objects:ObjectStore|undefined){}
+  constructor(private db:Database,private access:AccessPolicy,private objects:ObjectStore|undefined,private onError:(error:unknown)=>void=()=>{}){}
 
   private storage(){
     if(!this.objects)throw new Failure('unavailable','Le partage de fichiers n’est pas configuré');
     return this.objects;
+  }
+  private async signed<T>(sign:Promise<T>):Promise<T>{
+    return sign.catch(error=>{this.onError(error);throw new Failure('unavailable','Le partage de fichiers est momentanément indisponible');});
   }
   attachable(tx:Tx,fileId:string,conversationId:string,userId:string){return store.attachable(tx,fileId,conversationId,userId);}
 
@@ -26,7 +29,7 @@ export class FileService implements FileCatalog{
     const objects=this.storage();
     if(!this.allowed(userId)||await store.pendingCount(this.db.pool,userId)>=20)throw new Failure('rate_limited','Trop d’envois en attente');
     const id=randomUUID(),key=`conversations/${conversationId}/${id}`;
-    const upload=await objects.signUpload(key,file.mediaType,file.size,uploadSeconds);
+    const upload=await this.signed(objects.signUpload(key,file.mediaType,file.size,uploadSeconds));
     const row=await store.insert(this.db.pool,{id,conversation_id:conversationId,owner_id:userId,file_name:file.fileName,media_type:file.mediaType,size_bytes:file.size,sha256:Buffer.from(file.sha256,'hex'),object_key:key});
     return {file:dto(row),uploadUrl:upload.url,headers:upload.headers,expiresAt:expiry(uploadSeconds)};
   }
@@ -58,7 +61,7 @@ export class FileService implements FileCatalog{
   async download(fileId:string,userId:string){
     const row=await this.visible(fileId,userId);
     if(row.state!=='available')throw unknownFile();
-    return {file:dto(row),downloadUrl:await this.storage().signDownload(row.object_key,row.file_name,downloadSeconds),expiresAt:expiry(downloadSeconds)};
+    return {file:dto(row),downloadUrl:await this.signed(this.storage().signDownload(row.object_key,row.file_name,downloadSeconds)),expiresAt:expiry(downloadSeconds)};
   }
 
   async sweep(){

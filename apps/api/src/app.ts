@@ -46,7 +46,7 @@ export async function buildApp(options:AppOptions){
 
   const identity=new IdentityService(db,hooks);
   const groups=new GroupService(db,identity,identity,report('List change notification failed'));
-  const files=new FileService(db,groups,setting('objects',()=>process.env.FILES_BUCKET?gcsStore(process.env.FILES_BUCKET):undefined));
+  const files=new FileService(db,groups,setting('objects',()=>process.env.FILES_BUCKET?gcsStore(process.env.FILES_BUCKET):undefined),report('Object storage signing failed'));
   const messages=new MessageService(db,groups,files);
   const calls=new CallService(db,groups,identity,setting('media',()=>livekitFromEnv()));
   const quality=new QualityService(db,calls);

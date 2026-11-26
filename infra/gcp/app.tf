@@ -106,4 +106,8 @@ resource "google_compute_region_instance_group_manager" "app" {
     max_unavailable_fixed        = 0
     instance_redistribution_type = "PROACTIVE"
   }
+  # Les digests en service sont posés par le déploiement continu (cd/deploy.sh).
+  lifecycle {
+    ignore_changes = [all_instances_config]
+  }
 }

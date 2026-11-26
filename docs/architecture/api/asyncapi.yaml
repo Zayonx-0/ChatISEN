@@ -1,6 +1,6 @@
 # Contrat temps réel de la cible ChatISEN. OpenAPI décrit le REST ; AsyncAPI décrit ce qui circule sur la WebSocket.
 # Un seul socket par onglet, découpé en topics. Les enveloppes reprennent packages/contracts/schemas/ws.json.
-# x-code : api = apps/api (non déployé), demo = serveur en ligne (format plus simple), a-faire.
+# x-code : api = apps/api (cible), demo = serveur en ligne (format plus simple), a-faire.
 asyncapi: 3.0.0
 info:
   title: ChatISEN WebSocket
@@ -306,8 +306,8 @@ components:
               data: { type: object, required: [userId], properties: { userId: { $ref: '#/components/schemas/Uuid' } } }
     conversationListChanged:
       name: conversation_list_changed
-      summary: Recharger la liste des conversations (déclaré dans le contrat, pas encore émis)
-      x-code: [a-faire]
+      summary: Recharger la liste des conversations ; reason vaut message ou conversation
+      x-code: [api]
       payload:
         type: object
         required: [v, type]
@@ -315,7 +315,7 @@ components:
     callInvitation:
       name: call.invitation
       summary: Un appel entrant sonne
-      x-code: [demo]
+      x-code: [api, demo]
       payload:
         allOf:
           - { $ref: '#/components/schemas/UserEvent' }
@@ -325,7 +325,7 @@ components:
     callUpdated:
       name: call.updated
       summary: Appel accepté, refusé, terminé ou expiré
-      x-code: [demo]
+      x-code: [api, demo]
       payload:
         allOf:
           - { $ref: '#/components/schemas/UserEvent' }
@@ -335,7 +335,7 @@ components:
     callSignal:
       name: call.signal
       summary: Offre, réponse ou candidat ICE du correspondant
-      x-code: [demo]
+      x-code: [api, demo]
       payload:
         allOf:
           - { $ref: '#/components/schemas/UserEvent' }
