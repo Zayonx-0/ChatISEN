@@ -44,6 +44,7 @@ resource "google_compute_instance_template" "app" {
     proxy-cidr     = google_compute_subnetwork.proxy.ip_cidr_range
     acme-upstream  = local.ops_ip
     turn-host      = local.turn_host
+    files-bucket   = google_storage_bucket.files.name
     # Noms DNS internes, écrits sans référence aux VM pour garder les cycles de vie séparés.
     sfu-1-host     = "chatisen-sfu-1.${local.zones[0]}.c.${var.project}.internal"
     sfu-2-host     = "chatisen-sfu-2.${local.zones[1]}.c.${var.project}.internal"

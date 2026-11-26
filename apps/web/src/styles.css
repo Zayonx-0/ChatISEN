@@ -42,3 +42,40 @@ button:focus-visible, input:focus-visible { outline: 3px solid #5271d7; outline-
 .toast{position:fixed;right:16px;bottom:16px;background:#1f2a44;color:#fff;padding:12px 16px;border-radius:12px;z-index:40;max-width:min(360px,calc(100% - 32px))}
 .badge{margin-left:auto;background:#3b5bdb;color:#fff;border-radius:999px;min-width:22px;padding:1px 7px;font-size:.8rem;text-align:center}
 .push-hint{font-size:.8rem;color:#b35c00}
+
+/* Recherche, groupes, pièces jointes et administration */
+.result{display:grid;gap:4px}
+.group-panel{flex:none;max-height:45%;overflow:auto;padding:14px 28px;border-bottom:1px solid #e5eaf2;display:grid;gap:10px;background:#fff}
+.group-panel-head{display:flex;justify-content:space-between;align-items:center}
+.group-panel-head h2,.group-panel-head h3,.group-panel h3{margin:0;font-size:1rem}
+.group-panel ul,.audit{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.group-panel li,.audit li{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.group-panel small,.audit small{color:#637089}
+.member-actions{display:flex;gap:6px;flex-wrap:wrap}
+.member-actions button,.group-rename button,.audit button{border:1px solid #d3dcf5;background:#fff;border-radius:8px;padding:5px 9px;font-size:.82rem}
+.group-rename{display:flex;gap:8px}
+.group-rename input{flex:1;min-width:0;border:1px solid #d9e0ed;border-radius:8px;padding:8px 10px}
+.group-panel button:disabled{opacity:.5;cursor:default}
+.group-panel .danger-text,.member-actions .danger-text{color:#c92a2a;background:none}
+.group-panel>.danger-text{justify-self:start;padding:4px 0}
+.attachment{display:flex;align-items:center;gap:6px;margin-top:6px;padding:7px 10px;border-radius:8px;background:#0000000d;color:inherit;max-width:100%}
+.mine .attachment{background:#ffffff26}
+.attachment span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.attachment small{opacity:.7}
+.attachment-error{font-size:.85rem;opacity:.75}
+.attached{flex:none;display:flex;justify-content:space-between;gap:10px;margin:0 7%;padding:8px 12px;background:#eef3ff;border-radius:8px;font-size:.9rem}
+.attached button{background:none;color:inherit}
+.composer .icon{height:auto;width:44px}
+.admin-panel{width:min(100%,640px)}
+@media (max-width:800px){.group-panel{padding-inline:12px}.attached{margin-inline:12px}.status .ghost{font-size:.75rem}header{height:auto;min-height:70px;flex-wrap:wrap}.status{flex-wrap:wrap;justify-content:flex-end}}
+
+/* Conférence */
+.conference-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;min-height:160px}
+.tile{position:relative;margin:0;background:#0f172a;border-radius:10px;aspect-ratio:16/9;overflow:hidden;display:grid;place-items:center;border:2px solid transparent}
+.tile.speaking{border-color:#40c057}
+.tile.screen{grid-column:1/-1}
+.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile.screen video{object-fit:contain}
+.tile video.mirrored{transform:scaleX(-1)}
+.tile .avatar{z-index:1}
+.tile figcaption{position:absolute;left:8px;bottom:6px;z-index:2;color:#fff;background:#0f172ab3;border-radius:6px;padding:2px 8px;font-size:.8rem}

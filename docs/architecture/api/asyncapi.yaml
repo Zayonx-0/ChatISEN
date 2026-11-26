@@ -41,6 +41,7 @@ channels:
       messageCreated: { $ref: '#/components/messages/messageCreated' }
       conversationRenamed: { $ref: '#/components/messages/conversationRenamed' }
       memberAdded: { $ref: '#/components/messages/memberAdded' }
+      memberRoleChanged: { $ref: '#/components/messages/memberRoleChanged' }
       memberRemoved: { $ref: '#/components/messages/memberRemoved' }
       memberLeft: { $ref: '#/components/messages/memberLeft' }
       ownerTransferred: { $ref: '#/components/messages/ownerTransferred' }
@@ -90,6 +91,7 @@ operations:
       - { $ref: '#/channels/conversation/messages/messageCreated' }
       - { $ref: '#/channels/conversation/messages/conversationRenamed' }
       - { $ref: '#/channels/conversation/messages/memberAdded' }
+      - { $ref: '#/channels/conversation/messages/memberRoleChanged' }
       - { $ref: '#/channels/conversation/messages/memberRemoved' }
       - { $ref: '#/channels/conversation/messages/memberLeft' }
       - { $ref: '#/channels/conversation/messages/ownerTransferred' }
@@ -252,6 +254,16 @@ components:
           - properties:
               event: { const: conversation.member_added }
               data: { $ref: '#/components/schemas/MembershipChange' }
+    memberRoleChanged:
+      name: conversation.member_role_changed
+      summary: Rôle moderator donné ou retiré
+      x-code: [api]
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/ConversationEvent' }
+          - properties:
+              event: { const: conversation.member_role_changed }
+              data: { type: object, required: [userId, role, actorId], properties: { userId: { $ref: '#/components/schemas/Uuid' }, role: { enum: [moderator, member] }, actorId: { $ref: '#/components/schemas/Uuid' } } }
     memberRemoved:
       name: conversation.member_removed
       summary: Membre retiré, son abonnement est coupé

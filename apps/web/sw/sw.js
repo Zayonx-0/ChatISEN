@@ -37,7 +37,7 @@ self.addEventListener('pushsubscriptionchange', event => {
     const key = event.oldSubscription?.options.applicationServerKey;
     if (!key) return;
     const subscription = await self.registration.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: key});
-    const profile = await fetch('/api/v1/me', {credentials: 'include'});
+    const profile = await fetch('/api/v1/users/me', {credentials: 'include'});
     if (!profile.ok) { await subscription.unsubscribe(); return; }
     const {csrfToken} = await profile.json();
     const {endpoint, keys} = subscription.toJSON();

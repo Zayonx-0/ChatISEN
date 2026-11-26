@@ -111,6 +111,23 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/UserPublic' } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /audit-events:
+    get:
+      tags: [identity]
+      operationId: listAuditEvents
+      summary: Lire le journal d'audit (administrateur)
+      x-module: identity
+      x-scope: v2
+      x-code: [api]
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: beforeId, in: query, required: false, schema: { type: string, pattern: '^[1-9][0-9]*$' } }
+      responses:
+        '200':
+          description: Entrées de la plus récente à la plus ancienne
+          content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventPage' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /sessions:
     post:
       tags: [identity]
@@ -228,7 +245,7 @@ paths:
       x-scope: mvp
       x-code: [api]
       x-today: POST /api/v1/conversations/{id}/members/{userId} et POST /api/v1/conversations/{id}/transfer
-      description: Les rôles owner et member existent dans le code. Le rôle moderator est une extension V2.
+      description: Ajouter, nommer un moderator et transférer la propriété sont réservés au propriétaire.
       parameters:
         - { $ref: '#/components/parameters/GroupId' }
         - { $ref: '#/components/parameters/UserId' }
@@ -322,6 +339,7 @@ paths:
       tags: [calls]
       operationId: createCall
       summary: Lancer un appel audio ou vidéo
+      description: Dans un groupe dont une conférence est ouverte, celle-ci est renvoyée (200) pour être rejointe.
       x-module: calls
       x-scope: mvp
       x-code: [api, demo]
@@ -672,6 +690,24 @@ components:
         displayName: { $ref: '#/components/schemas/DisplayName' }
         createdAt: { $ref: '#/components/schemas/DateTime' }
         csrfToken: { type: string }
+        globalRole: { type: string, enum: [user, admin] }
+    AuditEvent:
+      type: object
+      required: [id, actorId, action, targetType, targetId, detail, at]
+      properties:
+        id: { type: string }
+        actorId: { $ref: '#/components/schemas/Uuid' }
+        action: { type: string, examples: [group.role_changed] }
+        targetType: { type: string, enum: [user, conversation] }
+        targetId: { $ref: '#/components/schemas/Uuid' }
+        detail: { type: object }
+        at: { $ref: '#/components/schemas/DateTime' }
+    AuditEventPage:
+      type: object
+      required: [items, nextBeforeId]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AuditEvent' } }
+        nextBeforeId: { type: [string, 'null'] }
     UserList:
       type: object
       required: [items]
@@ -887,6 +923,7 @@ components:
       properties:
         file: { $ref: '#/components/schemas/File' }
         uploadUrl: { type: string, format: uri, description: URL signée Cloud Storage }
+        headers: { type: object, additionalProperties: { type: string }, description: En-têtes signés que l'envoi PUT doit reprendre }
         expiresAt: { $ref: '#/components/schemas/DateTime' }
     CompleteFileRequest:
       type: object
