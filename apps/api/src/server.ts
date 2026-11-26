@@ -1,6 +1,7 @@
 import Fastify, {FastifyReply,FastifyRequest} from 'fastify';
 import cookie from '@fastify/cookie'; import cors from '@fastify/cors'; import multipart from '@fastify/multipart'; import websocket from '@fastify/websocket';
 import {randomUUID,createHash} from 'node:crypto';
+import {createServer} from 'node:http';
 import {memory,now,hash,token,addUser,addSession,findSession,createConversation,isMember,appendMessage,listMessages,key,pub,id} from './store.js';
 import {passwordHash,passwordVerify,csrfFor,csrfOk} from './security.js';
 import {broadcast,add,channelCount} from './ws.js'; import {registry,requests,messages,activeSockets} from './metrics.js';
@@ -26,7 +27,9 @@ function publicMessage(m:Message){const u=memory.users.get(m.senderId);return {.
 
 app.get('/healthz',async()=>({status:'ok',service:'chatisen-api',time:now()}));
 app.get('/readyz',async(_req,reply)=>{if(!postgres)return {status:'ready',database:'memory-fallback',version:'1.1.0'};try{await postgres.ping();return {status:'ready',database:'postgres',version:'1.1.0'};}catch{return reply.code(503).send({status:'unavailable',database:'postgres'});}});
-app.get('/metrics',async(_req,reply)=>{reply.header('Content-Type',registry.contentType);return registry.metrics();});
+// Avec METRICS_PORT, les métriques quittent le port applicatif : seul Prometheus joint ce second port.
+const metricsPort=Number(process.env.METRICS_PORT||0);
+if(!metricsPort)app.get('/metrics',async(_req,reply)=>{reply.header('Content-Type',registry.contentType);return registry.metrics();});
 
 app.post('/api/auth/register',async(req,reply)=>{const b=req.body as any;const handle=String(b?.handle||'').trim().toLowerCase();const displayName=String(b?.displayName||handle).trim();const password=String(b?.password||'');if(!/^[a-z0-9_]{3,30}$/.test(handle)||password.length<8)return reply.code(400).send({error:{code:'VALIDATION_ERROR',message:'handle ou mot de passe invalide'}});if([...memory.users.values()].some(u=>u.handle===handle))return reply.code(409).send({error:{code:'HANDLE_TAKEN',message:'Identifiant déjà utilisé'}});const u=addUser(handle,displayName,await passwordHash(password));const {raw}=addSession(u.id,Number(process.env.SESSION_TTL_HOURS||24));reply.setCookie('__Host-chatisen',raw,{httpOnly:true,secure:process.env.COOKIE_SECURE==='true',sameSite:'lax',path:'/',maxAge:86400});return reply.code(201).send({user:publicUser(u),csrf:csrfFor(raw)});});
 app.post('/api/auth/login',async(req,reply)=>{const b=req.body as any;const handle=String(b?.handle||'').toLowerCase();const u=[...memory.users.values()].find(x=>x.handle===handle);if(!u||!(await passwordVerify(u.passwordHash,String(b?.password||''))))return reply.code(401).send({error:{code:'INVALID_CREDENTIALS',message:'Identifiants invalides'}});const {raw}=addSession(u.id,Number(process.env.SESSION_TTL_HOURS||24));reply.setCookie('__Host-chatisen',raw,{httpOnly:true,secure:process.env.COOKIE_SECURE==='true',sameSite:'lax',path:'/',maxAge:86400});return {user:publicUser(u),csrf:csrfFor(raw)};});
@@ -62,6 +65,7 @@ app.get('/api/ws',{websocket:true,preValidation:async(req,reply)=>{
 });
 
 const port=Number(process.env.PORT||3000);const host=process.env.HOST||'0.0.0.0';
-export async function start(){await app.listen({port,host});app.log.info({port,host},'ChatISEN API ready');return app;}
+async function startMetrics(listenPort:number){const server=createServer((req,res)=>{if(req.url!=='/metrics'){res.writeHead(404).end();return;}registry.metrics().then(body=>{res.writeHead(200,{'Content-Type':registry.contentType});res.end(body);}).catch(()=>res.writeHead(500).end());});await new Promise<void>((ok,fail)=>{server.once('error',fail);server.listen(listenPort,host,()=>ok());});app.addHook('onClose',async()=>{server.close();});}
+export async function start(){if(metricsPort)await startMetrics(metricsPort);await app.listen({port,host});app.log.info({port,host},'ChatISEN API ready');return app;}
 if(import.meta.url===`file://${process.argv[1]}`)start().catch(e=>{app.log.error(e);process.exit(1);});
 export default app;

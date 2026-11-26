@@ -12,3 +12,10 @@ infra/edge/certs/
 /test-results/
 /artifacts/playwright-results/
 /artifacts/playwright-report/
+
+# Terraform : l’état contient des secrets et vit dans un bucket privé.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
