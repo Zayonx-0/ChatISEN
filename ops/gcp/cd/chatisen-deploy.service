@@ -1,0 +1,19 @@
+[Unit]
+Description=ChatISEN : déploiement continu (un passage)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/chatisen/deploy.env
+ExecStart=/usr/bin/python3 -I /usr/local/sbin/chatisen-deploy
+TimeoutStartSec=300
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/opt/chatisen/app
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
