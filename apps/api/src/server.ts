@@ -8,14 +8,22 @@ import {broadcast,add,channelCount} from './ws.js'; import {registry,requests,me
 import type {User,Conversation,Message,Call} from './types.js';
 import {PostgresRepository} from './repositories/postgres.js';
 import {registerPostgresIdentity} from './identity/postgres-routes.js';
+import {onSessionRevoked} from './kernel/session-hooks.js';
 import {registerPostgresChat} from './chat/postgres-routes.js';
 import {registerPostgresWebsocket} from './chat/postgres-websocket.js';
-import {registerPostgresCalls} from './calls/postgres-routes.js';
+import {registerCalls} from './modules/calls/routes.js';
+import {CallService} from './modules/calls/service.js';
+import {registerNotifications} from './modules/notifications/routes.js';
+import {webPushFromEnv} from './modules/notifications/push-port.js';
 
 const app=Fastify({logger:true,trustProxy:process.env.TRUST_PROXY==='true'});
 await app.register(cookie); await app.register(cors,{origin:process.env.CORS_ORIGIN||true,credentials:true}); await app.register(multipart,{limits:{fileSize:5*1024*1024,files:1}}); await app.register(websocket);
 const postgres=process.env.DATABASE_URL?new PostgresRepository(process.env.DATABASE_URL):undefined;
-if(postgres){app.addHook('onClose',async()=>{await postgres.close();});await registerPostgresIdentity(app,postgres);await registerPostgresChat(app,postgres);await registerPostgresWebsocket(app,postgres);await registerPostgresCalls(app,postgres);}
+if(postgres){app.addHook('onClose',async()=>{await postgres.close();});await registerPostgresIdentity(app,postgres);await registerPostgresChat(app,postgres);await registerPostgresWebsocket(app,postgres);
+  const calls=new CallService(postgres);
+  onSessionRevoked(app,sessionId=>calls.endForSession(sessionId));
+  await registerCalls(app,postgres,calls,{conferences:()=>false});
+  await registerNotifications(app,postgres,webPushFromEnv());}
 app.addHook('onResponse',async(req,reply)=>{requests.inc({method:req.method,route:req.routeOptions.url,status:String(reply.statusCode)});});
 
 type Req=FastifyRequest&{user?:User;rawSession?:string};

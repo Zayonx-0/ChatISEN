@@ -3,6 +3,7 @@ import {PostgresRepository,type PostgresMessage} from '../repositories/postgres.
 import {postgresAuthenticator,invalid,type AuthRequest} from '../identity/postgres-routes.js';
 import {csrfOk} from '../security.js';
 import {GroupOperations,GroupOperationError} from './group-operations.js';
+import {notifyConversationMembers} from '../kernel/user-events.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const seq=/^(0|[1-9][0-9]*)$/;
@@ -40,9 +41,11 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     const members=(body.memberIds as string[]).map(x=>x.toLowerCase());
     if(members.includes(uid)||new Set(members).size!==members.length)return invalid(reply,400,'VALIDATION_ERROR','Groupe invalide');const found=await repo.pool.query('select id from users where id=any($1::uuid[])',[members]);
     if(found.rowCount!==members.length)return invalid(reply,404,'NOT_FOUND','Utilisateur indisponible');
-    try{const group=await repo.createGroupIdempotent(uid,body.title.trim(),members,body.clientId);const result=await detail(group.id,uid);if(!result)return invalid(reply,404,'NOT_FOUND','Conversation indisponible');return reply.code(group.created?201:200).send(result);}
+    try{const group=await repo.createGroupIdempotent(uid,body.title.trim(),members,body.clientId);const result=await detail(group.id,uid);if(!result)return invalid(reply,404,'NOT_FOUND','Conversation indisponible');if(group.created)await changed(group.id,uid);return reply.code(group.created?201:200).send(result);}
     catch(error){if((error as Error).message==='idempotency_conflict')return invalid(reply,409,'IDEMPOTENCY_CONFLICT','Clé déjà utilisée');if((error as Error).message==='forbidden')return invalid(reply,404,'NOT_FOUND','Conversation indisponible');throw error;}
   });
+  // Les membres concernés rechargent leur liste ; un échec ici ne doit pas annuler l'action réussie.
+  const changed=(cid:string,uid:string,extra:string[]=[])=>notifyConversationMembers(repo.pool,cid,uid,extra).catch(error=>app.log.error({err:error},'List change notification failed'));
   const groupFailure=(error:unknown,reply:any)=>{
     if(!(error instanceof GroupOperationError))throw error;
     if(error.kind==='forbidden')return invalid(reply,403,'FORBIDDEN','Action réservée au propriétaire');
@@ -53,28 +56,28 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     const cid=(req.params as {id:string}).id,body=req.body as {title?:unknown}|undefined,uid=(req as AuthRequest).identity!.user.id;
     if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
     if(typeof body?.title!=='string'||!body.title.trim()||body.title.trim().length>120)return invalid(reply,400,'VALIDATION_ERROR','Titre invalide');
-    try{await groups.rename(cid,uid,body.title.trim());return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
+    try{await groups.rename(cid,uid,body.title.trim());await changed(cid,uid);return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
   });
   app.post('/api/v1/conversations/:id/members/:userId',{preHandler:mutation},async(req,reply)=>{
     const {id:cid,userId}=req.params as {id:string;userId:string};const uid=(req as AuthRequest).identity!.user.id;
     if(!uuid.test(cid)||!uuid.test(userId))return invalid(reply,404,'NOT_FOUND','Ressource indisponible');
-    try{const created=await groups.add(cid,uid,userId.toLowerCase());return reply.code(created?201:200).send(await detail(cid,uid));}catch(error){return groupFailure(error,reply);}
+    try{const created=await groups.add(cid,uid,userId.toLowerCase());await changed(cid,uid);return reply.code(created?201:200).send(await detail(cid,uid));}catch(error){return groupFailure(error,reply);}
   });
   app.delete('/api/v1/conversations/:id/members/:userId',{preHandler:mutation},async(req,reply)=>{
     const {id:cid,userId}=req.params as {id:string;userId:string};const uid=(req as AuthRequest).identity!.user.id;
     if(!uuid.test(cid)||!uuid.test(userId))return invalid(reply,404,'NOT_FOUND','Ressource indisponible');
-    try{await groups.remove(cid,uid,userId.toLowerCase());return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
+    try{await groups.remove(cid,uid,userId.toLowerCase());await changed(cid,uid,[userId.toLowerCase()]);return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
   });
   app.post('/api/v1/conversations/:id/transfer',{preHandler:mutation},async(req,reply)=>{
     const cid=(req.params as {id:string}).id,uid=(req as AuthRequest).identity!.user.id,body=req.body as {newOwnerId?:unknown}|undefined;
     if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
     if(typeof body?.newOwnerId!=='string'||!uuid.test(body.newOwnerId))return invalid(reply,400,'VALIDATION_ERROR','Membre invalide');
-    try{await groups.transfer(cid,uid,body.newOwnerId.toLowerCase());return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
+    try{await groups.transfer(cid,uid,body.newOwnerId.toLowerCase());await changed(cid,uid);return await detail(cid,uid);}catch(error){return groupFailure(error,reply);}
   });
   app.post('/api/v1/conversations/:id/leave',{preHandler:mutation},async(req,reply)=>{
     const cid=(req.params as {id:string}).id,uid=(req as AuthRequest).identity!.user.id;
     if(!uuid.test(cid))return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
-    try{await groups.leave(cid,uid);return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
+    try{await groups.leave(cid,uid);await changed(cid,uid);return reply.code(204).send();}catch(error){return groupFailure(error,reply);}
   });
   app.get('/api/v1/users',{preHandler:authenticate},async(req,reply)=>{
     const handle=(req.query as {handle?:unknown}).handle;
@@ -88,6 +91,7 @@ export async function registerPostgresChat(app:FastifyInstance,repo:PostgresRepo
     if(!await repo.findUserById(peerId))return invalid(reply,404,'NOT_FOUND','Utilisateur indisponible');
     const conversation=await repo.createDirectConversation(uid,peerId);
     const result=await detail(conversation.id,uid);if(!result)return invalid(reply,404,'NOT_FOUND','Conversation indisponible');
+    if(conversation.created)await changed(conversation.id,uid);
     return reply.code(conversation.created?201:200).send(result);
   });
   app.get('/api/v1/conversations/:id/messages',{preHandler:authenticate},async(req,reply)=>{

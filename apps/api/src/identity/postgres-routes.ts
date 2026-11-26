@@ -2,6 +2,7 @@ import type {FastifyInstance,FastifyReply,FastifyRequest} from 'fastify';
 import {randomBytes,randomUUID,createHash} from 'node:crypto';
 import {PostgresRepository} from '../repositories/postgres.js';
 import {passwordHash,passwordVerify,csrfFor,csrfOk} from '../security.js';
+import {sessionRevoked} from '../kernel/session-hooks.js';
 import type {User,Session} from '../types.js';
 
 export type AuthRequest=FastifyRequest & {identity?:{user:User;session:Session;token:string}};
@@ -53,7 +54,11 @@ export async function registerPostgresIdentity(app:FastifyInstance,repo:Postgres
     const identity=(req as AuthRequest).identity!;
     if(!sameOrigin(req))return invalid(reply,403,'ORIGIN_DENIED','Origine refusée');
     if(!csrfOk(identity.token,String(req.headers['x-csrf-token']||'')))return invalid(reply,403,'CSRF_FAILED','Jeton CSRF invalide');
-    await repo.revokeSession(identity.session.id);reply.clearCookie(cookieName,{path:'/',secure:true,httpOnly:true,sameSite:'lax'});
+    await repo.revokeSession(identity.session.id);
+    // Une session fermée perd ses abonnements Push et quitte ses appels.
+    await repo.pool.query('delete from push_subscriptions where session_id=$1',[identity.session.id]);
+    await sessionRevoked(app,identity.session.id);
+    reply.clearCookie(cookieName,{path:'/',secure:true,httpOnly:true,sameSite:'lax'});
     return reply.code(204).send();
   });
 }

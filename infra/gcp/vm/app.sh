@@ -1,5 +1,5 @@
 # VM applicative : Nginx, API, Cloud SQL Auth Proxy et node-exporter par Docker Compose.
-export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM CALLS_ENABLED SFU_1_HOST SFU_2_HOST
+export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM TURN_HOST SFU_1_HOST SFU_2_HOST
 SFU_1_HOST=$(meta instance/attributes/sfu-1-host)
 SFU_2_HOST=$(meta instance/attributes/sfu-2-host)
 API_IMAGE=$(meta instance/attributes/api-image)
@@ -9,7 +9,7 @@ PUBLIC_HOST=$(meta instance/attributes/public-host)
 LB_PUBLIC_IP=$(meta instance/attributes/lb-public-ip)
 PROXY_CIDR=$(meta instance/attributes/proxy-cidr)
 ACME_UPSTREAM=$(meta instance/attributes/acme-upstream)
-CALLS_ENABLED=$(meta instance/attributes/calls-enabled)
+TURN_HOST=$(meta instance/attributes/turn-host)
 
 umask 077
 {
@@ -17,6 +17,9 @@ umask 077
   printf 'CSRF_SECRET=%s\n' "$(secret csrf-secret)"
   printf 'LIVEKIT_API_KEY=%s\n' "$(secret livekit-api-key)"
   printf 'LIVEKIT_API_SECRET=%s\n' "$(secret livekit-api-secret)"
+  printf 'TURN_SECRET=%s\n' "$(secret turn-secret)"
+  printf 'VAPID_PUBLIC_KEY=%s\n' "$(secret vapid-public-key)"
+  printf 'VAPID_PRIVATE_KEY=%s\n' "$(secret vapid-private-key)"
 } >/opt/chatisen/secrets/api.env
 install -d -m 755 /opt/chatisen/tls
 secret nginx-tls-cert >/opt/chatisen/tls/tls.crt
@@ -43,7 +46,8 @@ services:
       COOKIE_SECURE: "true"
       TRUST_PROXY: "true"
       LIVEKIT_URL: wss://${PUBLIC_HOST}/livekit
-      CHATISEN_EXPERIMENTAL_CALLS: "${CALLS_ENABLED}"
+      TURN_HOST: ${TURN_HOST}
+      VAPID_SUBJECT: https://${PUBLIC_HOST}
     ports: ["9091:9091"]
     depends_on: [cloud-sql-proxy]
   nginx:

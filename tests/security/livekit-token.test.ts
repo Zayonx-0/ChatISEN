@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac, timingSafeEqual} from 'node:crypto';
-import {signAdmission} from '../../apps/api/src/calls/postgres-routes.js';
+import {signAdmission} from '../../apps/api/src/modules/calls/livekit-token.js';
 
 test('LiveKit admission is signed and restricted to one identity and room for five minutes', async () => {
   const now = new Date('2026-11-23T12:34:56.000Z');

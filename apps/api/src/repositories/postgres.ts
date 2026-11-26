@@ -1,3 +1,4 @@
+import {notifyConversationMembers} from '../kernel/user-events.js';
 import {Pool, type PoolClient, type QueryResultRow} from 'pg';
 import {randomUUID,createHash} from 'node:crypto';
 import type {Conversation, Message, Session, User} from '../types.js';
@@ -113,6 +114,10 @@ export class PostgresRepository {
       await client.query('update conversations set last_seq=$2,updated_at=now() where id=$1',[conversationId,seq.toString()]);
       await client.query(`insert into conversation_events(conversation_id,seq,event_type,entity_id,payload) values($1,$2,'message.created',$3,$4::jsonb)`,[conversationId,seq.toString(),messageId,JSON.stringify(payload)]);
       const row=(await client.query<DbMessage>('insert into messages(id,conversation_id,seq,sender_id,client_id,kind,text) values($1,$2,$3,$4,$5,\'text\',$6) returning id,conversation_id,seq,sender_id,text,client_id,created_at',[messageId,conversationId,seq.toString(),senderId,clientId,text])).rows[0];
+      // File d'envoi des notifications, validée avec le message ou pas du tout.
+      await client.query("insert into push_outbox(event_id,kind,conversation_id,sender_id) values($1,'message',$2,$3)",[messageId,conversationId,senderId]);
+      await client.query("select pg_notify('chatisen_push','')");
+      await notifyConversationMembers(client,conversationId,senderId,[],'message');
       return {message:mapMessage(row),created:true};
     });
   }
