@@ -83,6 +83,17 @@ http {
     }
 
     location = /healthz-edge { access_log off; proxy_pass http://api/readyz; }
+    # État public : « le service répond », sans autre information.
+    location = /healthz { proxy_pass http://api; }
+    location = /readyz { proxy_pass http://api; }
+
+    # Lecteur d'architecture : seuls ces fichiers sont publiés.
+    location = /architecture { return 308 https://$host/architecture/; }
+    location /architecture/ { return 404; }
+    location ~ ^/architecture/(index\.html|lecteur\.js|svg/[a-z0-9-]+\.svg)?$ {
+      root /usr/share/nginx;
+      index index.html;
+    }
 
     # Preuve ACME du certificat public, relayée à la VM de supervision.
     location /.well-known/acme-challenge/ { proxy_pass http://${ACME_UPSTREAM}:8080; }

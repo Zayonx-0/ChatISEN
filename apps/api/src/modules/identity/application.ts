@@ -3,7 +3,7 @@ import {conflict,Failure,forbidden,notFound} from '../../platform/errors.js';
 import type {SessionHooks} from '../../platform/hooks.js';
 import type {Identity,SessionUser,SessionVerifier} from '../../platform/http.js';
 import {newToken,tokenHash} from '../../platform/security.js';
-import {hashPassword,verifyPassword} from './adapters/out/passwords.js';
+import {hashPassword,isLegacyHash,verifyPassword} from './adapters/out/passwords.js';
 import * as store from './adapters/out/store.js';
 import type {GlobalRole} from './domain.js';
 import type {AuditEntry,AuditTrail,UserDirectory} from './ports.js';
@@ -26,6 +26,8 @@ export class IdentityService implements SessionVerifier,UserDirectory,AuditTrail
     const found=await store.credentials(this.db.pool,handle);
     const matches=await verifyPassword(found?.passwordHash??await this.decoy,password);
     if(!found||!matches||found.disabled)throw badCredentials();
+    // Un compte repris de la démo passe en Argon2id dès sa première connexion réussie.
+    if(isLegacyHash(found.passwordHash))await store.setPasswordHash(this.db.pool,found.user.id,await hashPassword(password));
     return {user:found.user,token:await this.openSession(found.user.id)};
   }
   private async openSession(userId:string){const token=newToken();await store.insertSession(this.db.pool,userId,tokenHash(token),sessionHours);return token;}

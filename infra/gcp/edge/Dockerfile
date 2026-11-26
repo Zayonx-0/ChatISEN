@@ -15,6 +15,9 @@ RUN pnpm --filter @chatisen/web build
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+# Lecteur d'architecture publié sous /architecture/ : la page, son script et les schémas.
+COPY docs/architecture/index.html docs/architecture/lecteur.js /usr/share/nginx/architecture/
+COPY docs/architecture/svg/*.svg /usr/share/nginx/architecture/svg/
 COPY infra/gcp/edge/nginx.conf.template /etc/nginx/templates-chatisen/nginx.conf.template
 COPY infra/gcp/edge/entrypoint.sh /usr/local/bin/chatisen-edge
 RUN chmod 755 /usr/local/bin/chatisen-edge

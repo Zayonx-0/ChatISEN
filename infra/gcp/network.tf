@@ -92,6 +92,9 @@ resource "google_compute_address" "web" {
 
 # Noms publics temporaires, sans DNS à gérer : sslip.io répond avec l'adresse écrite dans le nom.
 locals {
-  web_host  = "${replace(google_compute_address.web.address, ".", "-")}.sslip.io"
+  # Nom de repli en sslip.io : il sert au contrôle de santé du déploiement continu.
+  sslip_host = "${replace(google_compute_address.web.address, ".", "-")}.sslip.io"
+  # Origine servie par l'application : le domaine public, sinon le nom de repli.
+  web_host  = var.public_domain != "" ? var.public_domain : local.sslip_host
   turn_host = "${replace(google_compute_address.turn.address, ".", "-")}.sslip.io"
 }

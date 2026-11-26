@@ -53,7 +53,7 @@ ChatISEN est une messagerie web avec comptes, conversations privées et de group
 | One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Cible : images décodées des deux côtés, en direct et par le relais. Reste : deux réseaux distincts. | Images décodées des deux côtés. |
 | Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Cible : Terraform, déploiement continu, Prometheus, Grafana, Cloud Logging et alerte externe (destinataire à fournir). | Déploiement reproductible, alerte visible sur panne. |
 | Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Cible : conférence à trois vérifiée, y compris par le relais ; un membre retiré est sorti de la salle. Reste : à quatre. | Conférence à quatre, pistes reçues. |
-| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Codé et testé en CI. Sur la cible, attend le droit IAM de signature des URL. | Envoi et lecture réservés aux membres. |
+| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Cible : envoi direct vérifié par le serveur et téléchargement à l’identique ; tiers, contenu mensonger et taille dépassée refusés. | Envoi et lecture réservés aux membres. |
 | Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Codé. Réception vérifiée en test navigateur à deux avec un écran simulé. Reste : écran réel et conférence. | L'écran partagé est reçu, l'arrêt rend la caméra. |
 | Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Reprise WebSocket testée. ICE restart codé, pas encore éprouvé par un changement de réseau. | Changer de réseau pendant un appel et un échange. |
 | Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Cible : indicateur affiché, mesures enregistrées et comptées dans Prometheus. Reste : essai sur réseau bridé. | L'indicateur se dégrade sur réseau bridé. |
@@ -412,7 +412,7 @@ Deux choses sont en ligne et ne doivent pas être confondues.
 | Supervision | /healthz, /readyz, /metrics | Prometheus, Grafana, Cloud Logging, alerte externe |
 | Déploiement | Automatique après CI verte : la VM tire le commit | Automatique après CI verte : GitHub pousse les digests |
 
-**Reste avant la bascule du domaine** : droit de signature des fichiers, essais d'appel entre deux réseaux distincts, reprise après changement de réseau, destinataire des alertes, import des données de la démo, puis déplacement de l'adresse. Les schémas dessinés n'ont pas encore été régénérés. Les écarts d'infrastructure sont listés dans `infra/gcp/README.md`.
+**Reste avant la bascule du domaine** : essais d'appel entre deux réseaux distincts, reprise après changement de réseau, destinataire des alertes, import des données de la démo, puis déplacement de l'adresse. Les schémas dessinés n'ont pas encore été régénérés. Les écarts d'infrastructure sont listés dans `infra/gcp/README.md`.
 
 Constats à traiter : `/metrics` de la démo répond publiquement (nombre de comptes et de messages) ; aucune limite de débit sur la connexion ; un arrêt pendant l'écriture du JSON peut le corrompre.
 

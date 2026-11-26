@@ -94,5 +94,6 @@ resource "google_compute_instance" "ops" {
 }
 
 output "web_host" { value = local.web_host }
+output "sslip_host" { value = local.sslip_host }
 output "turn_host" { value = local.turn_host }
 output "registry" { value = "${var.region}-docker.pkg.dev/${var.project}/${google_artifact_registry_repository.images.repository_id}" }
