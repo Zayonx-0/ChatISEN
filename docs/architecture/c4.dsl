@@ -1,8 +1,8 @@
-workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire du 25 novembre 2026 et laboratoire R01" {
+workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la démo et banc R01 en annexe" {
     !impliedRelationships false
     model {
         student = person "User · membre ou enseignant" "Utilise le site public et les médias dans son navigateur."
-        operator = person "Ops · exploitation" "Accès SSH à Debian. Suit les services, déploie le code et consulte les sondes."
+        operator = person "Ops · exploitation" "Livre par le CD GitHub, accède aux VM par IAP, suit logs et métriques."
         admin = person "Admin · infrastructure GCP" "Administre les ressources du projet via les API GCP avec une identité IAM autorisée."
         dns = softwareSystem "DNS du domaine ISEN" "Le nom ia-pple.isen.fedyna.fr résout vers 35.214.178.128."
         stun = softwareSystem "STUN Google" "Découverte ICE par les navigateurs sur stun.l.google.com:19302."
@@ -184,6 +184,71 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
         localChat -> localPush "F10 · Demande la notification après écriture"
         localPush -> pushProvider "F10 · Envoie via VAPID" "HTTPS 443"
         localPush -> localFile "F06 · Abonne ou révoque" "JSON"
+        target = softwareSystem "ChatISEN · architecture cible" "Messagerie, appels et notifications. Deux zones applicatives dans europe-west4, entrée HTTPS gérée et état PostgreSQL relationnel." {
+            targetClient = container "Client navigateur A/B" "Même build React et même origine HTTPS, deux sessions. Le navigateur exécute sw.js et WebRTC." "React / Vite / WebRTC"
+            targetLb = container "External Application Load Balancer" "IPv4 publique Premium. TLS 443 et WSS, 80 redirige. Répartit et surveille les backends dans deux zones." "Google Cloud Load Balancing"
+            group "App · VM a et b · mêmes processus sur les deux réplicas" {
+                targetEdge = container "Nginx" "Sert le dist/ Vite et /sw.js. Règles explicites par chemin et méthode. Proxifie les sockets et protège la signalisation LiveKit." "Nginx / bridge privé"
+                targetIdentity = container "Fastify Identité" "Inscription, Argon2id, sessions opaques et CSRF. Autorité d’écriture de users et sessions." "REST TypeScript"
+                targetChat = container "Fastify Chat" "Groupes, messages, historique, fichiers et temps réel. Écrit les messages et l’outbox dans la même transaction." "REST et WebSocket" {
+                    chatRoutes = component "Contrats REST et droit d’accès" "Vérifie la session et le membre actif. Contrat /api/v1 et validation d’entrée." "Fastify"
+                    chatWrite = component "Commandes transactionnelles" "Séquence par conversation, UUID client idempotent. Écrit message, journal et outbox." "PostgreSQL / pg"
+                    chatWs = component "Lecture temps réel et reprise" "Relit le journal après afterSeq. LISTEN/NOTIFY réveille chaque réplica. Session et appartenance revérifiées." "WebSocket / LISTEN"
+                }
+                targetCalls = container "Fastify Appels" "Contrôle d’admission, jetons d’appel et TURN, webhooks, qualité et révocations." "REST TypeScript"
+                targetNotify = container "Fastify Notifications" "Abonnements Push par session, worker d’outbox, remise chiffrée avec VAPID." "REST / web-push"
+            }
+            group "Média · VM Compute Engine" {
+                targetSfu = container "LiveKit SFU a/b" "Deux nœuds. Une salle sur un nœud à la fois. IPv4 de chaque nœud pour ICE." "WebRTC / DTLS-SRTP"
+                targetTurn = container "coturn ChatISEN" "Auto-hébergé en europe-west4-a. STUN de découverte et TURN de secours. Identifiants à durée courte et quota d’allocation." "UDP 3478 / TLS 5349"
+            }
+            targetSql = container "Cloud SQL PostgreSQL 17 HA" "IP privée. Rôles par service, FK, sauvegardes et PITR. Chaque service possède ses écritures." "PostgreSQL 17 / Auth Proxy" {
+                tags "Database"
+            }
+            targetRedis = container "Memorystore Redis Standard" "IP privée, TLS et AUTH. Coordination et routage LiveKit. La salle active n’est pas répliquée par Redis." "Redis" {
+                tags "Database"
+            }
+        }
+        targetDns = softwareSystem "DNS public du projet" "Nom ChatISEN vers l’IP du LB. Nom ICE vers l’IP de la VM coturn."
+        targetPush = softwareSystem "Fournisseurs Web Push" "FCM, Mozilla, Apple ou Windows selon le navigateur et son abonnement."
+        targetGh = softwareSystem "GitHub Actions · CI et CD cible" "Tests et images par digest. Fédération OIDC pour commander la livraison GCP."
+        targetRegistry = softwareSystem "Artifact Registry" "Registre OCI régional en europe-west4. Écriture CI et lecture VM par identités distinctes."
+        targetCloud = softwareSystem "Plan de contrôle GCP · IAM et IAP" "API Cloud Run Jobs et Compute Engine. Cloud Logging et Monitoring pour Ops."
+        student -> target "T02 · Utilise le chat et les appels" "HTTPS/WSS"
+        student -> targetDns "T01 · Résout le domaine" "DNS"
+        operator -> targetCloud "T16/T17 · Accède à IAP et consulte les métriques" "HTTPS"
+        admin -> targetCloud "T16 · Administre réseau, IAM et projet" "HTTPS"
+        targetGh -> targetRegistry "T18 · CI publie les images" "HTTPS / WIF"
+        targetGh -> targetCloud "T19 · CD commande migration et roulement" "API GCP / WIF"
+        targetCloud -> target "T19 · Déploie les modèles d’instance par zone"
+        target -> targetPush "T14 · Remet un Push chiffré"
+        targetClient -> targetLb "T02 · Charge et utilise l’application" "HTTPS / WSS 443"
+        targetLb -> targetEdge "T03 · Répartit vers les backends app sains" "HTTP 8080 privé"
+        targetEdge -> targetClient "T04 · Renvoie le build et sw.js via le LB" "HTML/CSS/JS"
+        targetEdge -> targetIdentity "T05/T06 · Route la connexion et le profil" "REST privé"
+        targetEdge -> targetChat "T05/T07/T08 · Route les commandes et la socket" "REST / WS privé"
+        targetEdge -> targetCalls "T05/T10 · Route les appels et demande l’admission" "REST privé"
+        targetEdge -> targetNotify "T05/T14 · Route les inscriptions Push" "REST privé"
+        targetEdge -> targetSfu "T10 · Signalisation" "WS 7880"
+        targetIdentity -> targetSql "T09 · Écrit comptes et sessions" "SQL privé"
+        targetChat -> targetSql "T09 · Écrit et relit le journal" "SQL privé"
+        targetCalls -> targetSql "T09 · Écrit appels, traitements et mesures" "SQL privé"
+        targetNotify -> targetSql "T09 · Lit l’outbox, écrit remises et abonnements" "SQL privé"
+        targetClient -> targetSfu "T11 · Publie et reçoit les pistes" "UDP 7882 / TCP 7881"
+        targetClient -> targetTurn "T12 · Découvre un chemin et peut relayer" "UDP 3478 / TLS 5349"
+        targetTurn -> targetSfu "T12 · Relais" "UDP"
+        targetSfu -> targetRedis "T13 · Coordonne le routage des salles" "Redis TLS privé"
+        targetNotify -> targetPush "T14 · Envoie via VAPID" "HTTPS 443 sortant"
+        targetPush -> targetClient "T15 · Réveille le service worker A ou B" "Web Push"
+        targetEdge -> targetRegistry "T20 · Lit l’image au démarrage" "HTTPS / digest"
+        targetEdge -> chatRoutes "T05 · Route les commandes métier"
+        chatRoutes -> chatWrite "T07 · Exécute la commande valide"
+        chatRoutes -> targetSql "T06/T09 · Lit les projections session et membre"
+        chatWrite -> targetSql "T07 · Transaction et commit"
+        chatWs -> targetSql "T08 · Écoute puis relit le journal et les droits"
+        targetEdge -> chatWs "T08 · Upgrade /api/v1/ws"
+        chatWs -> targetClient "T08 · Délivre les événements via l’edge" "WSS"
+
         deploymentEnvironment "Démonstration Google Cloud" {
             clientHost = deploymentNode "Poste du jury" "Connexion depuis Internet." "Ordinateur ou mobile" {
                 browser = deploymentNode "Navigateur web" "Exécute le client standalone." "Navigateur" {
@@ -231,19 +296,21 @@ workspace "ChatISEN" "Architecture exploitée sur Compute Engine · inventaire d
     }
 
     views {
-        systemContext chat "01-contexte" "Trois acteurs, leur point d’entrée et les dépendances hors VM." {
-            title "01 · Contexte — User, Ops et Admin"
-            include student operator admin dns chat control stun pushProvider peerBrowser
+        systemContext target "01-contexte" "Architecture cible. User, Ops, Admin et dépendances externes." {
+            title "01 · Contexte — cible ChatISEN"
+            include student operator admin target targetDns targetGh targetRegistry targetCloud targetPush
+            autoLayout lr
+        }
+        container target "02-conteneurs" "Cible Compute Engine multi-zone, services Fastify et stockage relationnel privé." {
+            title "02 · Conteneurs — cible à deux zones"
+            include targetClient targetLb targetEdge targetIdentity targetChat targetCalls targetNotify targetSql targetSfu targetTurn targetRedis targetPush
+            exclude "relationship==targetEdge->targetClient"
             autoLayout tb
         }
-        container chat "02-conteneurs" "Une seule VM applicative dans europe-west4-a. Le client s’exécute sur le poste." {
-            title "02 · Conteneurs — site GCP en service"
-            include localBrowser perimeter caddy os local localFile operator pushProvider peerBrowser stun snapshots
-            autoLayout tb
-        }
-        component local "03-composants-api" "Trajet réseau, modules de chatisen.service, sorties et disque sur la VM de europe-west4-a." {
-            title "03 · Composants — VM GCP · europe-west4-a"
-            include student operator admin os perimeter caddy localRouter localAuth localChat localChannels localCalls localPush localStatus localFile pushProvider snapshots
+        component targetChat "03-composants-api" "Service Chat déployable et échanges avec les autres services Fastify." {
+            title "03 · Composants — API REST, temps réel et domaine Chat"
+            include targetClient targetEdge chatRoutes chatWrite chatWs targetIdentity targetCalls targetNotify targetSql
+            exclude "relationship==chatWs->targetClient"
             autoLayout tb
         }
         styles {

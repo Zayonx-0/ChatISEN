@@ -1,6 +1,8 @@
 # Reconstruire ChatISEN depuis ses diagrammes
 
-**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG 16:9](svg/05-architecture-globale.svg). La vue d’accueil rassemble les acteurs, le réseau, les services et les 17 flux du déploiement. Les touches `1` à `4` ouvrent les niveaux C4 et `5` ramène à la planche. Sous la planche, ouvrir **Guide de présentation, flux et sources** pour retrouver le fil conducteur, les règles VPC et les tableaux de données et de coût. Les fiches SQL des vues C4 donnent accès aux deux migrations exécutables dans la page.
+**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG](svg/05-architecture-globale.svg). La vue d’accueil présente l’**architecture cible**, à mettre en œuvre : personas, navigateurs et service workers, VPC et pare-feu, quatre services Fastify, PostgreSQL, LiveKit, coturn, CI/CD GitHub, modèle relationnel et les flux `T01` à `T21`. Les touches `1` à `4` ouvrent les niveaux C4 et `5` ramène à la planche. [Dossier de conception de la cible](architecture-cible.md)
+
+**La démo du 25 novembre reste documentée** : sa planche d’origine est une annexe de la vue 5. [Planche de la démo](svg/25-demo-globale.svg) · [Inventaire](infrastructure-gcp.md)
 
 **Site du jury vérifié le 25 novembre 2026.** Le SHA déployé est `9b08996`. DNS et métadonnées d’instance rattachent l’entrée HTTPS à une VM Compute Engine, dans la zone `europe-west4-a` du VPC `default`. Caddy, le serveur Node appelé standalone et le disque JSON y sont cohébergés. Le relevé console de 13 h 47 UTC compte une seule VM dans tout le projet. Sous « Composants », déplier les huit règles VPC IPv4 visibles sur nic0, leurs sources et leurs cibles. Le flux F15 situe les copies quotidiennes du disque zonal en multi-région européenne. [Inventaire, flux, pare-feu, localisation et coûts](infrastructure-gcp.md) · [Version déployée](https://github.com/Zayonx-0/ChatISEN/tree/9b08996060c52700b035d646bf6ac64075ef3ea6)
 
@@ -19,9 +21,9 @@ Le sujet classe les comptes, la messagerie privée et de groupe, l’historique,
 | Niveau | Ce qu’il faut reproduire | Diagramme |
 |---|---|---|
 | 1. Contexte | User, Ops et Admin, domaines de confiance et accès distincts. | [Contexte](svg/01-contexte.svg) |
-| 2. Conteneurs | Navigateur, VPC, frontal Caddy, système, serveur Node et fichier de la seule VM du site. | [Conteneurs](svg/02-conteneurs.svg) |
-| 3. Composants | Compute Engine et Debian 13, Caddy, Node.js sous systemd, identité, messagerie, JSON et signalisation WebRTC. Fastify est détaillé dans un volet de recette. | [Composants](svg/03-composants-api.svg) |
-| 4. Code et données | Collections du JSON en production, cardinalités, identités, ordre et diffusion. La transaction PostgreSQL est dépliable. | [Code et données](svg/04-code.svg) |
+| 2. Conteneurs | Cible : navigateur, load balancer, Nginx, quatre services Fastify, PostgreSQL, Redis, LiveKit et coturn. | [Conteneurs](svg/02-conteneurs.svg) |
+| 3. Composants | Cible : routage Nginx et détail du service Chat (contrôle d’accès, transaction, temps réel et reprise). | [Composants](svg/03-composants-api.svg) |
+| 4. Code et données | Cible : schéma relationnel PostgreSQL, clés et frontières d’écriture par service. | [Code et données](svg/04-code.svg) |
 
 En bleu figurent les composants applicatifs, en gris la configuration, en ambre l’admission expérimentale et en violet la cible réseau ou média à éprouver. Les séquences se lisent de haut en bas. Sur les schémas physiques, `PK` désigne la clé primaire, `FK` la clé étrangère et `UQ` l’unicité.
 
@@ -170,6 +172,6 @@ Depuis la racine du dépôt, exécuter la commande suivante avec Python 3.9+, Ja
 python3 docs/architecture/render.py /chemin/structurizr.sh /chemin/plantuml-1.2025.10.jar
 ```
 
-Le rendu valide le DSL, compare les planches HTTP v1 aux handlers Fastify, calcule l’écart avec OpenAPI et vérifie les quatre clés C4 dans Structurizr. La planche de soutenance provient de `global_view.py`. Le rendu compare ses identifiants de flux avec ceux de l’inventaire GCP. Versionner ensemble les sources, `vues.json`, les SVG et le fichier généré `lecteur.js`. [Générateur](render.py) · [Source de la planche](global_view.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
+Le rendu valide le DSL, compare les planches HTTP v1 aux handlers Fastify, calcule l’écart avec OpenAPI et vérifie les quatre clés C4 dans Structurizr. La planche de soutenance provient de `global_view.py` et de la boîte à dessin `svgkit.py`, avec les logos recolorés de `logos.json` (issus de la bibliothèque `logos` embarquée dans PlantUML). Le rendu compare ses identifiants de flux avec la table « Flux de la cible » d’`architecture-cible.md`. La planche de la démo vient de `global_view_demo.py`. Versionner ensemble les sources, `vues.json`, les SVG et le fichier généré `lecteur.js`. [Générateur](render.py) · [Source de la planche](global_view.py) · [CLI Structurizr](https://github.com/structurizr/cli/releases/tag/v2025.11.09) · [PlantUML](https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.10/)
 
 La planche reprend le logo du client ChatISEN et embarque les marques Google Cloud, Caddy, Node.js et GitHub depuis Simple Icons pour permettre l’affichage hors ligne. [Client ChatISEN](../../apps/web/public/app.js) · [Simple Icons](https://github.com/simple-icons/simple-icons)

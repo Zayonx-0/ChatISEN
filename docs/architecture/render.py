@@ -9,9 +9,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from global_view import render_global_view
+from global_view_demo import render_global_view as render_demo_view
 from schema import physical_views
 
 GLOBAL_VIEW = "05-architecture-globale"
+DEMO_VIEW = "25-demo-globale"  # board of the demo still running on 25 November
 
 
 def run(*args):
@@ -146,7 +148,7 @@ def render(cli, plantuml):
             raise ValueError("The catalogue must have four C4 levels followed by the global presentation")
         records = [record for level in catalogue for record in (level, *level["details"])]
         listed = [record["id"] for record in records]
-        if len(set(listed)) != len(listed) or set(listed) != {GLOBAL_VIEW, *(p.stem for p in sources)}:
+        if len(set(listed)) != len(listed) or set(listed) != {GLOBAL_VIEW, DEMO_VIEW, *(p.stem for p in sources)}:
             raise ValueError("The viewer catalogue and the exported view keys must match")
         for view in records:
             for label, link in view["links"]:
@@ -172,13 +174,17 @@ def render(cli, plantuml):
             (output / svg.name).write_bytes(svg.read_bytes())
         # A classic script works from file:// in Safari and Chromium, without fetch or a local server.
         requested = {name for record in records for name in record.get("tables", [])}
-        tables = inventory_tables((folder / "infrastructure-gcp.md").read_text(encoding="utf-8"), requested)
+        documents = ("infrastructure-gcp.md", "architecture-cible.md")
+        inventory = "\n".join((folder / name).read_text(encoding="utf-8") for name in documents)
+        tables = inventory_tables(inventory, requested)
         presentation = render_global_view()
-        flow_ids = {flow.split()[0] for flow, *_ in tables["Flux nommés"][1:]}
+        flow_ids = {flow.split()[0] for flow, *_ in tables["Flux de la cible"][1:]}
         visible_labels = presentation.split("</style>", 1)[1]
-        if set(re.findall(r"\bF\d{2}\b", visible_labels)) != flow_ids:
+        if set(re.findall(r"\bT\d{2}\b", visible_labels)) != flow_ids:
             raise ValueError("The global diagram and the inventory must reference the same flows")
         (output / f"{GLOBAL_VIEW}.svg").write_text(presentation, encoding="utf-8")
+        # The original renderer joins its parts with a plain newline, as it did when it was published.
+        (output / f"{DEMO_VIEW}.svg").write_text(render_demo_view(), encoding="utf-8")
         viewer_data = {"views": catalogue, "migrations": migrations, "contractGaps": contract_gaps,
                        "inventory": tables}
         (folder / "lecteur.js").write_text("const architecture = " + json.dumps(
