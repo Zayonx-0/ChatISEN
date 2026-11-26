@@ -49,6 +49,11 @@ export async function registerPostgresIdentity(app:FastifyInstance,repo:Postgres
     const token=randomBytes(32).toString('base64url');await repo.createSession(user.id,tokenHash(token));secureCookie(reply,token);
     return {user:profile(user,token)};
   });
+  // Contrôle appelé par la passerelle (auth_request). Hors de /api : Nginx ne le publie pas.
+  app.get('/internal/auth/session',{preHandler:authenticate},async(req,reply)=>{
+    const identity=(req as AuthRequest).identity!;
+    return reply.header('X-User-Id',identity.user.id).header('X-Session-Id',identity.session.id).header('Cache-Control','no-store').code(204).send();
+  });
   app.get('/api/v1/me',{preHandler:authenticate},async(req)=>profile((req as AuthRequest).identity!.user,(req as AuthRequest).identity!.token));
   app.post('/api/v1/auth/logout',{preHandler:authenticate},async(req,reply)=>{
     const identity=(req as AuthRequest).identity!;

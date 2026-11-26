@@ -26,6 +26,8 @@ test('F01 S01 PostgreSQL identity persists session and enforces origin and CSRF'
     const setCookie=String(registered.headers['set-cookie']);assert.match(setCookie,/HttpOnly/i);assert.match(setCookie,/Secure/i);assert.match(setCookie,/SameSite=Lax/i);
     const cookieHeader=setCookie.split(';')[0];const first=registered.json();assert.equal(first.user.handle,handle);assert.equal(first.user.passwordHash,undefined);
     const me=await app.inject({method:'GET',url:'/api/v1/me',headers:{cookie:cookieHeader}});assert.equal(me.statusCode,200);assert.equal(me.json().id,first.user.id);
+    const gate=await app.inject({method:'GET',url:'/internal/auth/session',headers:{cookie:cookieHeader,'x-user-id':'forged'}});assert.equal(gate.statusCode,204);assert.equal(gate.headers['x-user-id'],me.json().id);assert.ok(gate.headers['x-session-id']);assert.equal(gate.headers['cache-control'],'no-store');
+    assert.equal((await app.inject({method:'GET',url:'/internal/auth/session',headers:{'x-user-id':me.json().id}})).statusCode,401);
     const badCsrf=await app.inject({method:'POST',url:'/api/v1/auth/logout',headers:{cookie:cookieHeader,origin:'https://chatisen.test'}});assert.equal(badCsrf.statusCode,403);
     await app.close();
     // New process-equivalent app and pool must recognize the previously created session.
