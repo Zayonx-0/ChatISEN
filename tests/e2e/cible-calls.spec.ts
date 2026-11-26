@@ -31,7 +31,7 @@ test('cible : non lus, appel audio avec partage d’écran, appel vidéo, refus'
   const failures:string[]=[];for(const page of [alice,bob])page.on('pageerror',e=>failures.push(e.message));
   try{
     await register(alice,`alice_${suffix}`,'Alice');await register(bob,`bob_${suffix}`,'Bob');
-    await alice.getByLabel('Rechercher un identifiant exact').fill(`bob_${suffix}`);await alice.getByRole('button',{name:'Rechercher',exact:true}).click();await alice.getByRole('button',{name:'Ouvrir une conversation'}).click();
+    await alice.getByLabel('Rechercher un contact').fill(`bob_${suffix}`);await alice.getByRole('button',{name:'Rechercher',exact:true}).click();await alice.getByRole('button',{name:'Ouvrir une conversation'}).click();
     await expect(alice.getByRole('heading',{name:'Bob'})).toBeVisible();
 
     // Bob n'a pas ouvert la conversation : elle apparaît seule, avec notification et compteur.

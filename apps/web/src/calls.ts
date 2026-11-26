@@ -56,8 +56,9 @@ export function useCalls(userId:string|undefined,csrf:string){
     const level=lossPercent>8||(rttMs??0)>400||(deltaReceived===0)?'faible':lossPercent>2||(rttMs??0)>200||(jitter??0)>40?'moyenne':'bonne';
     const quality:Quality={level,rttMs,lossPercent,jitterMs:jitter,bitrateKbps,candidateType};
     update({quality});
-    // Mesures réseau seulement : ni message ni média. Sans effet si le module n'est pas déployé.
-    void api(`/calls/${callId}/quality-samples`,write(csrf,'POST',{samples:[{windowStart:new Date(before.at).toISOString(),packetsLost:deltaLost,packetsReceived:deltaReceived,jitterMs:jitter??0,rttMs:rttMs??0,bitrateKbps,candidateType:['host','srflx','prflx','relay'].includes(candidateType)?candidateType:'unknown'}]})).catch(()=>{});
+    // Mesures réseau seulement : ni message ni média. Une perte d'un lot est sans conséquence.
+    if(['host','srflx','prflx','relay'].includes(candidateType))
+      void api(`/calls/${callId}/quality-samples`,write(csrf,'POST',{samples:[{capturedAt:new Date(now).toISOString(),packetsReceived:deltaReceived,packetsLost:deltaLost,jitterMs:jitter??0,rttMs:rttMs??0,bitrateKbps,candidateType}]})).catch(()=>{});
   },[csrf,update]);
 
   const createPeer=useCallback(async(initiator:boolean)=>{
