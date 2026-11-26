@@ -1,54 +1,84 @@
 @startuml
 !pragma layout smetana
 !include style.iuml
+hide methods
 hide circle
-title 04 · Code et données — fichier JSON du site GCP
-class "users[]" as U {
-  id · handle · displayName
-  passwordHash : scrypt salé
+title 04 · Code et données — frontières d’écriture PostgreSQL de la cible
+together {
+class "identity.users" as U {
+  PK id · handle UNIQUE
+  password_hash Argon2id
 }
-class "sessions[]" as S {
-  id · userId · tokenHash (SHA-256)
-  expiresAt · revokedAt
+class "identity.sessions" as S {
+  PK id · FK user_id
+  token_hash UNIQUE · expires_at · revoked_at
 }
-class "members[]" as M {
-  conversationId · userId
-  role : owner/member · joinedAt · leftAt
 }
-class "conversations[]" as C {
-  id · type (direct/group) · title
-  pair triée du direct · lastSeq
+together {
+class "chat.conversations" as C {
+  PK id · type · last_seq · closed_at
+  paire canonique UNIQUE pour un direct actif
 }
-class "messages[]" as Msg {
-  id · conversationId · senderId
-  seq · clientMessageId · text · createdAt
+class "chat.conversation_members" as M {
+  PK conversation_id + user_id
+  role · joined_at · left_at
 }
-class "calls[]" as Call {
-  id · conversationId · kind · status
-  initiatorId · recipientId
-  initiatorSessionId · recipientSessionId
+class "chat.conversation_events" as E {
+  PK conversation_id + seq
+  event_type · payload · occurred_at
 }
-class "pushSubscriptions[]" as P {
-  userId · sessionId · createdAt
-  subscription.endpoint · keys
+class "chat.messages" as Msg {
+  PK id · FK sender_id
+  FK (conversation_id, seq)
+  UNIQUE conversation_id + sender_id + client_id
 }
-class "attachments[]" as A {
-  id · conversationId · name · mime
-  data : base64, lecture préexistante
+class "chat.attachments" as A {
+  PK id · FK message_id UNIQUE
+  media_type · SHA-256 · bytea
+}
+class "chat.outbox" as O {
+  PK event_id · FK conversation_id + seq
+  projection pour les notifications
+}
+}
+together {
+class "media.calls" as Call {
+  PK id · FK conversation_id
+  state · room_name UNIQUE
+  au plus un appel ouvert par conversation
+}
+class "media.call_participants" as Part {
+  PK call_id + user_id · FK session_id
+  state · livekit_identity
+}
+}
+together {
+class "notify.push_subscriptions" as Sub {
+  PK id · FK session_id
+  endpoint · p256dh · auth
+}
+class "notify.push_deliveries" as Deliver {
+  PK event_id + subscription_id
+  state · attempts · lease_until
+}
 }
 U "1" -- "0..*" S : ouvre
 U "1" -- "0..*" M : adhère
 C "1" -- "1..*" M : regroupe
-C "1" -- "0..*" Msg : ordonne par seq
 U "1" -- "0..*" Msg : envoie
-C "1" -- "0..*" Call : porte le direct
-S "0..2" -- "0..*" Call : désigne les sessions des pairs
-S "1" -- "0..*" P : autorise la destination
-C "1" -- "0..*" A : contrôle la lecture
+C "1" -- "0..*" E : ordonne par seq
+E "1" -- "0..1" Msg : alimente
+Msg "1" -- "0..1" A : attache
+E "1" -- "0..1" O : prévoit une remise
+C "1" -- "0..*" Call : porte
+Call "1" -- "0..*" Part : contient
+S "0..1" -- "0..*" Part : associe
+S "1" -- "0..*" Sub : associe
+Sub "1" -- "0..*" Deliver : reçoit
+O "1" -- "0..*" Deliver : déclenche
 legend bottom
-  <b>F05 → F06 → F07/F10</b>   POST du membre → ++lastSeq → messages.push → save() → WS/SSE et push.
-  server.mjs charge le JSON au démarrage. writeFileSync réécrit le document sur /dev/sda1.
-  <b>F15 · Copie de disque</b>   pd-balanced en europe-west4-a → snapshots quotidiens en multi-région eu.
-  Les liens sont résolus par le code, sans contraintes SQL. Le lecteur déplie le schéma PostgreSQL du banc R01.
+  Cible de conception. Un rôle SQL d’écriture par service et un rôle de migration distinct.
+  T07 : séquence, message, journal et outbox en une transaction. T08 : lecture des événements après le curseur.
+  Les tables d’outbox et de notifications restent à ajouter. Les migrations du banc sont dépliables dans le lecteur.
 endlegend
 @enduml
