@@ -27,6 +27,12 @@ Terraform décrit toute la cible de `docs/architecture/`. La démo (branche `sta
 | Jeton de salle de 60 secondes au lieu de 5 minutes | Un membre retiré ne peut pas revenir dans la conférence avec un ancien jeton. |
 | Noms publics en `sslip.io` | Aucun enregistrement DNS à gérer avant la bascule. |
 
+## Domaine public
+
+Depuis le 27 novembre, `ia-pple.isen.fedyna.fr` désigne la cible. Le DNS appartient à l'école et n'a pas changé : l'adresse réservée `isenchatprojectt` est passée de la VM de démo au load balancer (`domaine.tf`, protégée contre la suppression). Les certificats publics sont posés sur le proxy HTTPS avec `gcloud`, pour que leurs clés restent hors de l'état Terraform. Celui du domaine est le certificat Let's Encrypt qu'utilisait la démo ; il expire le 23 février 2027 et ne se renouvelle pas automatiquement. Le nom en sslip.io reste servi pour le contrôle de santé du déploiement.
+
+La VM de démo est conservée, service arrêté, avec ses données et deux instantanés de disque. Le retour arrière rend l'adresse à la démo ; les messages écrits sur la cible depuis la bascule n'y apparaîtraient pas.
+
 ## Utilisation
 
 L'accès passe par le compte de service limité ; aucun fichier de clé.
