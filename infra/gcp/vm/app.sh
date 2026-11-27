@@ -47,7 +47,7 @@ services:
       COOKIE_SECURE: "true"
       TRUST_PROXY: "true"
       LIVEKIT_URL: wss://${PUBLIC_HOST}/livekit
-      LIVEKIT_API_URL: http://${SFU_1_HOST}:7880
+      LIVEKIT_API_URL: http://${SFU_1_HOST}:7880,http://${SFU_2_HOST}:7880
       FILES_BUCKET: ${FILES_BUCKET}
       TURN_HOST: ${TURN_HOST}
       VAPID_SUBJECT: https://${PUBLIC_HOST}

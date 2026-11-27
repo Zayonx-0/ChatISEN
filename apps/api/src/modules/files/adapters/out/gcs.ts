@@ -59,8 +59,7 @@ export function gcsStore(bucket:string,signer=metadataSigner()):ObjectStore{
   const call=async(url:string,method='GET')=>fetch(url,{method,headers:{authorization:`Bearer ${await signer.accessToken()}`},signal:AbortSignal.timeout(60_000)});
   return {
     async signUpload(key:string,mediaType:MediaType,size:number,seconds:number){
-      // La taille exacte est signée : Cloud Storage refuse tout autre volume.
-      const headers={'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`};
+      const headers={'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`,'x-goog-if-generation-match':'0'};
       return {url:await sign('PUT',key,seconds,headers),headers};
     },
     signDownload(key,fileName,seconds){

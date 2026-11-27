@@ -4,10 +4,12 @@ import type {QualitySummary} from '../../ports.js';
 
 /** Un lot renvoyé après une coupure ne crée pas de doublon. */
 export async function insert(db:Queryable,callId:string,userId:string,samples:Sample[]){
-  await db.query(`insert into quality.samples(call_id,participant_user_id,captured_at,packets_received,packets_lost,jitter_ms,rtt_ms,bitrate_kbps,candidate_type)
+  return (await db.query<{candidateType:string;rttMs:number;jitterMs:number;packetsReceived:number;packetsLost:number}>(`insert into quality.samples(call_id,participant_user_id,captured_at,packets_received,packets_lost,jitter_ms,rtt_ms,bitrate_kbps,candidate_type)
     select $1,$2,s."capturedAt",s."packetsReceived",s."packetsLost",s."jitterMs",s."rttMs",s."bitrateKbps",s."candidateType"
     from jsonb_to_recordset($3::jsonb) as s("capturedAt" timestamptz,"packetsReceived" bigint,"packetsLost" bigint,"jitterMs" numeric,"rttMs" numeric,"bitrateKbps" numeric,"candidateType" text)
-    on conflict(call_id,participant_user_id,captured_at) do nothing`,[callId,userId,JSON.stringify(samples)]);
+    on conflict(call_id,participant_user_id,captured_at) do nothing
+    returning candidate_type as "candidateType",rtt_ms::float as "rttMs",jitter_ms::float as "jitterMs",
+      packets_received::float as "packetsReceived",packets_lost::float as "packetsLost"`,[callId,userId,JSON.stringify(samples)])).rows;
 }
 export async function summary(db:Queryable,callId:string):Promise<QualitySummary|undefined>{
   const row=(await db.query(`select count(*)::int as samples,

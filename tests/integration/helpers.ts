@@ -50,8 +50,8 @@ export async function startApp(options:Partial<AppOptions>={}){
   const direct=async(a:Who,b:Who)=>{const r=await call(a,'POST','/conversations',{peerId:b.id});assert.ok(r.statusCode===200||r.statusCode===201,r.body);matches('ConversationDetail',r.json());return r.json().id as string;};
   const sockets:{terminate():void}[]=[];
   /** WebSocket réelle : l'application doit écouter. */
-  const listen=async(who:Who,address:string)=>{
-    const socket=new WebSocket(address.replace('http','ws')+'/api/v1/ws',{headers:{origin,cookie:who.cookie}});sockets.push(socket);
+  const listen=async(who:Who,address:string,resumeUserEvents=false)=>{
+    const socket=new WebSocket(address.replace('http','ws')+'/api/v1/ws'+(resumeUserEvents?'?resumeUserEvents=1':''),{headers:{origin,cookie:who.cookie}});sockets.push(socket);
     const frames:any[]=[];socket.on('message',(raw:Buffer)=>frames.push(JSON.parse(String(raw))));
     const until=async(predicate:(frame:any)=>boolean,ms=5000)=>{
       const end=Date.now()+ms;

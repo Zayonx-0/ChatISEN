@@ -5,7 +5,7 @@ import {listen} from '../../../../platform/listener.js';
 import {outboxChannel} from '../../../../platform/realtime.js';
 import type {Database} from '../../../../platform/db.js';
 import {body,budget,isUuid} from '../../../../platform/validation.js';
-import type {CallService} from '../../application.js';
+import {mediaJobsReady,type CallService} from '../../application.js';
 import {callDto,maxSignalLength,type ParticipationState,type SignalType} from '../../domain.js';
 import {iceServers} from '../out/ice.js';
 
@@ -20,7 +20,10 @@ export async function registerCallRoutes(app:FastifyInstance,calls:CallService,s
   if(background){
     const report=(what:string)=>(error:unknown)=>app.log.error({err:error},what);
     const react=()=>{calls.removeDepartedMembers().then(()=>calls.runMediaJobs()).catch(report('Call event processing failed'));};
-    const stop=listen(db,[outboxChannel],message=>{if(message.payload==='conversation.member_gone')react();},report('Call listener failed'));
+    const stop=listen(db,[outboxChannel],message=>{
+      if(message.payload==='conversation.member_gone')react();
+      if(message.payload===mediaJobsReady)calls.runMediaJobs().catch(report('Media job processing failed'));
+    },report('Call listener failed'));
     const sweeper=setInterval(()=>{calls.sweep().catch(report('Call sweep failed'));react();},5000);sweeper.unref();
     app.addHook('onClose',async()=>{stop();clearInterval(sweeper);});
   }

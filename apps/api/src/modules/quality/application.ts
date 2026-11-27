@@ -14,8 +14,7 @@ export class QualityService implements QualityReport{
   async ingest(callId:string,userId:string,samples:Sample[]){
     if(!await this.calls.participated(callId,userId))throw notFound('Appel indisponible');
     if(!this.allowed(`${userId}:${callId}`))throw new Failure('rate_limited','Trop de lots de mesures');
-    await store.insert(this.db.pool,callId,userId,samples);
-    for(const sample of samples)callQuality(sample);
+    for(const sample of await store.insert(this.db.pool,callId,userId,samples))callQuality(sample);
   }
   summary(callId:string){return store.summary(this.db.pool,callId);}
 }

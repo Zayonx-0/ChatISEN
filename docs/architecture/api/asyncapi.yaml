@@ -49,6 +49,14 @@ channels:
   user:
     address: user:{userId}
     summary: Topic personnel, abonné automatiquement à l'ouverture
+    description: >-
+      À la reconnexion du même onglet, ouvrir /api/v1/ws?resumeUserEvents=1 pour relire les événements
+      insérés dans les cinq dernières minutes. La première ouverture sans ce paramètre reçoit les nouvelles trames.
+      Le serveur relit également le journal après rétablissement de l'écoute PostgreSQL. Il sélectionne
+      les trames de l'utilisateur authentifié qui visent toutes ses sessions ou sa session courante.
+      L'identifiant eventId est attribué à l'insertion. Les transactions pouvant être validées dans un
+      ordre différent, le client déduplique par eventId pendant toute la fenêtre, y compris pour les
+      identifiants inférieurs au dernier reçu.
     parameters:
       userId: { description: UUID de l'utilisateur de la session }
     messages:
@@ -119,6 +127,10 @@ components:
           v: { const: 1 }
           type: { const: ready }
           heartbeatSeconds: { type: integer, minimum: 5, maximum: 120 }
+          seenUserEventIds:
+            type: array
+            description: Identifiants déjà visibles à la première ouverture, à ignorer lors des rejeux de cet onglet.
+            items: { $ref: '#/components/schemas/Seq' }
     ping:
       name: ping
       summary: Battement du client
@@ -195,7 +207,7 @@ components:
           snapshotSeq: { $ref: '#/components/schemas/Seq' }
     resyncRequired:
       name: resync_required
-      summary: Client trop lent, rattraper par REST puis se réabonner
+      summary: Relire les événements par REST depuis fromSeq, puis se réabonner après le dernier événement appliqué
       x-code: [api]
       payload:
         type: object
@@ -310,8 +322,13 @@ components:
       x-code: [api]
       payload:
         type: object
-        required: [v, type]
-        properties: { v: { const: 1 }, type: { const: conversation_list_changed } }
+        required: [v, type, eventId, conversationId, reason]
+        properties:
+          v: { const: 1 }
+          type: { const: conversation_list_changed }
+          eventId: { $ref: '#/components/schemas/Seq' }
+          conversationId: { $ref: '#/components/schemas/Uuid' }
+          reason: { enum: [message, conversation] }
     callInvitation:
       name: call.invitation
       summary: Un appel entrant sonne
@@ -375,9 +392,11 @@ components:
     UserEvent:
       type: object
       required: [v, type, at, event, data]
+      description: Les trames de la cible portent eventId. Le format de démonstration peut l'omettre.
       properties:
         v: { const: 1 }
         type: { const: user_event }
+        eventId: { $ref: '#/components/schemas/Seq' }
         at: { $ref: '#/components/schemas/DateTime' }
         event: { type: string }
         data: { type: object }
