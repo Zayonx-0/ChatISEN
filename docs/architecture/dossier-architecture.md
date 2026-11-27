@@ -46,23 +46,23 @@ ChatISEN est une messagerie web avec comptes, conversations privées et de group
 
 | Attendu | Niveau | Conception retenue | État documenté | Critère de recette |
 |---|---|---|---|---|
-| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | Implémentés dans la cible. Recette en ligne à mesurer. L’ancienne démo utilisait scrypt. | Inscription, connexion, déconnexion, session révoquée refusée. |
-| Private and group messaging | Socle | Modules groups et messaging. | Implémentés dans la cible. Tests d’accès et de groupes dans le dépôt. | Un tiers ne lit aucun message. |
-| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Tests WebSocket et reprise `afterSeq` dans le dépôt. Livraison entre réplicas en cible à mesurer. | Après coupure, aucun message perdu ni doublé. |
-| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Recette en cible à mesurer, dont le relais forcé entre deux réseaux. | Son reçu entre deux réseaux, y compris en relais forcé. |
-| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Recette en cible à mesurer, en direct et par le relais. | Images décodées des deux côtés. |
-| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Configuration et tests du CD dans le dépôt. Recette en cible à mesurer. Destinataire de l’alerte à fournir. | Déploiement reproductible, alerte visible sur panne. |
-| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Admission et éviction implémentées. Recette à quatre et par le relais à mesurer. | Conférence à quatre, pistes reçues. |
-| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Tests d’envoi, de contrôle du contenu et des droits dans le dépôt. Recette du bucket en cible à mesurer. | Envoi et lecture réservés aux membres. |
-| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Implémenté. Test navigateur à deux prévu avec un écran simulé ; écran réel et conférence à mesurer. | L'écran partagé est reçu, l'arrêt rend la caméra. |
-| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Tests de reprise WebSocket dans le dépôt. Changement de réseau pendant un appel à mesurer. | Changer de réseau pendant un appel et un échange. |
-| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Indicateur, stockage et métriques dans le dépôt. Essai sur réseau bridé à mesurer. | L'indicateur se dégrade sur réseau bridé. |
-| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | Rôles implémentés et test de matrice dans le dépôt. | Matrice des droits testée route par route. |
-| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | MIG sur deux zones et Cloud SQL HA déclarés. Disponibilité, réparation et déploiement en cible à mesurer. | Arrêt d'une VM : le service continue. |
+| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | En ligne : Argon2id, sessions révocables, auth_request, rôle admin. Accès vérifiés le 27/11 ([relevé](../etudes/recette-cible.md)). L’ancienne démo utilisait scrypt. | Inscription, connexion, déconnexion, session révoquée refusée. |
+| Private and group messaging | Socle | Modules groups et messaging. | En ligne : conversations privées et groupes ; un tiers ne lit rien ([relevé](../etudes/recette-cible.md)). | Un tiers ne lit aucun message. |
+| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | En ligne : livraison à 6 WebSocket derrière le load balancer ([relevé](../etudes/recette-cible.md)). Reprise `afterSeq` testée en CI. | Après coupure, aucun message perdu ni doublé. |
+| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | En ligne : son reçu en direct et par coturn ([relevé](../etudes/recette-cible.md)). Reste : deux réseaux distincts. | Son reçu entre deux réseaux, y compris en relais forcé. |
+| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | En ligne : images décodées en direct et par coturn ([relevé](../etudes/recette-cible.md)). Reste : deux réseaux distincts. | Images décodées des deux côtés. |
+| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | En ligne : Terraform, CD, Prometheus, Grafana et alerte externe avec destinataire ([relevé](../etudes/recette-cible.md)). Livraison approuvée et journaux Cloud Logging : à vérifier après leur application. | Déploiement reproductible, alerte visible sur panne. |
+| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | En ligne : conférence à trois, y compris par le relais, avec retrait d’un membre ([relevé](../etudes/recette-cible.md)). Reste : à quatre. | Conférence à quatre, pistes reçues. |
+| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | En ligne : envoi vérifié par le serveur, téléchargement à l’identique, refus attendus ([relevé](../etudes/recette-cible.md)). | Envoi et lecture réservés aux membres. |
+| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Implémenté. Test navigateur à deux avec un écran simulé. Reste : écran réel et conférence. | L'écran partagé est reçu, l'arrêt rend la caméra. |
+| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Reprise WebSocket testée en CI. ICE restart codé, pas encore éprouvé par un changement de réseau. | Changer de réseau pendant un appel et un échange. |
+| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | En ligne : indicateur affiché, mesures enregistrées et suivies dans Prometheus ([relevé](../etudes/recette-cible.md)). Reste : essai sur réseau bridé. | L'indicateur se dégrade sur réseau bridé. |
+| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | Rôles de groupe et administrateur en ligne ; matrice des droits testée en CI. | Matrice des droits testée route par route. |
+| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | Arrêt d’une VM applicative et d’un SFU essayés ([relevé](../etudes/recette-cible.md)). Livraison zone par zone à vérifier en ligne. | Arrêt d'une VM : le service continue. |
 | Performance and load testing | Investigation | k6 pour REST et WebSocket, lk load-test pour le SFU. | À faire. | Rapport avec p95, erreurs et ressources par palier. |
 | Communication quality analysis | Investigation | Mesures getStats() comparées entre direct et relais, réseau bridé. | À faire. | Graphiques perte, gigue et RTT par scénario. |
 | Infrastructure and resource optimisation | Investigation | Mesure CPU, mémoire, trafic TURN, puis dimensionnement et coût. | À faire. | Tableau coût et capacité avant et après. |
-| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests d’accès, de passerelle et de conformité au contrat déclarés dans la CI. Audit de dépendances et Trivy configurés. ZAP sur banc à faire. | Constats classés, corrigés ou assumés. |
+| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests d’accès, de passerelle et de contrat, audit de dépendances et Trivy en CI. ZAP sur banc à faire. | Constats classés, corrigés ou assumés. |
 | Data analysis | Investigation | Mesures anonymisées de qualité et d'usage, sans contenu. | Script d'amorce analysis/study.py, sans données. | Jeu de données décrit et analyse rejouable. |
 | AI-based feature or proof of concept | Investigation | Détection d'anomalies de qualité d'appel (proposition). | Proposé. | Comparaison avec de simples seuils sur des pannes provoquées. |
 
@@ -351,7 +351,7 @@ Pendant une panne du serveur, un appel **direct déjà établi** peut continuer 
 ## 11. Observabilité
 
 - **Métriques** : Prometheus collecte l'API, les VM (node-exporter), coturn et, en V2, LiveKit. Grafana affiche et alerte. Le dépôt contient déjà cette configuration pour le banc local.
-- **Indicateurs prévus dans les tableaux Grafana.** Latence et erreurs HTTP, connexions WebSocket, délai jusqu’à l’acquittement des messages, âge du plus ancien événement non traité, échecs, expirations et reprises Push, appels à deux par première route ICE observée et mesures de qualité. Alertes Prometheus, dont l'indisponibilité d'un SFU. Recette en cible à mesurer.
+- **Indicateurs des tableaux Grafana.** Latence et erreurs HTTP, connexions WebSocket, délai jusqu’à l’acquittement des messages, âge du plus ancien événement non traité, échecs, expirations et reprises Push, appels à deux par première route ICE observée et mesures de qualité. Alertes Prometheus, dont l'indisponibilité d'un SFU. Valeurs relevées dans Prometheus le 27/11 ([relevé](../etudes/recette-cible.md)) ; déclenchement d'une alerte à provoquer.
 - **Journaux (T17).** L’Ops Agent centralise les journaux structurés Nginx, API, Cloud SQL Proxy, coturn et LiveKit dans Cloud Logging. Un même `requestId` relie Nginx, l’API et le corps d’erreur lorsque la requête atteint l’API. Le diagnostic API conserve le type, le code, les cadres de pile et la cause bornée et masquée, y compris au démarrage. Nginx conserve les erreurs critiques et de démarrage sur stderr. La collecte transmet leur niveau. Les champs collectés excluent les mots de passe, cookies, contenus de message, jetons et URL signées. Les fichiers de journaux locaux tournent et le bucket de cible conserve les entrées 30 jours en `europe-west4`. Recette à mesurer.
 - **Sondes** : `/healthz` (processus) et `/readyz` (base). `/metrics` ne doit pas être public.
 
@@ -404,39 +404,12 @@ La cible réutilise l’adresse régionale de la démo, car le DNS de l’école
 
 Le jeton de salle LiveKit expire en 60 secondes afin de borner la fenêtre de réadmission d’un membre retiré avec un jeton déjà émis. Les identifiants TURN durent au plus une heure, bornée par la durée restante de la session, pour permettre le rafraîchissement d’allocation (T12, T13, FW4 à FW6). [Écarts d’infrastructure](../../infra/gcp/README.md#écarts-avec-la-première-version-du-schéma)
 
-| Élément | Ancienne démo (branche `standalone`) | Cible décrite dans le dépôt |
+| Élément | Ancienne démo (branche `standalone`, arrêtée) | En ligne sur ia-pple.isen.fedyna.fr depuis le 27/11 |
 |---|---|---|
 | Serveur et données | Node, fichier JSON | Fastify, deux VM, PostgreSQL HA et un schéma SQL par module |
 | Interface et sessions | HTML et JavaScript, scrypt et session 24 h | React servi par Nginx, Argon2id, auth_request et session 24 h |
 | Appels et notifications | Pair-à-pair avec STUN Google, Web Push | coturn pour le relais, deux SFU pour les conférences, module Web Push |
 | Exploitation | Sondes et déploiement reçu par la VM | Prometheus, Grafana, Cloud Logging, déploiement approuvé et ordonné |
-
-### Relecture des modifications depuis `e87915c`
-
-| Passage modifié | Exigence ou preuve à rétablir |
-|---|---|
-| §1, « Cible : Argon2id, sessions révocables, auth_request, rôle admin et journal d’audit » et « conversations privées et groupes gérés depuis l’interface » | Le code démontre l’implémentation. Une recette de la cible doit la confirmer. |
-| §1, « livraison à 6 sockets à travers le load balancer vérifiée ; reprise afterSeq testée en CI » | Les tests de reprise sont dans le dépôt. Le passage de six sockets par le LB n’a pas de relevé lié. |
-| §1, « son reçu en direct […] et par le relais coturn », « images décodées des deux côtés », « conférence à trois vérifiée […] un membre retiré est sorti » | Les comptes rendus de banc et de démo ont un autre périmètre. Relais et conférence en cible à mesurer, avec deux réseaux et quatre participants selon les critères. |
-| §1, « déploiement continu, Prometheus, Grafana, Cloud Logging et alerte externe » | La configuration seule ne démontre pas la livraison ordonnée, le routage des journaux ou la réception d’une alerte. Destinataire à renseigner. |
-| §1, « envoi direct vérifié […] téléchargement à l’identique ; tiers, contenu mensonger et taille dépassée refusés » | Les tests d’intégration couvrent ces contrôles avec un stockage de test. La recette Cloud Storage en cible est à mesurer. |
-| §1, « écran simulé » et « reprise WebSocket testée » | Les tests sont présents. Écran réel, conférence et changement de réseau à mesurer. |
-| §1, « indicateur affiché, mesures enregistrées et comptées dans Prometheus » | Le code et les règles portent ces indicateurs. La mesure en cible et l’essai sur réseau bridé restent à faire. |
-| §1 et §4, « matrice testée route par route » | La matrice et les cas de test sont versionnés. Les résultats de CI doivent être reliés au SHA de la recette. |
-| §1, « 4 échecs sur 295 », « recréée en 7 min », « 775 requêtes » | Aucun relevé lié dans le dépôt pour ces chiffres. Disponibilité, réparation et déploiement à mesurer. |
-| §1, « audit de dépendances, Trivy et ZAP à faire » | Audit et Trivy sont déclarés dans la CI ; ZAP sur banc reste prévu. |
-| §3, « apps/api suit ce découpage » et « un test de la CI refuse » | La migration 004, le contrôle des frontières et ses cas de test étayent le découpage du dépôt. |
-| §4, « apps/api sert les opérations » et « la CI vérifie […] y compris les 401 et 429 […] les trames » | L’inventaire et les tests versionnés couvrent ce contrôle sur leurs cas. Le passage de la suite doit être relié au SHA. |
-| §5, réécriture du paragraphe WebSocket | La phrase sur l’absence de broker avait disparu. PostgreSQL reste seul responsable du réveil des réplicas. |
-| §6 et §7, routes du worker puis détails de qualité | Les sources étayent les routes, la cadence et les lots. L’exposition du champ `senderName` était déjà à trancher. La mesure des indicateurs en cible reste à faire. |
-| §7, « les envois abandonnés sont effacés » | L’ancienne phrase donnait le nettoyage général comme achevé. La recette doit vérifier les fichiers confirmés non joints et la conservation des références. |
-| §11, « Grafana affiche […] l’indisponibilité d’un SFU » | Les tableaux et règles sont versionnés. L’affichage et les alertes en cible restent à mesurer. |
-| §12.1, audit, scan, seuils et actions figées | Les workflows déclarent ces contrôles. Le résultat de l’audit et du scan relève du run du SHA livré. |
-| §12.4, « sans approbation manuelle », « digests posés sur le groupe », « remplacement sans retirer une VM » | Le texte retirait l’approbation et l’ordre APP-A puis APP-B, et remplaçait le modèle d’instance de la cible. L’approbation et l’ordre sont remis. L’écart de gestion du modèle est motivé en §12. |
-| §12.5, « seule exception […] migration 004 » | L’exception est cantonnée à la phase antérieure à la cible. La rétrocompatibilité demeure exigée pour toutes les livraisons de production. |
-| §14, « 27 novembre à 00 h 20 UTC », « comptes, conversations et messages […] repris », inventaire « En ligne », « Push vérifiées […] Chrome », « Automatique […] GitHub pousse les digests » | La configuration de cible et les preuves de la démo ne prouvent ni l’heure de bascule, ni l’intégrité de la reprise, ni la recette des services en cible. La livraison doit être approuvée. |
-
-La démo arrêtée conservait ses données sur un fichier JSON. Les critères de la cible portent sur les sondes privées, la limitation des connexions et la restauration Cloud SQL.
 
 ## Migration, CD et reprise
 
