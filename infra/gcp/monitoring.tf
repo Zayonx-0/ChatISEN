@@ -67,3 +67,29 @@ resource "google_monitoring_alert_policy" "public_down" {
   notification_channels = google_monitoring_notification_channel.email[*].id
   user_labels           = local.labels
 }
+
+locals {
+  target_vm_logs = "resource.type=\"gce_instance\" AND (log_id(\"chatisen_containers\") OR (log_id(\"syslog\") AND labels.\"compute.googleapis.com/resource_name\"=~\"^chatisen-(app-.+|ops|turn|sfu-[12])$\"))"
+  target_lb_logs = "resource.type=\"http_external_regional_lb_rule\" AND resource.labels.forwarding_rule_name=~\"^chatisen-(http|https)$\""
+}
+
+resource "google_logging_project_bucket_config" "target" {
+  project        = var.project
+  location       = var.region
+  bucket_id      = "chatisen-cible"
+  retention_days = 30
+}
+
+resource "google_logging_project_sink" "target" {
+  name                   = "chatisen-cible-eu"
+  destination            = "logging.googleapis.com/${google_logging_project_bucket_config.target.id}"
+  unique_writer_identity = true
+  filter                 = "(${local.target_vm_logs}) OR (${local.target_lb_logs} AND NOT httpRequest.requestUrl =~ \"[?]\")"
+}
+
+resource "google_logging_project_exclusion" "target_default" {
+  name        = "chatisen-cible-hors-default"
+  description = "Les journaux de cible sont routés vers la région européenne ; les URL avec requête sont écartées."
+  filter      = "(${local.target_vm_logs}) OR (${local.target_lb_logs})"
+  depends_on  = [google_logging_project_sink.target]
+}

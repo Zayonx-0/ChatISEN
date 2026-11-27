@@ -29,6 +29,12 @@ cat >/opt/chatisen/compose.yml <<'EOF'
 name: chatisen-sfu
 services:
   livekit:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.docker.compose.service"
     image: livekit/livekit-server:v1.8.4
     network_mode: host
     restart: always
@@ -38,6 +44,7 @@ services:
     volumes: ["/opt/chatisen/livekit:/etc/livekit:ro"]
     command: ["--config", "/etc/livekit/livekit.yaml"]
   node-exporter:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: prom/node-exporter:v1.8.2
     network_mode: host
     pid: host

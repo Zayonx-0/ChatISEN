@@ -640,6 +640,7 @@ paths:
       tags: [files]
       operationId: getFile
       summary: Obtenir les métadonnées et une URL de téléchargement signée
+      description: Le nettoyage peut retirer un fichier confirmé qui reste sans message pendant 24 heures.
       x-module: files
       x-scope: v2
       x-code: [api]
@@ -1074,4 +1075,4 @@ components:
       properties:
         code: { type: string, examples: [VALIDATION_ERROR, UNAUTHORIZED, NOT_FOUND, IDEMPOTENCY_CONFLICT] }
         message: { type: string, maxLength: 240 }
-        requestId: { $ref: '#/components/schemas/Uuid' }
+        requestId: { $ref: '#/components/schemas/Uuid', description: Identifiant de corrélation des journaux de la passerelle et de l’API. }

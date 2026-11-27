@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import type {Database} from '../../platform/db.js';
+import type {Database,Tx} from '../../platform/db.js';
 import {conflict,Failure,keyReused,notFound} from '../../platform/errors.js';
 import {messages as persisted} from '../../platform/metrics.js';
 import {appendEvent,publishOutbox,readEvents} from '../../platform/realtime.js';
@@ -15,6 +15,8 @@ const unavailable=()=>notFound('Conversation indisponible');
 export class MessageService implements MessageTimeline{
   private allowed=budget(120);
   constructor(private db:Database,private access:AccessPolicy,private files:FileCatalog){}
+
+  referencesFile(tx:Tx,id:string){return store.referencesFile(tx,id);}
 
   private async requireMember(conversationId:string,userId:string){if(!await this.access.membership(conversationId,userId))throw unavailable();}
 

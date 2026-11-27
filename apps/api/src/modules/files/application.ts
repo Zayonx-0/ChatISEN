@@ -51,11 +51,17 @@ export class FileService implements FileCatalog{
     if(!stored)throw conflict('Le fichier n’a pas été reçu','UPLOAD_MISSING');
     const genuine=stored.size===row.size_bytes&&stored.mediaType===row.media_type&&stored.sha256===row.sha256.toString('hex')&&matchesType(stored.head,row.media_type as MediaType);
     if(!genuine){
-      await store.setState(this.db.pool,row.id,'rejected');
-      await objects.remove(row.object_key);
+      const rejected=await store.setState(this.db.pool,row.id,'rejected');
+      // L'URL d'envoi doit avoir expiré avant de libérer la clé pour un nouvel objet.
+      if(!rejected){
+        const current=await store.byId(this.db.pool,row.id);
+        if(current?.state==='available')return dto(current);
+      }
       throw conflict('Le contenu reçu ne correspond pas à la déclaration','FILE_REJECTED');
     }
-    return dto(await store.setState(this.db.pool,row.id,'available')??(await store.byId(this.db.pool,row.id)));
+    const current=await store.setState(this.db.pool,row.id,'available')??await store.byId(this.db.pool,row.id);
+    if(current?.state!=='available')throw conflict('Fichier refusé','FILE_REJECTED');
+    return dto(current);
   }
 
   async download(fileId:string,userId:string){
@@ -64,8 +70,21 @@ export class FileService implements FileCatalog{
     return {file:dto(row),downloadUrl:await this.signed(this.storage().signDownload(row.object_key,row.file_name,downloadSeconds)),expiresAt:expiry(downloadSeconds)};
   }
 
-  async sweep(){
+  async sweep(referenced:(tx:Tx,id:string)=>Promise<boolean>){
     if(!this.objects)return;
-    for(const row of await store.abandoned(this.db.pool)){await this.objects.remove(row.object_key);await store.remove(this.db.pool,row.id);}
+    for(const {id} of await store.abandoned(this.db.pool)){
+      const key=await this.db.transaction(async tx=>{
+        const file=await store.lockAbandoned(tx,id);
+        if(!file)return;
+        // Ce verrou sérialise aussi l'attachement par la version précédente.
+        if(await referenced(tx,id)){await store.markAttached(tx,id);return;}
+        await store.reject(tx,id);
+        return file.object_key;
+      });
+      if(key){
+        await this.objects.remove(key);
+        await store.removeRejected(this.db.pool,id);
+      }
+    }
   }
 }

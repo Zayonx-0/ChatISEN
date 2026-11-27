@@ -1,4 +1,9 @@
 # Secrets générés par Terraform et lus au démarrage par les machines autorisées.
+resource "random_password" "api_db" {
+  length  = 40
+  special = false
+}
+
 resource "random_password" "csrf" {
   length  = 48
   special = false
@@ -45,7 +50,8 @@ locals {
   # nom du secret => { valeur, comptes de service autorisés à le lire }
   secrets = {
     "csrf-secret"            = { value = random_password.csrf.result, readers = ["app"] }
-    "db-password"            = { value = random_password.db.result, readers = ["app"] }
+    "db-api-password"        = { value = random_password.api_db.result, readers = ["app"] }
+    "db-password"            = { value = random_password.db.result, readers = var.legacy_api_sql_access ? ["app"] : [] }
     "turn-secret"            = { value = random_password.turn.result, readers = ["app", "turn"] }
     "livekit-api-key"        = { value = random_password.livekit_key.result, readers = ["app", "turn"] }
     "livekit-api-secret"     = { value = random_password.livekit_secret.result, readers = ["app", "turn"] }
@@ -108,4 +114,14 @@ resource "google_secret_manager_secret_iam_member" "vapid" {
   secret_id = each.value.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.sa.app}"
+}
+
+variable "api_restricted_sql" {
+  type    = bool
+  default = true
+}
+
+variable "legacy_api_sql_access" {
+  type    = bool
+  default = false
 }

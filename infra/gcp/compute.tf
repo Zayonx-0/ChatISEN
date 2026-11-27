@@ -5,7 +5,7 @@ data "google_compute_image" "debian" {
 }
 
 locals {
-  base_script = file("${path.module}/vm/base.sh")
+  base_script = replace(file("${path.module}/vm/base.sh"), "@@CHATISEN_OPS_AGENT@@", chomp(file("${path.module}/vm/ops-agent.yaml")))
   # Adresse fixe de la supervision : écrite ici pour que le modèle des VM applicatives
   # (créé avant destruction) n'impose pas ce même ordre à la VM de supervision.
   ops_ip = "10.40.30.2"

@@ -1,6 +1,8 @@
+import {writeSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {buildApp} from './app.js';
 import {collectMetrics,registry} from './platform/metrics.js';
+import {serializeError} from './platform/logging.js';
 
 function required(name:string){
   const value=process.env[name];
@@ -29,4 +31,7 @@ export async function start(){
   process.once('SIGTERM',stop);process.once('SIGINT',stop);
   return app;
 }
-if(import.meta.url===`file://${process.argv[1]}`)start().catch(error=>{console.error(error);process.exit(1);});
+if(import.meta.url===`file://${process.argv[1]}`)start().catch(error=>{
+  writeSync(process.stderr.fd,JSON.stringify({level:50,msg:'Démarrage de l’API impossible',err:serializeError(error)})+'\n');
+  process.exit(1);
+});

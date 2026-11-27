@@ -1,7 +1,5 @@
 name: Cible — images et déploiement
-# Flux T18 et T19 : après des tests réussis sur main, la CI construit les images, les envoie
-# au registre et les déploie avec une identité fédérée (aucune clé stockée). L'accès GCP
-# n'est accordé qu'à main et à l'environnement « cible ».
+# Flux T18 et T19 : publication et déploiement ont chacun leur identité fédérée.
 on:
   workflow_run:
     workflows: ['R01 — contrôles automatisés']
@@ -22,16 +20,31 @@ env:
   RELEASE: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
-  images:
-    name: Construire et publier les images
-    # Un push de ce dépôt dont les tests ont réussi, ou un lancement manuel sur main.
+  ci:
+    name: Vérifier la CI du commit
     if: >-
       github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+    steps:
+      - name: Exiger la dernière tentative réussie sur le commit exact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/r01.yml/runs" \
+            -f head_sha="$RELEASE" -f branch=main -f event=push -F per_page=1 |
+            jq -e --arg sha "$RELEASE" '.workflow_runs[0] |
+              .head_sha == $sha and .status == "completed" and .conclusion == "success"' >/dev/null
+
+  images:
+    name: Construire et publier les images
+    needs: ci
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: cible
+    environment: cible-images
     permissions:
       contents: read
       id-token: write
@@ -54,7 +67,7 @@ jobs:
         uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
         with:
           workload_identity_provider: projects/424540770012/locations/global/workloadIdentityPools/github/providers/chatisen
-          service_account: sa-deploy@project-fd23d3d9-a7e8-4002-a7a.iam.gserviceaccount.com
+          service_account: sa-images@project-fd23d3d9-a7e8-4002-a7a.iam.gserviceaccount.com
           token_format: access_token
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
@@ -102,7 +115,7 @@ jobs:
       - if: steps.recent.outputs.deploy == 'true'
         uses: google-github-actions/setup-gcloud@6189d56e4096ee891640bb02ac264be376592d6a # v2.1.2
       - if: steps.recent.outputs.deploy == 'true'
-        name: Migrer, remplacer les VM et vérifier
+        name: Migrer, déployer par zone et vérifier
         run: bash infra/gcp/cd/deploy.sh "$API_IMAGE" "$EDGE_IMAGE"
         env:
           API_IMAGE: ${{ needs.images.outputs.api }}

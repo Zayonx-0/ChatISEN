@@ -131,14 +131,35 @@ resource "google_secret_manager_secret" "migration_url" {
 
 resource "google_secret_manager_secret_version" "migration_url" {
   secret = google_secret_manager_secret.migration_url.id
-  # Connexion chiffrée sur l'adresse privée ; le certificat du serveur n'est pas vérifié.
-  secret_data = "postgres://chatisen:${random_password.db.result}@${google_sql_database_instance.pg.private_ip_address}:5432/chatisen?sslmode=no-verify"
+  # L'AC est propre à l'instance ; son certificat serveur ne cible pas son IP privée.
+  secret_data = "postgres://chatisen:${random_password.db.result}@${google_sql_database_instance.pg.private_ip_address}:5432/chatisen?sslmode=verify-ca&uselibpqcompat=true&sslrootcert=/etc/chatisen/sql/ca.pem"
+}
+
+resource "google_secret_manager_secret" "migration_ca" {
+  secret_id = "migration-database-ca"
+  labels    = local.labels
+  replication {
+    user_managed {
+      replicas { location = var.region }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_version" "migration_ca" {
+  secret      = google_secret_manager_secret.migration_ca.id
+  secret_data = google_sql_database_instance.pg.server_ca_cert[0].cert
+}
+
+resource "google_secret_manager_secret_iam_member" "migration_ca" {
+  secret_id = google_secret_manager_secret.migration_ca.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.sa.migration}"
 }
 
 resource "google_secret_manager_secret_iam_member" "migration_url" {
   secret_id = google_secret_manager_secret.migration_url.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.sa.app}"
+  member    = "serviceAccount:${local.sa.migration}"
 }
 
 resource "google_cloud_run_v2_job" "migrate" {
@@ -150,7 +171,7 @@ resource "google_cloud_run_v2_job" "migrate" {
 
   template {
     template {
-      service_account = local.sa.app
+      service_account = local.sa.migration
       max_retries     = 0
       timeout         = "300s"
       vpc_access {
@@ -160,7 +181,21 @@ resource "google_cloud_run_v2_job" "migrate" {
           subnetwork = google_compute_subnetwork.app.id
         }
       }
+      volumes {
+        name = "sql-ca"
+        secret {
+          secret = google_secret_manager_secret.migration_ca.secret_id
+          items {
+            path    = "ca.pem"
+            version = google_secret_manager_secret_version.migration_ca.version
+          }
+        }
+      }
       containers {
+        volume_mounts {
+          name       = "sql-ca"
+          mount_path = "/etc/chatisen/sql"
+        }
         image = var.api_image
         # Les arguments sont remplaçables à l'exécution, par exemple pour nommer un administrateur.
         command = ["node"]
@@ -170,7 +205,7 @@ resource "google_cloud_run_v2_job" "migrate" {
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.migration_url.secret_id
-              version = "latest"
+              version = google_secret_manager_secret_version.migration_url.version
             }
           }
         }
@@ -181,5 +216,5 @@ resource "google_cloud_run_v2_job" "migrate" {
   lifecycle {
     ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
   }
-  depends_on = [google_secret_manager_secret_version.migration_url, google_secret_manager_secret_iam_member.migration_url]
+  depends_on = [google_secret_manager_secret_iam_member.migration_url, google_secret_manager_secret_iam_member.migration_ca]
 }

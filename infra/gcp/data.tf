@@ -18,6 +18,7 @@ resource "google_sql_database_instance" "pg" {
       enabled                        = true
       point_in_time_recovery_enabled = true
       start_time                     = "02:00"
+      location                       = "eu"
     }
 
     ip_configuration {
@@ -69,6 +70,11 @@ resource "google_storage_bucket" "files" {
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
   labels                      = local.labels
+
+  lifecycle_rule {
+    action { type = "AbortIncompleteMultipartUpload" }
+    condition { age = 1 }
+  }
 
   cors {
     origin          = distinct(["https://ia-pple.isen.fedyna.fr", "https://${local.web_host}", "https://${local.sslip_host}"])

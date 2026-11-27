@@ -50,6 +50,8 @@ test('files: signed upload, server-side verification, membership and single use'
     ] as const){
       const file=await upload(alice,declared,content,type??declared.mediaType);
       assert.equal((await complete(alice,file.id)).json().code,'FILE_REJECTED',label);
+      await h.pool.query("update files.files set created_at=now()-interval '2 hours' where id=$1",[file.id]);
+      await h.services.sweepFiles();
       assert.ok(!bucket.has(file.key),`${label}: the object is removed`);
     }
 
@@ -65,8 +67,13 @@ test('files: signed upload, server-side verification, membership and single use'
     // Un envoi abandonné est effacé du stockage et de la base.
     const abandoned=await upload(alice,declare(pdf),pdf);
     await h.pool.query("update files.files set created_at=now()-interval '2 hours' where id=$1",[abandoned.id]);
-    await h.services.files.sweep();
-    assert.ok(!bucket.has(abandoned.key));assert.ok(bucket.has(good.key));
+    const orphan=await upload(alice,declare(pdf),pdf);
+    assert.equal((await complete(alice,orphan.id)).statusCode,200);
+    await h.pool.query("update files.files set completed_at=now()-interval '2 days' where id=any($1::uuid[])",[[orphan.id,good.id]]);
+    // Simule un message écrit par la version précédente, qui ne renseignait pas attached_at.
+    await h.pool.query('update files.files set attached_at=null where id=$1',[good.id]);
+    await Promise.all([h.services.sweepFiles(),h.services.sweepFiles()]);
+    assert.ok(!bucket.has(abandoned.key));assert.ok(!bucket.has(orphan.key));assert.ok(bucket.has(good.key));
 
     const refused=await startApp({objects:{...objects,signUpload:async()=>{throw new Error('signBlob: 403');}}});
     try{const user=await refused.register('refus'),peer=await refused.register('pair');const other=await refused.direct(user,peer);

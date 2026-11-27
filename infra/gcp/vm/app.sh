@@ -11,10 +11,14 @@ PROXY_CIDR=$(meta instance/attributes/proxy-cidr)
 ACME_UPSTREAM=$(meta instance/attributes/acme-upstream)
 TURN_HOST=$(meta instance/attributes/turn-host)
 FILES_BUCKET=$(meta instance/attributes/files-bucket)
+db_user=$(meta instance/attributes/app-db-user)
+db_secret=db-password
+if [[ $db_user == chatisen_api ]]; then db_secret=db-api-password; fi
 
 umask 077
 {
-  printf 'DATABASE_URL=postgres://chatisen:%s@cloud-sql-proxy:5432/chatisen\n' "$(secret db-password)"
+  db_password=$(secret "$db_secret")
+  printf 'DATABASE_URL=postgres://%s:%s@cloud-sql-proxy:5432/chatisen\n' "$db_user"     "$(printf '%s' "$db_password" | python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.stdin.read(),safe=""))')"
   printf 'CSRF_SECRET=%s\n' "$(secret csrf-secret)"
   printf 'LIVEKIT_API_KEY=%s\n' "$(secret livekit-api-key)"
   printf 'LIVEKIT_API_SECRET=%s\n' "$(secret livekit-api-secret)"
@@ -33,10 +37,22 @@ cat >/opt/chatisen/compose.yml <<'EOC'
 name: chatisen
 services:
   cloud-sql-proxy:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.docker.compose.service"
     image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3
     restart: always
     command: ["--private-ip", "--structured-logs", "--address=0.0.0.0", "--port=5432", "${SQL_CONNECTION}"]
   api:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.docker.compose.service"
     image: ${API_IMAGE}
     restart: always
     env_file: [/opt/chatisen/secrets/api.env]
@@ -54,6 +70,12 @@ services:
     ports: ["9091:9091"]
     depends_on: [cloud-sql-proxy]
   nginx:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.docker.compose.service"
     image: ${EDGE_IMAGE}
     restart: always
     environment:
@@ -67,6 +89,7 @@ services:
     volumes: ["/opt/chatisen/tls:/etc/nginx/tls:ro"]
     depends_on: [api]
   node-exporter:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: prom/node-exporter:v1.8.2
     network_mode: host
     pid: host
@@ -79,3 +102,48 @@ registry_login
 docker compose -f /opt/chatisen/compose.yml pull -q
 docker compose -f /opt/chatisen/compose.yml up -d --remove-orphans
 docker logout https://europe-west4-docker.pkg.dev >/dev/null
+
+# Une nouvelle mesure n'est valable qu'après la fin du démarrage Compose de ce boot.
+cat >/opt/chatisen/report-release <<'EOC'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -f /run/chatisen-compose-ready ]] || exit 0
+active() {
+  local container id reference
+  container=$(docker ps --filter label=com.docker.compose.project=chatisen --filter "label=com.docker.compose.service=$1" --quiet)
+  [[ -n $container && $container != *$'\n'* ]] || return 1
+  read -r id reference < <(docker inspect --type container --format '{{.Image}} {{.Config.Image}}' "$container")
+  [[ $reference =~ @sha256:[0-9a-f]{64}$ ]] || return 1
+  docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$id" | grep -Fx -- "$reference"
+}
+api=$(active api || true)
+edge=$(active nginx || true)
+ready=false
+if curl -fksS --max-time 5 -o /dev/null https://127.0.0.1:8443/healthz-edge; then ready=true; fi
+printf '{"api":"%s","edge":"%s","boot":"%s","time":%s,"ready":%s}' \
+  "$api" "$edge" "$(cat /proc/sys/kernel/random/boot_id)" "$(date +%s)" "$ready" |
+  curl -fsS --max-time 5 -H 'Metadata-Flavor: Google' -X PUT --data-binary @- \
+    http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/chatisen/release
+EOC
+chmod 750 /opt/chatisen/report-release
+cat >/etc/systemd/system/chatisen-release.service <<'EOC'
+[Unit]
+Description=Digests actifs sur la VM ChatISEN
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/opt/chatisen/report-release
+EOC
+cat >/etc/systemd/system/chatisen-release.timer <<'EOC'
+[Unit]
+Description=Publication de l'état de la VM ChatISEN
+[Timer]
+OnActiveSec=1
+OnUnitInactiveSec=20s
+AccuracySec=1s
+[Install]
+WantedBy=timers.target
+EOC
+touch /run/chatisen-compose-ready
+systemctl daemon-reload
+systemctl enable --now chatisen-release.timer

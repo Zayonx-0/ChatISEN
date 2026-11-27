@@ -1,4 +1,6 @@
 worker_processes auto;
+# Les erreurs courantes peuvent inclure la requête brute.
+error_log /dev/stderr crit;
 events { worker_connections 4096; }
 
 http {
@@ -18,8 +20,12 @@ http {
     "~^(?<uuid_a>[0-9a-f]{8})(?<uuid_b>[0-9a-f]{4})[0-9a-f](?<uuid_c>[0-9a-f]{3})[0-9a-f](?<uuid_d>[0-9a-f]{3})(?<uuid_e>[0-9a-f]{12})$"
       $uuid_a-$uuid_b-4$uuid_c-a$uuid_d-$uuid_e;
   }
-  log_format json escape=json '{"time":"$time_iso8601","requestId":"$request_uuid","method":"$request_method",'
-    '"path":"$uri","status":$status,"durationSeconds":$request_time,"client":"$remote_addr"}';
+  map $request_method $safe_method {
+    default other;
+    GET GET; POST POST; PUT PUT; PATCH PATCH; DELETE DELETE; HEAD HEAD; OPTIONS OPTIONS;
+  }
+  log_format json escape=json '{"time":"$time_iso8601","requestId":"$request_uuid","method":"$safe_method",'
+    '"status":$status,"durationSeconds":$request_time}';
   access_log /var/log/nginx/access.log json;
 
   map $http_upgrade $connection_upgrade { default upgrade; '' close; }

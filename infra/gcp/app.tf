@@ -11,6 +11,11 @@ variable "edge_image" {
   default = ""
 }
 
+variable "ordered_app_rollout" {
+  type    = bool
+  default = true
+}
+
 locals {
   app_enabled = var.api_image != "" && var.edge_image != ""
 }
@@ -35,11 +40,13 @@ resource "google_compute_instance_template" "app" {
   }
 
   metadata = {
-    enable-oslogin = "TRUE"
-    api-image      = var.api_image
-    edge-image     = var.edge_image
-    sql-connection = google_sql_database_instance.pg.connection_name
-    public-host    = local.web_host
+    enable-oslogin          = "TRUE"
+    enable-guest-attributes = "TRUE"
+    app-db-user             = var.api_restricted_sql ? "chatisen_api" : "chatisen"
+    api-image               = var.api_image
+    edge-image              = var.edge_image
+    sql-connection          = google_sql_database_instance.pg.connection_name
+    public-host             = local.web_host
     # Adresse que le load balancer ajoute à X-Forwarded-For.
     lb-public-ip  = google_compute_address.public.address
     proxy-cidr    = google_compute_subnetwork.proxy.ip_cidr_range
@@ -99,13 +106,17 @@ resource "google_compute_region_instance_group_manager" "app" {
     health_check      = google_compute_health_check.autoheal.id
     initial_delay_sec = 600
   }
-  # Mise à jour sans coupure : les nouvelles VM sont créées avant de retirer les anciennes.
+  # Le CD applique la consigne à une seule zone à la fois.
   update_policy {
-    type                         = "PROACTIVE"
+    type = var.ordered_app_rollout ? "OPPORTUNISTIC" : "PROACTIVE"
+    # Google refuse RESTART avec max_unavailable à 0 : le CD choisit l’action à chaque demande.
     minimal_action               = "REPLACE"
     max_surge_fixed              = 2
     max_unavailable_fixed        = 0
-    instance_redistribution_type = "PROACTIVE"
+    instance_redistribution_type = var.ordered_app_rollout ? "NONE" : "PROACTIVE"
+  }
+  instance_lifecycle_policy {
+    force_update_on_repair = "NO"
   }
   # Les digests en service sont posés par le déploiement continu (cd/deploy.sh).
   lifecycle {
