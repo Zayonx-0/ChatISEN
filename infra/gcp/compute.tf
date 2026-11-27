@@ -78,7 +78,11 @@ resource "google_compute_instance" "ops" {
 
   metadata = {
     enable-oslogin = "TRUE"
-    startup-script = "#!/usr/bin/env bash\n${local.base_script}\n${file("${path.module}/vm/ops.sh")}"
+    startup-script = join("\n", ["#!/usr/bin/env bash", local.base_script,
+      replace(replace(file("${path.module}/vm/ops.sh"),
+        "@@CHATISEN_ALERTS@@", chomp(file("${path.module}/../../ops/monitoring/alerts.yml"))),
+      "@@CHATISEN_DASHBOARD@@", chomp(file("${path.module}/../../ops/monitoring/grafana/provisioning/dashboards/chatisen.json")))
+    ])
   }
 
   service_account {

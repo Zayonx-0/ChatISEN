@@ -44,6 +44,14 @@ export async function joinConference(admission:Admission,video:boolean,iceServer
   tiles();
   return {
     leave,
+    getStats:async()=>{
+      const publications=[...room.localParticipant.trackPublications.values(),
+        ...[...room.remoteParticipants.values()].flatMap(participant=>[...participant.trackPublications.values()])];
+      const reports=await Promise.allSettled(publications.map(async({track}):Promise<RTCStatsReport|undefined>=>{
+        if(track&&'getRTCStatsReport' in track&&typeof track.getRTCStatsReport==='function')return track.getRTCStatsReport();
+      }));
+      return reports.flatMap(report=>report.status==='fulfilled'&&report.value?[report.value]:[]);
+    },
     setMuted:(muted:boolean)=>room.localParticipant.setMicrophoneEnabled(!muted),
     setCameraOff:(off:boolean)=>room.localParticipant.setCameraEnabled(!off),
     setSharing:(sharing:boolean)=>room.localParticipant.setScreenShareEnabled(sharing),

@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   checks:
-    name: Builds, tests et configuration Compose
+    name: Contrats, sécurité, builds et tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -25,23 +25,43 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgres://chatisen:chatisen@localhost:5432/chatisen_test
+      TEST_EDGE: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 10.20.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: pnpm
       - name: Installer les dépendances verrouillées
         run: pnpm install --frozen-lockfile
+      - name: Auditer les dépendances JavaScript
+        run: pnpm audit --audit-level high
+      - name: Analyser le dépôt avec Trivy
+        run: |
+          docker run --rm -v "$PWD:/src:ro" aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 fs \
+            --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 /src
+      - name: Vérifier les frontières des modules
+        run: node scripts/check-boundaries.mjs
+      - name: Charger le schéma officiel OpenAPI 3.1
+        run: |
+          curl --fail --silent --show-error --location https://spec.openapis.org/oas/3.1/schema/2022-10-07 \
+            --output "$RUNNER_TEMP/openapi-3.1.json"
+          echo "OPENAPI_META_SCHEMA=$RUNNER_TEMP/openapi-3.1.json" >> "$GITHUB_ENV"
       - name: Valider la configuration Compose
-        run: docker compose -f infra/compose/docker-compose.yml config --quiet
+        run: |
+          docker compose -f infra/compose/docker-compose.yml config --quiet
+          docker compose -f infra/compose/docker-compose.yml run --rm --no-deps --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
       - name: Tester l’agent de déploiement continu
         run: |
           bash -n ops/gcp/cd/install-cd.sh
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ops/gcp/cd -v
+      - name: Tester les outils d’études
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 analysis/test_quality.py
+          node --test tests/load/synthese.test.mjs
       - name: Vérifier les types
         run: pnpm typecheck
       - name: Compiler les applications
@@ -54,7 +74,7 @@ jobs:
         run: pnpm test:e2e
       - name: Conserver les traces navigateur synthétiques
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: r01-playwright-traces
           path: artifacts/playwright-results/
@@ -65,7 +85,7 @@ jobs:
         run: |
           {
             echo '## Portée des contrôles R01'
-            echo 'Ce workflow vérifie uniquement les builds, les tests disponibles et la configuration Compose.'
+            echo 'Ce workflow vérifie les contrats, les dépendances, les builds, les tests et la configuration Compose.'
             echo 'La recette J1 reste ouverte : les médias reçus, le parcours complet Compose/HTTPS et Grafana ne sont pas démontrés.'
             echo 'La publication v1.1.0 reste soumise à make verify LEVEL=core et aux critères du mandat R01.'
           } >> "$GITHUB_STEP_SUMMARY"

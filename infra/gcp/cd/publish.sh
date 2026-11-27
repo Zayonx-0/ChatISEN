@@ -16,12 +16,25 @@ sources=(apps packages db infra/gcp/edge package.json pnpm-lock.yaml pnpm-worksp
 content=$(git ls-tree -r HEAD -- "${sources[@]}" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-40)
 tag=$REGISTRY/$name:src-$content
 
+scan() (
+  scan_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/chatisen-trivy.XXXXXX")
+  trap 'rm -rf "$scan_dir"' EXIT
+  cache=${RUNNER_TEMP:-${TMPDIR:-/tmp}}/chatisen-trivy-cache
+  mkdir -p "$cache"
+  docker save --output "$scan_dir/image.tar" "$tag"
+  docker run --rm -v "$scan_dir:/scan:ro" -v "$cache:/cache" aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+    --cache-dir /cache --input /scan/image.tar --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 >&2
+)
+
+built=0
 if [[ ${CHATISEN_REBUILD:-} != 1 ]] && docker pull --quiet "$tag" >/dev/null 2>&1; then
   echo "$name : sources inchangées, image reprise" >&2
 else
   docker build --file "$dockerfile" --tag "$tag" --tag "$REGISTRY/$name:$RELEASE" . >&2
-  docker push --quiet "$tag" >&2
+  built=1
 fi
+if [[ ${CHATISEN_SCAN_IMAGES:-} == 1 ]]; then scan; fi
+if [[ $built == 1 ]]; then docker push --quiet "$tag" >&2; fi
 # L'étiquette de la version désigne toujours l'image retenue.
 docker tag "$tag" "$REGISTRY/$name:$RELEASE"
 docker push --quiet "$REGISTRY/$name:$RELEASE" >&2

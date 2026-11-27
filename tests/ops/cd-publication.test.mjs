@@ -14,6 +14,7 @@ fs.appendFileSync(process.env.FAKE_LOG,args.join(' ')+'\\n');
 if(args[0]==='pull'&&!process.env.FAKE_EXISTS)process.exit(1);
 if(args[0]==='inspect')process.stdout.write('${digest}\\n');
 if(args[0]==='build')process.stdout.write('sortie de construction\\n');
+if(args[0]==='run'&&process.env.FAKE_BLOCKED)process.exit(1);
 `;
 
 function publish(environment={}){
@@ -22,7 +23,7 @@ function publish(environment={}){
     const log=join(directory,'appels');writeFileSync(log,'');
     writeFileSync(join(directory,'docker'),fake);chmodSync(join(directory,'docker'),0o755);
     const result=spawnSync('bash',[resolve('infra/gcp/cd/publish.sh'),'api','apps/api/Dockerfile'],{encoding:'utf8',timeout:30_000,
-      env:{...process.env,PATH:`${directory}:${process.env.PATH}`,FAKE_LOG:log,REGISTRY:registry,RELEASE:'abc123',...environment}});
+      env:{...process.env,PATH:`${directory}:${process.env.PATH}`,RUNNER_TEMP:directory,FAKE_LOG:log,REGISTRY:registry,RELEASE:'abc123',...environment}});
     return {...result,calls:readFileSync(log,'utf8').trim().split('\n')};
   }finally{rmSync(directory,{recursive:true,force:true});}
 }
@@ -46,4 +47,18 @@ test('image publication: unchanged sources reuse the image, so the same digest i
 test('image publication: a rebuild can be forced',()=>{
   const run=publish({FAKE_EXISTS:'1',CHATISEN_REBUILD:'1'});
   assert.ok(run.calls.some(call=>call.startsWith('build ')));assert.ok(!run.calls.some(call=>call.startsWith('pull ')));
+});
+
+test('publication : Trivy contrôle les images construites et reprises avant tout push',()=>{
+  for(const existing of ['','1']){
+    const run=publish({FAKE_EXISTS:existing,CHATISEN_SCAN_IMAGES:'1'});
+    assert.equal(run.status,0,run.stderr);assert.equal(run.stdout,digest+'\n');
+    const scan=run.calls.findIndex(call=>call.startsWith('run '));
+    const push=run.calls.findIndex(call=>call.startsWith('push '));
+    assert.ok(scan>=0&&scan<push);
+    assert.match(run.calls[scan],/--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1/);
+    const blocked=publish({FAKE_EXISTS:existing,CHATISEN_SCAN_IMAGES:'1',FAKE_BLOCKED:'1'});
+    assert.notEqual(blocked.status,0);assert.equal(blocked.stdout,'');
+    assert.ok(!blocked.calls.some(call=>call.startsWith('push ')));
+  }
 });

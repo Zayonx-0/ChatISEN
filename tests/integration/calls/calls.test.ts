@@ -17,8 +17,8 @@ test('calls: one-to-one signalling follows the contract and stays private',async
     const url=`/conversations/${direct}/calls`;const payload={clientId:randomUUID(),mode:'video'};
 
     assert.equal((await h.call(eve,'POST',url,payload)).statusCode,404);
-    assert.equal((await h.app.inject({method:'POST',url:`/api/v1${url}`,headers:{origin,cookie:alice.cookie},payload})).statusCode,403);
-    assert.equal((await h.app.inject({method:'POST',url:`/api/v1${url}`,headers:{...h.headers(alice),origin:'https://evil.test'},payload})).statusCode,403);
+    assert.equal((await h.inject({method:'POST',url:`/api/v1${url}`,headers:{origin,cookie:alice.cookie},payload})).statusCode,403);
+    assert.equal((await h.inject({method:'POST',url:`/api/v1${url}`,headers:{...h.headers(alice),origin:'https://evil.test'},payload})).statusCode,403);
     const [first,retry]=await Promise.all([h.call(alice,'POST',url,payload),h.call(alice,'POST',url,payload)]);
     assert.deepEqual([first.statusCode,retry.statusCode].sort(),[200,201]);assert.equal(first.json().id,retry.json().id);
     const call=first.json();matches('Call',call);assert.deepEqual([call.state,call.topology],['ringing','p2p']);

@@ -30,8 +30,8 @@ export function CallPanel({calls,peerName,memberName}:{calls:ReturnType<typeof u
     {group
       ?<div className="conference-grid">{view.tiles?.map(tile=><Participant key={tile.key} tile={tile} name={memberName(tile.userId)}/>)}</div>
       :<div className="call-videos"><Media stream={calls.remoteStream} label="Média du correspondant" className="remote"/><Media stream={calls.localStream} muted label="Votre aperçu" className="local"/></div>}
-    {group&&view.level&&<p className={`quality ${view.level}`} aria-label="Qualité de la communication">Qualité {view.level} · serveur de conférence</p>}
-    {quality&&<p className={`quality ${quality.level}`} aria-label="Qualité de la communication">Qualité {quality.level} · {quality.rttMs??'?'} ms · pertes {quality.lossPercent} % · {quality.bitrateKbps} kbit/s · {quality.candidateType==='relay'?'relais TURN':'connexion directe'}</p>}
+    {group&&!quality&&view.level&&<p className={`quality ${view.level}`} aria-label="Qualité de la communication">Qualité {view.level} · serveur de conférence</p>}
+    {quality&&<p className={`quality ${quality.level}`} aria-label="Qualité de la communication">Qualité {quality.level} · {quality.rttMs??'?'} ms · pertes {quality.lossPercent} % · {quality.bitrateKbps} kbit/s{quality.candidateType==='relay'?' · relais TURN':group?' · serveur de conférence':quality.candidateType==='unknown'?'':' · connexion directe'}</p>}
     <div className="call-actions">
       <button onClick={calls.toggleMute} aria-pressed={view.muted}>{view.muted?'Réactiver le micro':'Couper le micro'}</button>
       {view.mode==='video'&&<button onClick={calls.toggleCamera} aria-pressed={view.cameraOff}>{view.cameraOff?'Réactiver la caméra':'Couper la caméra'}</button>}

@@ -38,24 +38,7 @@ EOF
 } >/opt/chatisen/monitoring/prometheus.yml
 
 cat >/opt/chatisen/monitoring/alerts.yml <<'EOF'
-groups:
-  - name: disponibilite
-    rules:
-      - alert: ApiIndisponible
-        expr: up{job="api"} == 0
-        for: 1m
-        labels: {gravite: critique}
-        annotations: {resume: "API injoignable sur {{ $labels.instance }}"}
-      - alert: AucuneApi
-        expr: (count(up{job="api"} == 1) or vector(0)) == 0
-        for: 1m
-        labels: {gravite: critique}
-        annotations: {resume: "Plus aucune API disponible"}
-      - alert: CoturnIndisponible
-        expr: up{job="coturn"} == 0
-        for: 2m
-        labels: {gravite: majeure}
-        annotations: {resume: "coturn injoignable"}
+@@CHATISEN_ALERTS@@
 EOF
 
 cat >/opt/chatisen/monitoring/provisioning/datasources/prometheus.yml <<'EOF'
@@ -68,19 +51,8 @@ apiVersion: 1
 providers:
   - {name: chatisen, type: file, options: {path: /var/lib/grafana/dashboards}}
 EOF
-python3 - >/opt/chatisen/monitoring/dashboards/chatisen.json <<'EOF'
-import json
-panels = [("Cibles disponibles", "up", "{{job}} {{instance}}"),
-          ("Requêtes API par seconde", 'sum by (instance) (rate({__name__=~".*http.*requests.*total"}[5m]))', "{{instance}}"),
-          ("CPU utilisé (%)", '100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))', "{{instance}}"),
-          ("Mémoire disponible (octets)", "node_memory_MemAvailable_bytes", "{{instance}}")]
-print(json.dumps({"uid": "chatisen", "title": "ChatISEN · cible", "schemaVersion": 39, "refresh": "30s",
-    "time": {"from": "now-3h", "to": "now"},
-    "panels": [{"id": i + 1, "type": "timeseries", "title": title,
-                "gridPos": {"x": 12 * (i % 2), "y": 8 * (i // 2), "w": 12, "h": 8},
-                "datasource": {"type": "prometheus", "uid": "prometheus"},
-                "targets": [{"expr": expr, "legendFormat": legend, "refId": "A"}]}
-               for i, (title, expr, legend) in enumerate(panels)]}, ensure_ascii=False))
+cat >/opt/chatisen/monitoring/dashboards/chatisen.json <<'EOF'
+@@CHATISEN_DASHBOARD@@
 EOF
 
 umask 077

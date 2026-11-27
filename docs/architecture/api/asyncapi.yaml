@@ -7,8 +7,9 @@ info:
   version: 2.0.0-cible
   description: >-
     Authentification par le cookie de session à l'ouverture, origine contrôlée. Trames JSON texte avec v = 1.
-    Le serveur annonce heartbeatSeconds (30). Les événements d'une conversation portent un numéro seq croissant :
-    après une coupure, le client se réabonne avec afterSeq et reçoit ce qui manque.
+    Le serveur annonce heartbeatSeconds (30). Le client envoie ping à cette cadence et se reconnecte si pong manque.
+    Les événements d'une conversation portent un numéro seq croissant. Le client reprend avec afterSeq.
+    Le client acquitte les événements traités avec ack sur le fil abonné.
     Les écritures (messages, signaux d'appel) passent par le REST décrit dans openapi.yaml.
 defaultContentType: application/json
 servers:
@@ -137,6 +138,7 @@ components:
       x-code: [api]
       payload:
         type: object
+        additionalProperties: false
         required: [v, type]
         properties: { v: { const: 1 }, type: { const: ping } }
     pong:
@@ -164,6 +166,7 @@ components:
       x-code: [api, demo]
       payload:
         type: object
+        additionalProperties: false
         required: [v, type, conversationId, afterSeq]
         properties:
           v: { const: 1 }
@@ -176,6 +179,7 @@ components:
       x-code: [api]
       payload:
         type: object
+        additionalProperties: false
         required: [v, type, conversationId]
         properties:
           v: { const: 1 }
@@ -187,6 +191,7 @@ components:
       x-code: [api]
       payload:
         type: object
+        additionalProperties: false
         required: [v, type, conversationId, seq]
         properties:
           v: { const: 1 }
@@ -369,11 +374,16 @@ components:
 
   schemas:
     Uuid: { type: string, format: uuid }
-    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$' }
+    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$', maxLength: 19, description: Entier signé 64 bits positif ou nul transmis en texte }
     DateTime: { type: string, format: date-time }
     Error:
       type: object
       required: [code, message, requestId]
+      description: >-
+        BAD_REQUEST signale une trame invalide ou un acquittement au-delà du dernier numéro envoyé.
+        UNAUTHORIZED signale une session devenue invalide et ferme la connexion.
+        NOT_MEMBER signale un fil hors des droits de la session. NOT_FOUND signale un journal indisponible pour un fil autorisé.
+        DEPENDENCY_UNAVAILABLE signale un échec de lecture ou de vérification temporaire.
       properties:
         code: { enum: [BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_MEMBER, NOT_FOUND, RESYNC_REQUIRED, RATE_LIMITED, DEPENDENCY_UNAVAILABLE, INTERNAL_ERROR] }
         message: { type: string, maxLength: 240 }
@@ -391,8 +401,7 @@ components:
         data: { type: object }
     UserEvent:
       type: object
-      required: [v, type, at, event, data]
-      description: Les trames de la cible portent eventId. Le format de démonstration peut l'omettre.
+      required: [v, type, eventId, at, event, data]
       properties:
         v: { const: 1 }
         type: { const: user_event }
@@ -408,10 +417,12 @@ components:
         actorId: { $ref: '#/components/schemas/Uuid' }
     CallState:
       type: object
-      required: [callId, conversationId, mode, state]
+      required: [callId, conversationId, initiatorId, mode, topology, state]
       properties:
         callId: { $ref: '#/components/schemas/Uuid' }
         conversationId: { $ref: '#/components/schemas/Uuid' }
+        initiatorId: { $ref: '#/components/schemas/Uuid' }
         mode: { enum: [audio, video] }
+        topology: { enum: [p2p, sfu] }
         state: { enum: [ringing, active, ended] }
         reason: { enum: [declined, expired, ended, disconnected, server_restart] }

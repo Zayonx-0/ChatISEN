@@ -60,6 +60,10 @@ export async function pruneRealtime(db:Queryable){
 }
 
 export type OutboxEvent={id:string;type:string;conversationId:string;actorId:string;entityId:string;payload:Record<string,unknown>;createdAt:Date};
+export async function oldestOutboxAge(db:Queryable){
+  return (await db.query<{seconds:number}>(`select greatest(0,extract(epoch from clock_timestamp()-min(created_at)))::float as seconds
+    from realtime.outbox where processed_at is null`)).rows[0].seconds;
+}
 export async function publishOutbox(tx:Tx,event:{type:string;conversationId:string;actorId:string;entityId:string;payload?:Record<string,unknown>}){
   await tx.query('insert into realtime.outbox(event_type,conversation_id,actor_id,entity_id,payload) values($1,$2,$3,$4,$5::jsonb)',
     [event.type,event.conversationId,event.actorId,event.entityId,JSON.stringify(event.payload??{})]);

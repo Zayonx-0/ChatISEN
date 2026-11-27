@@ -20,8 +20,8 @@ export async function registerMessageRoutes(app:FastifyInstance,messages:Message
     return reply.code(result.created?201:200).send(result.message);
   });
   app.get('/api/v1/conversations/:conversationId/events',{preHandler:authenticate},async(request)=>{
-    const query=request.query as {afterSeq?:unknown;limit?:unknown},after=query.afterSeq??'0';
-    if(!isSeq(after))throw invalid('Pagination invalide');
-    return messages.events(identifier(request.params),identityOf(request).user.id,after,pageLimit(query.limit));
+    const {afterSeq,limit}=request.query as {afterSeq?:unknown;limit?:unknown};
+    if(!isSeq(afterSeq))throw invalid('Pagination invalide');
+    return messages.events(identifier(request.params),identityOf(request).user.id,afterSeq,pageLimit(limit));
   });
 }

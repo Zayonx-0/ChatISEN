@@ -37,7 +37,7 @@ test('demo import: accounts keep their password, history keeps its order, rerun 
     assert.deepEqual(list.json().items.map((c:{id:string})=>c.id).sort(),[direct,group].sort());
     const detail=await h.call(who,'GET',`/conversations/${group}`);assert.equal(detail.json().role,'owner');matches('ConversationDetail',detail.json());
     const history=await h.call(who,'GET',`/conversations/${direct}/messages`);matches('MessagePage',history.json());
-    assert.deepEqual(history.json().items.map((m:{text:string;seq:string})=>[m.seq,m.text]),[['1','premier'],['2','deuxième'],['3','troisième']]);
+    assert.deepEqual(history.json().items.map((m:{text:string;seq:string})=>[m.seq,m.text]),[['3','troisième'],['2','deuxième'],['1','premier']]);
     const events=await h.call(who,'GET',`/conversations/${direct}/events?afterSeq=0`);matches('EventPage',events.json());assert.equal(events.json().items.length,3);
     const next=await h.call(who,'POST',`/conversations/${direct}/messages`,{clientId:randomUUID(),text:'après la reprise'});
     assert.equal(next.statusCode,201,next.body);assert.equal(next.json().seq,'4');

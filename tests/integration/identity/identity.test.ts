@@ -8,7 +8,7 @@ test('identity: accounts, sessions, profile, search, administration and audit',a
   let h=await startApp();
   try{
     const alice=await h.register('alice'),bob=await h.register('bob'),root=await h.register('root');
-    const fresh=(payload:object,from=origin)=>h.app.inject({method:'POST',url:'/api/v1/users',headers:{origin:from},payload});
+    const fresh=(payload:object,from=origin)=>h.inject({method:'POST',url:'/api/v1/users',headers:{origin:from},payload});
     assert.equal((await fresh({handle:`x_${h.suffix}`,displayName:'X',password},'https://evil.test')).statusCode,403);
     assert.equal((await fresh({handle:alice.handle,displayName:'Autre',password})).statusCode,409);
     assert.equal((await fresh({handle:`x_${h.suffix}`,displayName:'X',password:'court'})).statusCode,400);
@@ -22,12 +22,12 @@ test('identity: accounts, sessions, profile, search, administration and audit',a
     assert.deepEqual([wrong.statusCode,unknown.statusCode],[401,401]);assert.equal(wrong.json().message,unknown.json().message);
 
     // La passerelle interroge ce contrôle : il ignore tout en-tête d'identité reçu.
-    const gate=await h.app.inject({method:'GET',url:'/internal/auth/verify',headers:{cookie:alice.cookie,'x-user-id':bob.id}});
+    const gate=await h.inject({method:'GET',url:'/internal/auth/verify',headers:{cookie:alice.cookie,'x-user-id':bob.id}});
     assert.equal(gate.statusCode,204);assert.equal(gate.headers['x-user-id'],alice.id);assert.equal(gate.headers['cache-control'],'no-store');
-    assert.equal((await h.app.inject({method:'GET',url:'/internal/auth/verify',headers:{'x-user-id':alice.id}})).statusCode,401);
+    assert.equal((await h.inject({method:'GET',url:'/internal/auth/verify',headers:{'x-user-id':alice.id}})).statusCode,401);
 
     const me=await h.call(alice,'GET','/users/me');assert.equal(me.statusCode,200);matches('UserProfile',me.json());assert.equal(me.json().passwordHash,undefined);
-    assert.equal((await h.app.inject({method:'PATCH',url:'/api/v1/users/me',headers:{origin,cookie:alice.cookie},payload:{displayName:'Sans CSRF'}})).statusCode,403);
+    assert.equal((await h.inject({method:'PATCH',url:'/api/v1/users/me',headers:{origin,cookie:alice.cookie},payload:{displayName:'Sans CSRF'}})).statusCode,403);
     const renamed=await h.call(alice,'PATCH','/users/me',{displayName:'Alice Martin'});assert.equal(renamed.statusCode,200);assert.equal(renamed.json().displayName,'Alice Martin');matches('UserProfile',renamed.json());
 
     const search=await h.call(bob,'GET',`/users?q=${alice.handle.slice(0,12)}`);assert.equal(search.statusCode,200);matches('UserList',search.json());
@@ -61,7 +61,7 @@ test('identity: accounts, sessions, profile, search, administration and audit',a
     // Une nouvelle instance retrouve la session enregistrée en base.
     await h.close();h=await startApp();
     assert.equal((await h.call(alice,'GET','/users/me')).statusCode,200);
-    assert.equal((await h.app.inject({method:'DELETE',url:'/api/v1/sessions/current',headers:{origin,cookie:alice.cookie}})).statusCode,403);
+    assert.equal((await h.inject({method:'DELETE',url:'/api/v1/sessions/current',headers:{origin,cookie:alice.cookie}})).statusCode,403);
     assert.equal((await h.call(alice,'DELETE','/sessions/current')).statusCode,204);
     assert.equal((await h.call(alice,'GET','/users/me')).statusCode,401);
   }finally{await h.close();}

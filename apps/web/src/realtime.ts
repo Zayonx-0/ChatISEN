@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {api} from './api.js';
 
-export type Frame={v:1;type:string;conversationId?:string;seq?:string;fromSeq?:string;eventId?:string;seenUserEventIds?:string[];at?:string;event?:string;data?:any};
+export type Frame={v:1;type:string;conversationId?:string;seq?:string;fromSeq?:string;eventId?:string;seenUserEventIds?:string[];heartbeatSeconds?:number;at?:string;event?:string;data?:any};
 export type Connection='connecting'|'online'|'offline';
 
 /**
@@ -11,11 +11,12 @@ export type Connection='connecting'|'online'|'offline';
 export function useRealtime(userId:string|undefined,conversationId:string|undefined,cursor:React.RefObject<string>,onFrame:(frame:Frame)=>void,onOpen:()=>void){
   const [connection,setConnection]=useState<Connection>('connecting');
   const socket=useRef<WebSocket|null>(null);const current=useRef<string|undefined>(conversationId);const subscribed=useRef<string|undefined>(undefined);
+  const readySocket=useRef<WebSocket|null>(null);
   const recovery=useRef<{conversationId:string;ws:WebSocket;controller:AbortController}|null>(null);
   const handlers=useRef({onFrame,onOpen});handlers.current={onFrame,onOpen};
   current.current=conversationId;
   const sync=useCallback(()=>{
-    const ws=socket.current;if(!ws||ws.readyState!==WebSocket.OPEN)return;
+    const ws=socket.current;if(!ws||readySocket.current!==ws||ws.readyState!==WebSocket.OPEN)return;
     if(subscribed.current&&subscribed.current!==current.current)ws.send(JSON.stringify({v:1,type:'unsubscribe',conversationId:subscribed.current}));
     if(current.current&&recovery.current?.conversationId===current.current)return;
     if(current.current&&subscribed.current!==current.current)
@@ -46,14 +47,24 @@ export function useRealtime(userId:string|undefined,conversationId:string|undefi
     };
     const open=()=>{if(closed)return;setConnection('connecting');subscribed.current=undefined;
       const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/api/v1/ws${resume?'?resumeUserEvents=1':''}`);socket.current=ws;
-      ws.onopen=()=>{beat=setInterval(()=>ws.readyState===WebSocket.OPEN&&ws.send(JSON.stringify({v:1,type:'ping'})),25000);};
+      let awaitingPong=false;
       ws.onmessage=event=>{if(closed||socket.current!==ws)return;try{
         const frame=JSON.parse(String(event.data)) as Frame;
-        if(frame.type==='ready'){
+        if(frame.v!==1)return;
+        if(frame.type==='ready'&&readySocket.current!==ws){
+          const period=frame.heartbeatSeconds;
+          if(typeof period!=='number'||!Number.isInteger(period)||period<5||period>120){ws.close();return;}
+          readySocket.current=ws;
+          beat=setInterval(()=>{
+            if(ws.readyState!==WebSocket.OPEN)return;
+            if(awaitingPong){ws.close();return;}
+            awaitingPong=true;ws.send(JSON.stringify({v:1,type:'ping'}));
+          },period*1000);
           const now=performance.now();
           for(const id of frame.seenUserEventIds??[])seen.set(id,now);
           resume=true;delay=1000;setConnection('online');sync();handlers.current.onOpen();
         }
+        if(frame.type==='pong'){awaitingPong=false;return;}
         if(frame.type==='resync_required'&&frame.conversationId&&frame.fromSeq){void resync(ws,frame.conversationId,frame.fromSeq);return;}
         if(frame.eventId){
           const now=performance.now();
@@ -62,13 +73,15 @@ export function useRealtime(userId:string|undefined,conversationId:string|undefi
           seen.set(frame.eventId,now);
         }
         handlers.current.onFrame(frame);
+        if(frame.type==='event'&&frame.conversationId&&frame.conversationId===subscribed.current&&frame.seq===cursor.current)
+          ws.send(JSON.stringify({v:1,type:'ack',conversationId:frame.conversationId,seq:frame.seq}));
       }catch{/* trame ignorée */}};
-      ws.onclose=()=>{cancel(ws);if(beat)clearInterval(beat);if(!closed){setConnection('offline');retry=setTimeout(open,delay);delay=Math.min(delay*2,8000);}};
+      ws.onclose=()=>{cancel(ws);if(readySocket.current===ws)readySocket.current=null;if(beat)clearInterval(beat);if(!closed){setConnection('offline');retry=setTimeout(open,delay);delay=Math.min(delay*2,8000);}};
       ws.onerror=()=>ws.close();};
     const online=()=>{if(socket.current?.readyState===WebSocket.CLOSED&&retry){clearTimeout(retry);open();}};
     window.addEventListener('online',online);open();
-    return()=>{closed=true;window.removeEventListener('online',online);if(retry)clearTimeout(retry);if(beat)clearInterval(beat);cancel(socket.current);socket.current?.close();socket.current=null;};
-  },[userId,sync]);
+    return()=>{closed=true;window.removeEventListener('online',online);if(retry)clearTimeout(retry);if(beat)clearInterval(beat);cancel(socket.current);socket.current?.close();socket.current=null;readySocket.current=null;};
+  },[userId,sync,cursor]);
   useEffect(()=>{
     if(recovery.current&&recovery.current.conversationId!==conversationId){recovery.current.controller.abort();recovery.current=null;}
     sync();

@@ -10,12 +10,17 @@ test('notifications: rights, retries, revocation and single delivery across repl
     const status=failures.get(subscription.endpoint);if(status)throw Object.assign(new Error('refused'),{statusCode:status});
     sent.push({endpoint:subscription.endpoint,payload:JSON.parse(payload),ttl});}};
   // Deux réplicas, boucle automatique coupée : le test déclenche chaque envoi.
-  const h=await startApp({push,background:false}),replica=await startApp({push,background:false});
+  const h=await startApp({push,background:false,metricsRoute:true}),replica=await startApp({push,background:false});
   const flush=async()=>{await Promise.all([h.services.notifications.run(),replica.services.notifications.run()]);await new Promise(r=>setTimeout(r,150));};
   const keys=()=>{const ecdh=createECDH('prime256v1');ecdh.generateKeys();return {p256dh:ecdh.getPublicKey().toString('base64url'),auth:randomBytes(16).toString('base64url')};};
   const endpoint=(name:string)=>`https://fcm.googleapis.com/fcm/send/${name}-${h.suffix}`;
   const subscribe=(who:Who,url:string)=>h.call(who,'POST','/push-subscriptions',{endpoint:url,keys:keys(),expirationTime:null});
   const mine=()=>sent.filter(s=>s.endpoint.endsWith(h.suffix));
+  const metric=async(name:string)=>{
+    const response=await h.app.inject('/metrics');assert.equal(response.statusCode,200);
+    const value=response.body.split('\n').find(line=>line.startsWith(name+' '));
+    assert.ok(value,name);return Number(value.slice(name.length+1));
+  };
   try{
     // Les autres fichiers de test partagent la base : seuls les événements de ce passage comptent.
     await h.pool.query('update realtime.outbox set processed_at=now() where processed_at is null');
@@ -42,14 +47,23 @@ test('notifications: rights, retries, revocation and single delivery across repl
     try{await post('envoi automatique');for(let i=0;i<100&&!mine().length;i++)await new Promise(r=>setTimeout(r,100));await new Promise(r=>setTimeout(r,150));}finally{await live.close();}
     assert.equal(mine().length,1,'the background loop delivers once');
 
+    const failed='chatisen_push_events_total{event="failed"}',retried='chatisen_push_events_total{event="retry"}';
+    const expired='chatisen_push_events_total{event="expired"}',outboxAge='chatisen_outbox_oldest_pending_seconds';
+    const failedBefore=await metric(failed),retriesBefore=await metric(retried),expiredBefore=await metric(expired);
     sent.length=0;failures.set(endpoint('bob'),500);await post('panne du fournisseur');await flush();
     const pending=(await h.pool.query("select d.attempts from notifications.push_deliveries d join notifications.push_subscriptions s on s.id=d.subscription_id where s.endpoint=$1 and d.state='pending'",[endpoint('bob')])).rows;
     assert.deepEqual(pending,[{attempts:1}]);
+    assert.equal(await metric(failed),failedBefore+1);
     failures.clear();await h.pool.query('update notifications.push_deliveries set available_at=now()');await flush();
     assert.equal(mine().length,1,'retried once the provider answers again');
+    assert.equal(await metric(retried),retriesBefore+1);
 
-    sent.length=0;await post('trop vieux');await h.pool.query("update realtime.outbox set created_at=now()-interval '3 minutes' where processed_at is null");await flush();
+    sent.length=0;await post('trop vieux');await h.pool.query("update realtime.outbox set created_at=now()-interval '3 minutes' where processed_at is null");
+    assert.ok(await metric(outboxAge)>=180);
+    await flush();
     assert.equal(mine().length,0,'expired after 120 seconds');
+    assert.equal(await metric(expired),expiredBefore+1);
+    assert.equal(await metric(outboxAge),0);
 
     // Un appel qui ne sonne plus n'est pas annoncé après coup.
     sent.length=0;failures.set(endpoint('bob'),500);

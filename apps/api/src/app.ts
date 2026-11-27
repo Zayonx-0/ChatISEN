@@ -6,7 +6,7 @@ import websocket from '@fastify/websocket';
 import {Database} from './platform/db.js';
 import {SessionHooks} from './platform/hooks.js';
 import {useApiErrors} from './platform/http.js';
-import {registry,requests} from './platform/metrics.js';
+import {collectMetrics,observeHttp,registry} from './platform/metrics.js';
 import {registerWebsocket} from './platform/websocket.js';
 import {IdentityService,registerIdentityRoutes} from './modules/identity/index.js';
 import {GroupService,registerGroupRoutes} from './modules/groups/index.js';
@@ -61,14 +61,15 @@ export async function buildApp(options:AppOptions){
   await registerCallRoutes(app,calls,identity,db,{background:options.background??true});
   await registerQualityRoutes(app,quality,identity);
   await registerNotificationRoutes(app,notifications,identity,db,{background:options.background??true});
-  await registerWebsocket(app,db,identity,{canRead:async(conversationId,userId)=>Boolean(await groups.membership(conversationId,userId))});
+  await registerWebsocket(app,db,identity,{canRead:async(conversationId,userId)=>Boolean(await groups.membership(conversationId,userId))},
+    event=>event.event==='message.created');
 
-  app.addHook('onResponse',async(request,reply)=>{requests.inc({method:request.method,route:request.routeOptions.url??'unknown',status:String(reply.statusCode)});});
+  observeHttp(app);
   app.get('/healthz',async()=>({status:'ok',service:'chatisen-api',time:new Date().toISOString()}));
   app.get('/readyz',async(_request,reply)=>{
     try{await db.ping();return {status:'ready',database:'postgres',version:'2.0.0'};}
     catch{return reply.code(503).send({status:'unavailable',database:'postgres'});}
   });
-  if(options.metricsRoute)app.get('/metrics',async(_request,reply)=>{reply.header('Content-Type',registry.contentType);return registry.metrics();});
+  if(options.metricsRoute)app.get('/metrics',async(_request,reply)=>{reply.header('Content-Type',registry.contentType);return collectMetrics(db.pool);});
   return {app,db,routes,services:{identity,groups,files,messages,calls,quality,notifications}};
 }

@@ -22,6 +22,10 @@ export async function openIn(db:Queryable,conversationId:string){
   return (await db.query<Row>("select * from calls.calls where conversation_id=$1 and state<>'ended'",[conversationId])).rows.map(toCall);
 }
 export async function markActive(tx:Tx,callId:string){return one((await tx.query<Row>("update calls.calls set state='active',active_at=coalesce(active_at,now()) where id=$1 returning *",[callId])).rows)!;}
+export async function recordMediaRoute(tx:Tx,callId:string,route:'direct'|'relay'){
+  return Boolean((await tx.query(`update calls.calls set first_media_route=$2
+    where id=$1 and topology='p2p' and active_at is not null and first_media_route is null`,[callId,route])).rowCount);
+}
 export async function markEnded(tx:Tx,callId:string,reason:EndReason){
   const call=one((await tx.query<Row>("update calls.calls set state='ended',ended_at=now(),end_reason=$2 where id=$1 and state<>'ended' returning *",[callId,reason])).rows);
   if(call)await tx.query("update calls.participants set state='left',left_at=now() where call_id=$1 and state='joined'",[callId]);

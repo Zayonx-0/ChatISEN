@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from '../../packages/contracts/schemas/http.json' with { type: 'json' };
@@ -8,10 +10,27 @@ import ws from '../../packages/contracts/schemas/ws.json' with { type: 'json' };
 import openapi from '../../packages/contracts/schemas/openapi.json' with { type: 'json' };
 import { applyMigrations, migrationFiles } from '../../db/migrate.mjs';
 import { validate, schemaAt } from './validator.mjs';
+import {openapi as target,asyncapi,checkReferences,operations} from './architecture.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const project = join(here, '../..');
 const fixture = async (name) => JSON.parse(await readFile(join(project, 'fixtures', name), 'utf8'));
+
+test('contrats de la cible : références et opérations',()=>{
+  checkReferences(target);checkReferences(asyncapi);
+  assert.equal(operations.length,new Set(operations.map(({operation})=>operation.operationId)).size);
+  for(const {operation} of operations){
+    if(operation.security?.length!==0)assert.ok(Object.hasOwn(operation.responses,'401'),operation.operationId);
+    assert.ok(Object.keys(operation.responses).some(status=>/^2\d\d$/.test(status)),operation.operationId);
+  }
+});
+
+test('document OpenAPI 3.1 conforme au schéma officiel',async t=>{
+  if(!process.env.OPENAPI_META_SCHEMA)return t.skip('OPENAPI_META_SCHEMA absent');
+  const meta=JSON.parse(await readFile(process.env.OPENAPI_META_SCHEMA,'utf8'));
+  const ajv=addFormats(new Ajv2020({strict:false,allErrors:true}));
+  assert.ok(ajv.validate(meta,target),ajv.errorsText(ajv.errors));
+});
 
 test('HTTP schemas validate success and error fixtures', async () => {
   const good = await fixture('contract-success.json');
@@ -73,7 +92,7 @@ test('fixtures contain the four deterministic demo identities', async () => {
 
 test('migration files are ordered and guarded for idempotent application', async () => {
   const files = await migrationFiles();
-  assert.deepEqual(files, ['001_initial.sql', '002_group_commands.sql', '003_calls_p2p_push.sql', '004_module_schemas.sql']);
+  assert.deepEqual(files, ['001_initial.sql', '002_group_commands.sql', '003_calls_p2p_push.sql', '004_module_schemas.sql', '005_call_transport.sql']);
   const sql = await readFile(join(project, 'db/migrations/001_initial.sql'), 'utf8');
   for (const table of ['users', 'sessions', 'conversations', 'conversation_members', 'conversation_events', 'messages', 'attachments', 'calls', 'call_participants', 'media_jobs', 'webhook_receipts', 'quality_samples']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
