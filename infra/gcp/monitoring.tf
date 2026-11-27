@@ -93,10 +93,3 @@ resource "google_logging_project_exclusion" "target_default" {
   filter      = "(${local.target_vm_logs}) OR (${local.target_lb_logs})"
   depends_on  = [google_logging_project_sink.target]
 }
-
-resource "google_project_iam_member" "vm_logging" {
-  for_each = toset(["app", "turn", "ops"])
-  project  = var.project
-  role     = "roles/logging.logWriter"
-  member   = "serviceAccount:${local.sa[each.key]}"
-}

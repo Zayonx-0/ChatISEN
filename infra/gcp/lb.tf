@@ -135,17 +135,6 @@ resource "google_secret_manager_secret_version" "migration_url" {
   secret_data = "postgres://chatisen:${random_password.db.result}@${google_sql_database_instance.pg.private_ip_address}:5432/chatisen?sslmode=verify-ca&uselibpqcompat=true&sslrootcert=/etc/chatisen/sql/ca.pem"
 }
 
-resource "google_service_account" "migration" {
-  account_id   = "sa-migration"
-  display_name = "Migration SQL"
-}
-
-resource "google_service_account_iam_member" "deploy_migration" {
-  service_account_id = google_service_account.migration.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${local.sa.deploy}"
-}
-
 resource "google_secret_manager_secret" "migration_ca" {
   secret_id = "migration-database-ca"
   labels    = local.labels
@@ -164,13 +153,13 @@ resource "google_secret_manager_secret_version" "migration_ca" {
 resource "google_secret_manager_secret_iam_member" "migration_ca" {
   secret_id = google_secret_manager_secret.migration_ca.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.migration.email}"
+  member    = "serviceAccount:${local.sa.migration}"
 }
 
 resource "google_secret_manager_secret_iam_member" "migration_url" {
   secret_id = google_secret_manager_secret.migration_url.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.migration.email}"
+  member    = "serviceAccount:${local.sa.migration}"
 }
 
 resource "google_cloud_run_v2_job" "migrate" {
@@ -182,7 +171,7 @@ resource "google_cloud_run_v2_job" "migrate" {
 
   template {
     template {
-      service_account = google_service_account.migration.email
+      service_account = local.sa.migration
       max_retries     = 0
       timeout         = "300s"
       vpc_access {

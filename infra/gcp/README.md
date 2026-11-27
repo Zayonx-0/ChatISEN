@@ -55,7 +55,7 @@ Le Job Cloud Run migre la base. Le CD pose les digests dans `all-instances-confi
 
 Terraform reste propriétaire du modèle d’instance. Donner le modèle au CD ferait gérer la même ressource par deux auteurs. Le CD écrit donc les deux digests dans la configuration commune et Terraform ignore ce champ. Un changement du modèle, distinct d’une livraison d’images, se propage par le même ordre de zones via `--bootstrap`.
 
-Les droits existants de `sa-deploy` comprennent `compute.instanceAdmin.v1`, `run.developer` et le rôle personnalisé `compute.healthChecks.use` nécessaire au MIG autoréparant. Terraform lui accorde `iam.serviceAccountUser` sur le seul compte du Job `sa-migration` pour mettre à jour l’image. Le rôle de publication historique est retiré à la fin de la transition.
+Les droits existants de `sa-deploy` comprennent `compute.instanceAdmin.v1`, `run.developer` et le rôle personnalisé `compute.healthChecks.use` nécessaire au MIG autoréparant. `cd/compte-migration.sh`, lancé par un propriétaire, crée le compte du Job `sa-migration`, sans rôle de projet, et accorde `iam.serviceAccountUser` sur ce seul compte à `sa-deploy` (mise à jour de l’image) et au compte d’exploitation (Terraform). Les comptes des VM ont déjà `logging.logWriter`. Le rôle de publication historique est retiré à la fin de la transition.
 
 ### Premier déploiement avec le nouveau CD
 
