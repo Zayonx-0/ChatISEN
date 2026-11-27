@@ -61,7 +61,7 @@ Les droits existants de `sa-deploy` comprennent `compute.instanceAdmin.v1`, `run
 
 1. Finir toute livraison en cours. Suspendre les fusions et les relances durant l’amorçage. Relever les deux digests en service dans la configuration du MIG et confirmer leur correspondance avec les deux hôtes. Si le groupe n’a pas encore d’override, conserver les deux digests actuels en entrée Terraform.
 2. Créer l’environnement GitHub `cible-images`, limité à `main`, sans relecteur. Préparer `cible` sur `main` avec relecteurs requis. Depuis la racine, lancer `bash infra/gcp/cd/wif.sh prepare` avec le compte d’exploitation. Le script vérifie le fournisseur et les liaisons du projet et des comptes. Le mappage laisse l’ancienne liaison opérationnelle pour `cible` seule. Vérifier aussi les éventuels droits IAM hérités, en particulier tout droit accordé à l’échelle du pool et les droits de `sa-images`.
-3. Préparer le rôle SQL et sa version de secret selon la procédure ci-dessous. Examiner et appliquer Terraform depuis cette version du dépôt, avec `-var=legacy_api_sql_access=true`. Le plan doit mettre le MIG en mode opportuniste, conserver les deux digests, laisser les VM actuelles en service et mettre à jour le Job, son AC et le nouveau modèle. Tester le Job existant avec `gcloud run jobs execute chatisen-migration --region europe-west4 --wait` avant la fusion.
+3. Créer le secret avec l’application Terraform ciblée, puis préparer le rôle depuis le conteneur en service selon la procédure ci-dessous. Examiner et appliquer ensuite Terraform depuis cette version du dépôt, avec `-var=legacy_api_sql_access=true`. Le plan doit mettre le MIG en mode opportuniste, conserver les deux digests, laisser les VM actuelles en service et mettre à jour le Job, son AC et le nouveau modèle. Tester le Job existant avec `gcloud run jobs execute chatisen-migration --region europe-west4 --wait` avant la fusion.
 4. Depuis la racine, lancer `bash infra/gcp/cd/deploy.sh --bootstrap` avec le compte d’exploitation. Cela adopte le nouveau modèle sur APP-A puis APP-B avec les digests déjà en service, y compris si aucun guest attribute n’existait avant la mise à jour. Contrôler les deux rapports et les parcours de connexion et d’écriture avec le rôle restreint. En cas d’échec, laisser en service la VM saine et réappliquer le paramètre SQL précédent ou le modèle précédent avant de ne mettre à jour que la VM en échec.
 5. Fusionner et approuver une seule fois le job `cible` après la CI réussie. Contrôler les digests actifs, le Job et les journaux. Avant cette première réussite, le retour à l’ancien workflow reste possible avec `bash infra/gcp/cd/wif.sh rollback` et `terraform apply -var=ordered_app_rollout=false -var=legacy_api_sql_access=true`. Réactiver le mode opportuniste et refaire `prepare` avant de retenter la transition.
 6. Après une livraison effectivement vérifiée, lancer `bash infra/gcp/cd/wif.sh finalize <id-du-run>`. Le script exige le succès de l’étape de déploiement et retire l’ancienne liaison puis le writer historique. Appliquer ensuite Terraform avec `legacy_api_sql_access=false` pour couper l’ancien accès SQL des VM.
@@ -75,31 +75,33 @@ gcloud compute ssh <vm> --zone <zone> --tunnel-through-iap \
 
 ### Transition SQL (E37, §12.5, T09 et T19)
 
-Utiliser `psql` depuis un poste d’exploitation qui joint l’IP privée, avec `PGDATABASE=chatisen`, `PGSSLMODE=verify-ca` et `PGSSLROOTCERT` pointant vers l’AC de cette instance. La console Cloud SQL fournit son certificat. Le rôle `chatisen` reste propriétaire du schéma et sert de rôle de migration. Le compte SQL `postgres` crée le rôle API sans appartenance à un groupe privilégié.
+Le rôle `chatisen` reste propriétaire du schéma et sert de rôle de migration. Il prépare le rôle API depuis le conteneur en service. Le script utilise `CREATEROLE` directement si le propriétaire l’a. Sinon il passe par `SET ROLE cloudsqlsuperuser` le temps de créer ou d’activer le rôle, puis utilise le propriétaire pour les droits sur les données. Terraform génère `db-api-password` et sa version. Seul `sa-app` lit ce secret.
 
-1. Connecté en `postgres`, créer le rôle et choisir le mot de passe en session interactive. Les VM en service continuent d’utiliser `chatisen`.
-
-   ```sql
-   CREATE ROLE chatisen_api NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
-   \password chatisen_api
-   ```
-
-2. Connecté en `chatisen`, appliquer `psql -X -v ON_ERROR_STOP=1 -f db/ops/api-grants.sql` depuis la racine. Revenir en `postgres` pour `ALTER ROLE chatisen_api LOGIN;`. Depuis `infra/gcp`, créer le secret et son accès seuls, puis saisir le même mot de passe directement dans le terminal.
+1. Depuis la racine du dépôt, appliquer les ressources du secret seules. Les VM restent sur leur configuration actuelle.
 
    ```sh
-   terraform apply -target=google_secret_manager_secret_iam_member.api_db
-   bash -c 'read -rsp "Mot de passe API PostgreSQL : " db_api_password; printf "\n" >&2
-     printf "%s" "$db_api_password" | gcloud secrets versions add db-api-password --data-file=-'
+   terraform -chdir=infra/gcp apply \
+     -target='google_secret_manager_secret_version.v["db-api-password"]' \
+     -target='google_secret_manager_secret_iam_member.lecture["db-api-password:app"]'
    ```
 
-   Tester une connexion en `chatisen_api` et le refus de `CREATE SCHEMA preuve_ddl;` avant la bascule. Avant l’amorçage des VM, `ALTER ROLE chatisen_api NOLOGIN;` et la désactivation de la version du secret ramènent à l’état d’usage antérieur. Pour relancer, réactiver la version et remettre le rôle en `LOGIN`.
+2. Copier `db/ops/prepare-api-role.mjs` et `db/ops/api-grants.sql` sur une VM applicative, en conservant ces chemins relatifs. Depuis le répertoire qui les contient, exécuter le script dans le conteneur API en service. Son `DATABASE_URL` doit encore utiliser le propriétaire `chatisen`. Le script lit Secret Manager via l’identité de la VM, applique les droits dans une transaction et transmet à PostgreSQL un vérificateur SCRAM. On peut le relancer avec le même secret. Si `chatisen_api` a déjà été créé par un autre administrateur, celui-ci doit accorder l’option d’administration au rôle qui exécute ces opérations avant la relance (`GRANT chatisen_api TO chatisen WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;` si `chatisen` a directement `CREATEROLE`, ou la même commande avec `cloudsqlsuperuser` dans l’autre cas).
+
+   ```sh
+   api=$(sudo docker ps --filter label=com.docker.compose.project=chatisen \
+     --filter label=com.docker.compose.service=api --format '{{.ID}}')
+   sudo docker exec -i -e "API_ROLE_GRANTS_SQL=$(cat db/ops/api-grants.sql)" "$api" \
+     node --input-type=module < db/ops/prepare-api-role.mjs
+   ```
+
+   Avant l’amorçage des VM, l’administrateur de `chatisen_api` peut le désactiver avec `ALTER ROLE chatisen_api NOLOGIN;`. Relancer le script pour réactiver le rôle avec le secret courant.
 
 3. Appliquer Terraform et amorcer les VM une par une selon l’ordre ci-dessus. À ce stade les deux accès SQL sont en état de fonctionner. Pour revenir au rôle historique, appliquer `-var=api_restricted_sql=false -var=legacy_api_sql_access=true`, puis amorcer de nouveau zone par zone avec les digests en service.
-4. Après vérification du déploiement, retirer l’ancien accès aux secrets des VM. Au besoin, restaurer d’abord `legacy_api_sql_access=true`, puis appliquer le retour du point 3. Dans chaque migration future, octroyer les droits sur les nouveaux objets à `chatisen_api` dans le même SQL versionné si l’API doit les utiliser.
+4. Après vérification du déploiement, retirer l’ancien accès aux secrets des VM. Au besoin, restaurer d’abord `legacy_api_sql_access=true`, puis appliquer le retour du point 3. Dans chaque migration future, octroyer les droits sur les nouveaux objets à `chatisen_api` dans le même SQL versionné. Reporter les droits dans `db/ops/api-grants.sql` pour que la préparation puisse s’exécuter sur une base déjà migrée.
 
 Le Job joint l’IP privée en TLS `verify-ca` avec l’AC Google propre à l’instance, montée depuis une version de secret explicite. La vérification de la chaîne et de la date est obligatoire. Ce mode convient à l’AC dédiée et au certificat serveur qui ne porte pas l’IP privée comme nom. En cas de rotation d’AC, réappliquer Terraform et retester le Job avant livraison. L’API passe toujours par le proxy Cloud SQL authentifié (T09).
 
-Le test local `node --import tsx --test tests/integration/migration/api-role.test.ts` attend un PostgreSQL jetable et une `DATABASE_URL` locale dont le nom de base se termine par `_test`. La CI exécute ce test et la suite de contrats après migration. Le digest exact en service dépend des approbations et des retours arrière. La CI de PR ne dispose ni d’un registre des versions effectivement déployées, ni d’une lecture de la production. Le test automatique de l’image précédente exacte reste à faire si cette provenance devient disponible. L’amorçage avec les digests encore en service permet de vérifier cette version avec le rôle restreint avant fusion.
+Le test local `node --import tsx --test tests/integration/migration/api-role.test.ts` attend un PostgreSQL jetable et une `DATABASE_URL` locale dont le nom de base se termine par `_test`. Le test utilise `API_ROLE_PASSWORD` sur un PostgreSQL jetable. Il prépare deux fois le rôle depuis un propriétaire sans `SUPERUSER`, membre d’un rôle local doté de `CREATEROLE`, vérifie la lecture de toutes les tables applicatives, puis teste l’API et le refus du DDL. La CI l’exécute avec la suite de contrats après migration. Le digest exact en service dépend des approbations et des retours arrière. La CI de PR ne dispose ni d’un registre des versions effectivement déployées, ni d’une lecture de la production. Le test automatique de l’image précédente exacte reste à faire si cette provenance devient disponible. L’amorçage avec les digests encore en service permet de vérifier cette version avec le rôle restreint avant fusion.
 
 ## Premier administrateur
 
@@ -115,7 +117,7 @@ gcloud run jobs execute chatisen-migration --region europe-west4 --args=db/promo
 - Les alertes Prometheus (API, coturn, SFU) se lisent dans l'interface de supervision.
 ### Journaux (E25, §11, T17, FW2 et FW3)
 
-Le récepteur Ops Agent `chatisen_containers` décode les enveloppes JSON Docker et extrait des champs bornés de Nginx, de l’API, de Cloud SQL Proxy, de coturn et de LiveKit. La sortie native de coturn est textuelle et l’agent la structure. Les champs collectés sont filtrés avant leur expédition. Les tampons Docker contiennent les sorties natives des images tierces. Les journaux Docker locaux sont limités à trois fichiers de 10 Mio par conteneur. Pour le LB géré, le routeur écarte les entrées avec chaîne de requête afin d’éviter de stocker des jetons. Les journaux de la cible sont routés vers le bucket `chatisen-cible`, `europe-west4`, rétention 30 jours. Les buckets d’audit existants gardent leurs réglages GCP.
+Le récepteur Ops Agent `chatisen_containers` décode les enveloppes JSON Docker et extrait des champs bornés de Nginx, de l’API, de Cloud SQL Proxy, de coturn et de LiveKit. La sortie native de coturn est textuelle et l’agent la structure. Les champs collectés sont filtrés avant leur expédition. Pour l’API, le sérialiseur conserve le type, le code, les cadres de pile et un message borné et masqué, y compris au démarrage. Nginx écrit ses erreurs critiques et de démarrage sur stderr. L’Ops Agent conserve leur niveau et écarte le texte natif. Les tampons Docker contiennent les sorties natives des images tierces. Les journaux Docker locaux sont limités à trois fichiers de 10 Mio par conteneur. Pour le LB géré, le routeur écarte les entrées avec chaîne de requête afin d’éviter de stocker des jetons. Les journaux de la cible sont routés vers le bucket `chatisen-cible`, `europe-west4`, rétention 30 jours. Les buckets d’audit existants gardent leurs réglages GCP.
 
 Dans Logs Explorer, choisir le bucket régional et rechercher `log_id("chatisen_containers") AND jsonPayload.requestId="<UUID>"`. Provoquer une erreur de l’API passant par Nginx et reprendre l’UUID du corps. Attendre une entrée Nginx et une entrée API. Vérifier `jsonPayload.status`, la présence des cinq noms de conteneurs et la région et la rétention effectives. Une erreur de limitation produite directement par Nginx intervient avant l’appel à l’API. Résultat de la recette en cible à mesurer.
 

@@ -6,6 +6,7 @@ import websocket from '@fastify/websocket';
 import {Database} from './platform/db.js';
 import {SessionHooks} from './platform/hooks.js';
 import {requestId,useApiErrors} from './platform/http.js';
+import {serializeError} from './platform/logging.js';
 import {collectMetrics,observeHttp,registry} from './platform/metrics.js';
 import {registerWebsocket} from './platform/websocket.js';
 import {IdentityService,registerIdentityRoutes} from './modules/identity/index.js';
@@ -28,7 +29,7 @@ export type AppOptions={
 
 export async function buildApp(options:AppOptions){
   const app=Fastify({
-    logger:options.logger?{redact:{paths:['err'],remove:true}}:false,
+    logger:options.logger?{serializers:{err:serializeError}}:false,
     trustProxy:process.env.TRUST_PROXY==='true',requestIdLogLabel:'requestId',
     disableRequestLogging:true,requestIdHeader:false,genReqId:request=>requestId(request.headers['x-request-id']),
   });

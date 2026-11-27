@@ -1,6 +1,6 @@
 worker_processes auto;
-# Nginx inclut la requête brute dans ses erreurs natives.
-error_log /dev/null;
+# Les erreurs courantes peuvent inclure la requête brute.
+error_log /dev/stderr crit;
 events { worker_connections 4096; }
 
 http {
