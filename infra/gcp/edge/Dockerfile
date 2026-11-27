@@ -13,7 +13,9 @@ RUN rm -f apps/web/public/index.html apps/web/public/app.js apps/web/public/chat
 RUN cp apps/web/sw/sw.js apps/web/public/sw.js
 RUN pnpm --filter @chatisen/web build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
+# Correctifs système parus après l'image de base.
+RUN apk upgrade --no-cache
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 # Lecteur d'architecture publié sous /architecture/ : la page, son script et les schémas.
 COPY docs/architecture/index.html docs/architecture/lecteur.js /usr/share/nginx/architecture/

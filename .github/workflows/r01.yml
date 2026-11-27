@@ -89,3 +89,44 @@ jobs:
             echo 'La recette J1 reste ouverte : les médias reçus, le parcours complet Compose/HTTPS et Grafana ne sont pas démontrés.'
             echo 'La publication v1.1.0 reste soumise à make verify LEVEL=core et aux critères du mandat R01.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  images:
+    name: Images — construction, analyse et démarrage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: chatisen_images
+          POSTGRES_USER: chatisen
+          POSTGRES_PASSWORD: chatisen
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chatisen -d chatisen_images"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Construire les images livrées
+        run: |
+          docker build --pull --file apps/api/Dockerfile --tag chatisen-api:ci .
+          docker build --pull --file infra/gcp/edge/Dockerfile --tag chatisen-edge:ci .
+      - name: Migrer puis démarrer l’image de l’API
+        env:
+          DATABASE_URL: postgres://chatisen:chatisen@localhost:5432/chatisen_images
+        run: |
+          docker run --rm --network host -e DATABASE_URL chatisen-api:ci node db/migrate.mjs
+          docker run --detach --name api --network host -e DATABASE_URL \
+            -e CSRF_SECRET=secret-reserve-a-la-ci -e CORS_ORIGIN=https://exemple.invalid chatisen-api:ci
+          for _ in $(seq 30); do
+            if curl --fail --silent http://127.0.0.1:3000/readyz; then exit 0; fi
+            sleep 1
+          done
+          docker logs api
+          exit 1
+      - name: Analyser l’image de l’API avec Trivy
+        run: bash infra/gcp/cd/scan.sh chatisen-api:ci
+      - name: Analyser l’image Nginx avec Trivy
+        if: success() || failure()
+        run: bash infra/gcp/cd/scan.sh chatisen-edge:ci

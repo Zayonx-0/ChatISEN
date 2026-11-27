@@ -5,8 +5,8 @@ title Construire la pile Compose locale
 rectangle "Navigateur\nhttps://localhost" as browser #E6F2FA
 node "Hôte de recette · Docker Engine et Compose v2" {
   node "Réseau Docker · projet chatisen" {
-  rectangle "<b>nginx</b>   nginx:1.27-alpine\n80 → 308 HTTPS · 443/TLS\nnginx.conf et certificats montés en lecture seule" as edge #EDF3F7
-  rectangle "<b>web</b>   nginx:1.27-alpine\nnode:24-bookworm-slim + pnpm + Vite\ndist → /usr/share/nginx/html" as web #E6F2FA
+  rectangle "<b>nginx</b>   nginx:1.30-alpine\n80 → 308 HTTPS · 443/TLS\nnginx.conf et certificats montés en lecture seule" as edge #EDF3F7
+  rectangle "<b>web</b>   nginx:1.30-alpine\nnode:24-bookworm-slim + pnpm + Vite\ndist → /usr/share/nginx/html" as web #E6F2FA
   rectangle "<b>api</b>   node:24-bookworm-slim\npnpm + tsc → apps/api/dist/server.js\nCORS_ORIGIN=https://localhost" as api #E6F2FA
   rectangle "<b>livekit</b>   livekit/livekit-server:v1.8.4\n--dev --bind 0.0.0.0\n7880/TCP · 7881/TCP · 7882/UDP publiés" as livekit #FFF4DB
   rectangle "<b>migrate</b>   image de l’API\nnode db/migrate.mjs\nun seul job · restart: no" as migrate #EDF3F7

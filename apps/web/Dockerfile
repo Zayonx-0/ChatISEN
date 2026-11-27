@@ -9,5 +9,5 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
 RUN pnpm --filter @chatisen/web build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
