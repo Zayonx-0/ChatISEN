@@ -27,7 +27,10 @@ test('contrats de la cible : références et opérations',()=>{
 
 test('document OpenAPI 3.1 conforme au schéma officiel',async t=>{
   if(!process.env.OPENAPI_META_SCHEMA)return t.skip('OPENAPI_META_SCHEMA absent');
-  const meta=JSON.parse(await readFile(process.env.OPENAPI_META_SCHEMA,'utf8'));
+  // AJV résout mal « $dynamicRef: #meta » et exigerait un paramètre à la place d'un schéma.
+  // Hors dialecte particulier, cette référence désigne $defs/schema.
+  const meta=JSON.parse(await readFile(process.env.OPENAPI_META_SCHEMA,'utf8'),
+    (_key,value)=>value?.$dynamicRef==='#meta'?{$ref:'#/$defs/schema'}:value);
   const ajv=addFormats(new Ajv2020({strict:false,allErrors:true}));
   assert.ok(ajv.validate(meta,target),ajv.errorsText(ajv.errors));
 });
