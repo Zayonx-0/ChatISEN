@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,randomUUID} from 'node:crypto';
 import {matches,startApp,type Who} from '../helpers.js';
-import {signedUrl} from '../../../apps/api/src/modules/files/adapters/out/gcs.js';
+import {gcsStore,signedUrl} from '../../../apps/api/src/modules/files/adapters/out/gcs.js';
 
 test('files: signed upload, server-side verification, membership and single use',async t=>{
   if(!process.env.DATABASE_URL)return t.skip('DATABASE_URL not set');
   const bucket=new Map<string,{bytes:Buffer;mediaType:string}>();
   const objects={
-    signUpload:async(key:string,mediaType:string,size:number)=>({url:`https://storage.test/${key}?put`,headers:{'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`}}),
+    signUpload:async(key:string,mediaType:string,size:number)=>({url:`https://storage.test/${key}?put`,headers:{'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`,'x-goog-if-generation-match':'0'}}),
     signDownload:async(key:string,fileName:string)=>`https://storage.test/${key}?get=${encodeURIComponent(fileName)}`,
     inspect:async(key:string)=>{const o=bucket.get(key);return o&&{size:o.bytes.length,mediaType:o.mediaType,sha256:createHash('sha256').update(o.bytes).digest('hex'),head:o.bytes.subarray(0,4096)};},
     remove:async(key:string)=>{bucket.delete(key);},
@@ -88,4 +88,14 @@ test('files: V4 signed URL canonical form',()=>{
   assert.equal(url.searchParams.get('X-Goog-Credential'),'app@projet.iam.gserviceaccount.com/20261126/auto/storage/goog4_request');
   assert.equal(url.searchParams.get('X-Goog-Signature'),'abcd');
   assert.match(request.stringToSign,/^GOOG4-RSA-SHA256\n20261126T102030Z\n20261126\/auto\/storage\/goog4_request\n[0-9a-f]{64}$/);
+});
+
+test('files: the upload signature includes the create-only generation precondition',async()=>{
+  const store=gcsStore('seau',{
+    email:async()=>'app@projet.iam.gserviceaccount.com',sign:async()=>Buffer.from([0xab]),
+    accessToken:async()=>{throw new Error('Unexpected storage request');},
+  });
+  const upload=await store.signUpload('fichier.pdf','application/pdf',5,600);
+  assert.equal(upload.headers['x-goog-if-generation-match'],'0');
+  assert.equal(new URL(upload.url).searchParams.get('X-Goog-SignedHeaders'),'content-type;host;x-goog-content-length-range;x-goog-if-generation-match');
 });

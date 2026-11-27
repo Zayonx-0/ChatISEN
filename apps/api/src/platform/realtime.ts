@@ -36,16 +36,23 @@ export type Target={userId:string;sessionId?:string|null};
 export async function publishToUsers(db:Queryable,targets:Target[],frame:Record<string,unknown>){
   if(!targets.length)return;
   await db.query(`with added as (
-      insert into realtime.user_events(user_id,session_id,frame)
-      select (t->>'userId')::uuid,(t->>'sessionId')::uuid,$2::jsonb from jsonb_array_elements($1::jsonb) t
+      insert into realtime.user_events(user_id,session_id,frame,created_at)
+      select (t->>'userId')::uuid,(t->>'sessionId')::uuid,$2::jsonb,statement_timestamp() from jsonb_array_elements($1::jsonb) t
       returning id,user_id)
     select pg_notify($3,json_build_object('id',id::text,'userId',user_id)::text) from added`,
     [JSON.stringify(targets),JSON.stringify(frame),userChannel]);
 }
 export const userEvent=(event:string,data:unknown)=>({v:1,type:'user_event',at:new Date().toISOString(),event,data});
 
-export async function readUserEvent(db:Queryable,id:string,userId:string){
-  return (await db.query<{session_id:string|null;frame:unknown}>('select session_id,frame from realtime.user_events where id=$1 and user_id=$2',[id,userId])).rows[0];
+const userEventScope='user_id=$1 and (session_id is null or session_id=$2)';
+const userEventWindow="created_at>=now()-interval '5 minutes'";
+export async function userEventIds(db:Queryable,userId:string,sessionId:string){
+  return (await db.query<{id:string}>(`select id from realtime.user_events where ${userEventScope} and ${userEventWindow}`,[userId,sessionId])).rows.map(row=>row.id);
+}
+export async function readUserEvents(db:Queryable,userId:string,sessionId:string,filter:string|string[]){
+  const byId=typeof filter==='string';
+  return (await db.query<{id:string;frame:Record<string,unknown>}>(`select id,frame from realtime.user_events
+    where ${userEventScope} and ${byId?'id=$3':`${userEventWindow} and id<>all($3::bigint[]) order by id`}`,[userId,sessionId,filter])).rows;
 }
 export async function pruneRealtime(db:Queryable){
   await db.query("delete from realtime.user_events where created_at<now()-interval '5 minutes'");

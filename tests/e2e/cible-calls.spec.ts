@@ -1,4 +1,4 @@
-import {test,expect,type Browser,type Page} from '@playwright/test';
+import {test,expect,type Browser,type Page,type WebSocketRoute} from '@playwright/test';
 import {spawn,type ChildProcess} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {resolve} from 'node:path';
@@ -46,6 +46,16 @@ test('cible : non lus, appel audio avec partage d’écran, appel vidéo, refus'
     for(const page of [alice,bob]){await expect(page.getByRole('status').filter({hasText:'En communication'})).toBeVisible({timeout:20000});await expect.poll(async()=>(await inbound(page)).audio,{timeout:15000}).toBeGreaterThan(20);}
     await expect(alice.getByLabel('Qualité de la communication')).toBeVisible({timeout:20000});
 
+    const secondTab=await a.context.newPage();
+    const recovery=secondTab.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/calls'&&response.request().method()==='GET');
+    await secondTab.goto(origin);
+    const recovered=await (await recovery).json();
+    expect(recovered.items[0].state).toBe('active');
+    const packets=(await inbound(bob)).audio;
+    await expect.poll(async()=>(await inbound(bob)).audio).toBeGreaterThan(packets+20);
+    await expect(alice.getByRole('button',{name:'Raccrocher'})).toBeVisible();
+    await secondTab.close();
+
     // Partage d'écran pendant un appel audio : des images arrivent chez le correspondant.
     await alice.evaluate(()=>{navigator.mediaDevices.getDisplayMedia=async()=>{const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;const ctx=canvas.getContext('2d')!;let n=0;setInterval(()=>{ctx.fillStyle=n++%2?'#3b5bdb':'#c92a2a';ctx.fillRect(0,0,640,360);},100);return canvas.captureStream(10);};});
     await alice.getByRole('button',{name:'Partager l’écran'}).click();
@@ -68,6 +78,75 @@ test('cible : non lus, appel audio avec partage d’écran, appel vidéo, refus'
     await alice.getByRole('button',{name:'Appel audio'}).click();await expect(bob.getByRole('dialog',{name:'Appel entrant'})).toBeVisible();
     await bob.reload();await expect(bob.getByRole('dialog',{name:'Appel entrant'})).toBeVisible();
     await alice.getByRole('button',{name:'Raccrocher'}).click();await expect(bob.getByRole('dialog')).toHaveCount(0);
+
+    // Un appel ouvert sans onglet porteur est libéré au chargement suivant.
+    const abandoned=await alice.evaluate(async()=>{
+      const {csrfToken}=await (await fetch('/api/v1/users/me')).json();
+      const {items}=await (await fetch('/api/v1/conversations')).json();
+      const response=await fetch(`/api/v1/conversations/${items[0].id}/calls`,{
+        method:'POST',headers:{'content-type':'application/json','x-csrf-token':csrfToken},
+        body:JSON.stringify({clientId:crypto.randomUUID(),mode:'audio'}),
+      });
+      return response.status;
+    });
+    expect(abandoned).toBe(201);
+    await expect(bob.getByRole('dialog',{name:'Appel entrant'})).toBeVisible();
+    await alice.reload();
+    await expect(bob.getByRole('dialog')).toHaveCount(0);
     expect(failures).toEqual([]);
   }finally{await a.context.close();await b.context.close();}
+});
+
+test('cible : resynchronisation paginée du fil et reprise des événements en direct',async({browser})=>{
+  const suffix=randomBytes(4).toString('hex');
+  const a=await browser.newContext(),b=await browser.newContext();
+  const alice=await a.newPage(),bob=await b.newPage();
+  let wire:WebSocketRoute|undefined,paused=false,conversationId:string|undefined;
+  const afterSeqs:string[]=[],replayed:string[]=[];
+  let repeated:string|undefined;
+  try{
+    await bob.routeWebSocket('**/api/v1/ws*',route=>{
+      wire=route;
+      const server=route.connectToServer();
+      route.onMessage(raw=>{
+        const frame=JSON.parse(String(raw));
+        if(frame.type==='subscribe'){conversationId=frame.conversationId;afterSeqs.push(frame.afterSeq);if(afterSeqs.length>1)paused=false;}
+        server.send(raw);
+      });
+      server.onMessage(raw=>{
+        const frame=JSON.parse(String(raw));
+        if(paused&&frame.type==='event'){if(frame.seq==='2')repeated=String(raw);return;}
+        route.send(raw);
+      });
+    });
+    await bob.route('**/events?afterSeq=*',route=>{
+      const url=new URL(route.request().url());replayed.push(url.searchParams.get('afterSeq')!);
+      url.searchParams.set('limit','1');return route.continue({url:url.toString()});
+    });
+    await register(alice,`alice_${suffix}`,'Alice');await register(bob,`bob_${suffix}`,'Bob');
+    await alice.getByLabel('Rechercher un contact').fill(`bob_${suffix}`);
+    await alice.getByRole('button',{name:'Rechercher',exact:true}).click();
+    await alice.getByRole('button',{name:'Ouvrir une conversation'}).click();
+    const post=async(message:string)=>{
+      await alice.getByLabel('Message',{exact:true}).fill(message);
+      await alice.getByRole('button',{name:'Envoyer'}).click();
+      await expect(alice.getByText(message,{exact:true})).toBeVisible();
+    };
+    await bob.getByRole('button',{name:/Alice/}).click();
+    await expect.poll(()=>afterSeqs).toEqual(['0']);
+    await post('Premier message');
+    await expect(bob.getByText('Premier message',{exact:true})).toBeVisible();
+    paused=true;
+    await post('Message à rattraper');
+    await post('Page suivante');
+    await expect.poll(()=>repeated).toBeTruthy();
+    wire!.send(JSON.stringify({v:1,type:'resync_required',conversationId,fromSeq:'1'}));
+    await expect.poll(()=>afterSeqs).toEqual(['0','3']);
+    expect(replayed).toEqual(['1','2']);
+    wire!.send(repeated!);
+    await post('De nouveau en direct');
+    await expect(bob.getByText('De nouveau en direct',{exact:true})).toBeVisible();
+    await expect(bob.getByText('Message à rattraper',{exact:true})).toHaveCount(1);
+    await expect(bob.getByText('Page suivante',{exact:true})).toHaveCount(1);
+  }finally{await a.close();await b.close();}
 });

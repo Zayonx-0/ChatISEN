@@ -58,9 +58,15 @@ test('cible : rôles de groupe, pièce jointe et administration depuis le naviga
 
     // Pièce jointe : envoi direct au stockage, puis téléchargement par l'autre membre.
     const content=Buffer.from('%PDF-1.7\ncompte rendu '+suffix);
+    const signed=alice.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname.endsWith('/files'));
     await alice.getByLabel('Fichier à joindre').setInputFiles({name:'compte rendu.pdf',mimeType:'application/pdf',buffer:content});
     await alice.getByLabel('Message',{exact:true}).fill('Voici le compte rendu');await alice.getByRole('button',{name:'Envoyer'}).click();
     await expect(bob.getByText('Voici le compte rendu')).toBeVisible();
+    const {uploadUrl,headers}=await (await signed).json();
+    const putAgain=await alice.evaluate(async({uploadUrl,headers,body})=>
+      (await fetch(uploadUrl,{method:'PUT',headers,body,credentials:'omit'})).status,
+    {uploadUrl,headers,body:'x'.repeat(content.length)});
+    expect(putAgain).toBe(412);
     const [download]=await Promise.all([bob.waitForEvent('download'),bob.getByRole('button',{name:'Télécharger compte rendu.pdf'}).click()]);
     expect(download.suggestedFilename()).toBe('compte rendu.pdf');
     expect((await readFile((await download.path())!)).equals(content)).toBe(true);

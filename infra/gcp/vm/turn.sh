@@ -77,3 +77,16 @@ services:
 EOF
 # La configuration est montée depuis des fichiers : les conteneurs sont recréés pour la relire.
 docker compose -f /opt/chatisen/compose.yml up -d --force-recreate --remove-orphans
+
+hooks=/etc/letsencrypt/renewal-hooks/deploy
+install -d -m 755 "$hooks"
+{
+  printf '#!/usr/bin/env bash\nset -euo pipefail\nlineage=%q\n' "/etc/letsencrypt/live/$host"
+  cat <<'EOF'
+[[ "${RENEWED_LINEAGE:-}" == "$lineage" ]] || exit 0
+install -m 640 -o 65534 -g 65534 "$lineage/fullchain.pem" /opt/chatisen/turn/cert.pem
+install -m 640 -o 65534 -g 65534 "$lineage/privkey.pem" /opt/chatisen/turn/key.pem
+docker compose -f /opt/chatisen/compose.yml restart coturn
+EOF
+} >"$hooks/chatisen-turn"
+chmod 755 "$hooks/chatisen-turn"

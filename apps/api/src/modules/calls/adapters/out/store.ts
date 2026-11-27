@@ -36,14 +36,11 @@ export async function openFor(db:Queryable,userId:string){
 export async function unanswered(db:Queryable){
   return (await db.query<{id:string}>("select id from calls.calls where state='ringing' and created_at<now()-make_interval(secs=>$1)",[ringingSeconds])).rows.map(row=>row.id);
 }
-/** Sessions qui portent un appel direct en cours : l'appelant vérifie lesquelles vivent encore. */
-export async function directSessions(db:Queryable){
-  return (await db.query<{call_id:string;session_id:string|null}>(`select p.call_id,p.session_id from calls.participants p join calls.calls c on c.id=p.call_id
-    where c.state='active' and c.topology='p2p' and p.state='joined'`)).rows.map(row=>({callId:row.call_id,sessionId:row.session_id}));
-}
-export async function directCallsOfSession(db:Queryable,sessionId:string){
-  return (await db.query<{call_id:string}>(`select p.call_id from calls.participants p join calls.calls c on c.id=p.call_id
-    where p.session_id=$1 and p.state='joined' and c.state<>'ended' and c.topology='p2p'`,[sessionId])).rows.map(row=>row.call_id);
+export type OpenParticipant={callId:string;userId:string;sessionId:string|null};
+export async function openParticipants(db:Queryable,sessionId?:string){
+  return (await db.query<OpenParticipant>(`select p.call_id as "callId",p.user_id as "userId",p.session_id as "sessionId"
+    from calls.participants p join calls.calls c on c.id=p.call_id
+    where c.state<>'ended' and p.state='joined' and ${sessionId?'p.session_id=$1':"(c.state='active' or c.topology='sfu')"}`,sessionId?[sessionId]:[])).rows;
 }
 
 export type Participant={userId:string;sessionId:string|null;state:'invited'|'joined'|'declined'|'left'|'removed'};
@@ -68,6 +65,10 @@ export async function participated(db:Queryable,callId:string,userId:string){
 }
 
 export type MediaJob={id:string;kind:'remove_participant'|'close_room';room:string;identity:string|null;attempts:number};
+export async function hasPendingEviction(tx:Tx,callId:string,userId:string){
+  return Boolean((await tx.query(`select 1 from calls.media_jobs where call_id=$1 and participant_user_id=$2
+    and kind='remove_participant' and state='pending' limit 1`,[callId,userId])).rowCount);
+}
 export async function enqueueMediaJob(tx:Tx,kind:MediaJob['kind'],callId:string,userId:string|null,delaySeconds=0){
   await tx.query('insert into calls.media_jobs(kind,call_id,participant_user_id,run_after) values($1,$2,$3,now()+make_interval(secs=>$4))',[kind,callId,userId,delaySeconds]);
 }

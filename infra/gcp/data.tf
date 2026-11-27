@@ -73,7 +73,7 @@ resource "google_storage_bucket" "files" {
   cors {
     origin          = distinct(["https://ia-pple.isen.fedyna.fr", "https://${local.web_host}", "https://${local.sslip_host}"])
     method          = ["GET", "PUT", "HEAD"]
-    response_header = ["Content-Type", "Content-Length", "x-goog-content-length-range"]
+    response_header = ["Content-Type", "Content-Length", "x-goog-content-length-range", "x-goog-if-generation-match"]
     max_age_seconds = 3600
   }
 }

@@ -87,8 +87,8 @@ function App(){
       }).catch(()=>{});
       return;
     }
-    if(frame.type!=='event'||frame.conversationId!==selectedId.current)return;
-    if(BigInt(frame.seq!)>BigInt(cursor.current))cursor.current=frame.seq!;
+    if(frame.type!=='event'||frame.conversationId!==selectedId.current||!frame.seq||BigInt(frame.seq)<=BigInt(cursor.current))return;
+    cursor.current=frame.seq;
     if(frame.event==='message.created'){
       const data=frame.data as {id:string;senderId:string;clientId:string;text?:string;fileId?:string};
       setMessages(old=>upsert(old,{id:data.id,conversationId:frame.conversationId!,seq:frame.seq!,senderId:data.senderId,clientId:data.clientId,text:data.text,fileId:data.fileId,createdAt:frame.at!}));

@@ -19,6 +19,16 @@ const reasons:Record<string,string>={declined:'Appel refusé.',expired:'Pas de r
 const relayOnly=()=>new URLSearchParams(location.search).has('relay');
 const iceConfiguration=()=>api<{iceServers:RTCIceServer[]}>('/ice-servers');
 
+function lockDirectCall(userId:string,conversationId:string):Promise<(()=>void)|null>{
+  if(!navigator.locks)return Promise.resolve(()=>{});
+  return new Promise((resolve,reject)=>{
+    void navigator.locks.request(`chatisen:direct-call:${userId}:${conversationId}`,{ifAvailable:true},lock=>{
+      if(!lock){resolve(null);return;}
+      return new Promise<void>(release=>resolve(release));
+    }).catch(reject);
+  });
+}
+
 /**
  * Appels à deux en WebRTC pair-à-pair : le serveur ne transporte que la signalisation, les
  * médias passent directement ou par le relais TURN. Les conférences de groupe passent par un SFU.
@@ -29,17 +39,29 @@ export function useCalls(userId:string|undefined,csrf:string){
   const state=useRef<CallView>(idle);const peer=useRef<RTCPeerConnection|null>(null);const media=useRef<MediaStream|null>(null);const screen=useRef<MediaStream|null>(null);
   const pendingIce=useRef<RTCIceCandidateInit[]>([]);const queued=useRef(new Map<string,Signal[]>());const chain=useRef(Promise.resolve());
   const conference=useRef<Conference|null>(null);
+  const releaseDirect=useRef<(()=>void)|null>(null);
   const lastState=useRef(new Map<string,string>());const timers=useRef<ReturnType<typeof setTimeout>[]>([]);const previous=useRef<{bytes:number;lost:number;received:number;at:number}|null>(null);
 
   const update=useCallback((patch:Partial<CallView>)=>{state.current={...state.current,...patch};setView(state.current);},[]);
 
   const cleanup=useCallback((message='')=>{
+    releaseDirect.current?.();releaseDirect.current=null;
     timers.current.forEach(t=>{clearTimeout(t);clearInterval(t);});timers.current=[];previous.current=null;
     peer.current?.close();peer.current=null;pendingIce.current=[];queued.current.clear();
     void conference.current?.leave();conference.current=null;
     media.current?.getTracks().forEach(t=>t.stop());media.current=null;screen.current?.getTracks().forEach(t=>t.stop());screen.current=null;
     setLocal(null);setRemote(null);state.current=idle;setView(idle);if(message)setNotice(message);
   },[]);
+
+  const holdDirect=useCallback(async(conversationId:string)=>{
+    if(!userId)return false;
+    const attempt=state.current;
+    const release=await lockDirectCall(userId,conversationId);
+    if(state.current!==attempt){release?.();return false;}
+    if(!release){cleanup('Appel déjà ouvert dans un autre onglet.');return false;}
+    releaseDirect.current=release;
+    return true;
+  },[cleanup,userId]);
 
   const signal=useCallback((callId:string,type:Signal['type'],data:unknown)=>api(`/calls/${callId}/signals`,write(csrf,'POST',{type,data})),[csrf]);
 
@@ -142,8 +164,11 @@ export function useCalls(userId:string|undefined,csrf:string){
 
   const start=useCallback(async(conversationId:string,mode:CallMode,topology:Topology)=>{
     if(state.current.phase!=='idle')return;setNotice('');update({...idle,phase:'outgoing',conversationId,mode,topology,initiator:true});
-    if(topology==='p2p'&&!await capture(mode)){state.current=idle;setView(idle);return;}
     try{
+      if(topology==='p2p'){
+        if(!await holdDirect(conversationId))return;
+        if(!await capture(mode)){cleanup();return;}
+      }
       const call=await api<CallDto>(`/conversations/${conversationId}/calls`,write(csrf,'POST',{clientId:crypto.randomUUID(),mode}));
       if((state.current as CallView).phase!=='outgoing'){void leave(call.id);return;}
       // Une conférence déjà ouverte dans ce groupe est rejointe plutôt que doublée.
@@ -152,21 +177,22 @@ export function useCalls(userId:string|undefined,csrf:string){
       if(lastState.current.get(call.id)==='active')void connect();
       if(lastState.current.get(call.id)==='ended')cleanup(reasons.ended);
     }catch(error){cleanup(error instanceof ApiError&&error.status===409?'Un appel est déjà en cours dans cette conversation.':error instanceof Error?error.message:'Appel impossible.');}
-  },[cleanup,connect,csrf,enterConference,leave,update]);
+  },[cleanup,connect,csrf,enterConference,holdDirect,leave,update]);
 
   const accept=useCallback(async()=>{
-    const {callId,mode,phase,topology}=state.current;if(phase!=='incoming'||!callId)return;
+    const {callId,conversationId,mode,phase,topology}=state.current;if(phase!=='incoming'||!callId||!conversationId)return;
     if(topology==='sfu')return enterConference(callId,mode);
     update({phase:'connecting'});
-    if(!await capture(mode)){await api(`/calls/${callId}/participants/me`,write(csrf,'PUT',{state:'declined'})).catch(()=>{});cleanup();setNotice('Appel refusé : micro ou caméra indisponible.');return;}
     try{
+      if(!await holdDirect(conversationId))return;
+      if(!await capture(mode)){await api(`/calls/${callId}/participants/me`,write(csrf,'PUT',{state:'declined'})).catch(()=>{});cleanup('Appel refusé : micro ou caméra indisponible.');return;}
       // La connexion est prête avant d'accepter : l'offre peut arriver aussitôt.
       await createPeer(false);
       await api(`/calls/${callId}/participants/me`,write(csrf,'PUT',{state:'joined'}));
       for(const item of queued.current.get(callId)??[])chain.current=chain.current.then(()=>applySignal(item)).catch(()=>{});
       queued.current.delete(callId);
     }catch(error){cleanup(error instanceof ApiError&&error.status===409?'Appel déjà pris sur un autre appareil ou terminé.':'Impossible de rejoindre l’appel.');}
-  },[applySignal,cleanup,createPeer,csrf,enterConference,update]);
+  },[applySignal,cleanup,createPeer,csrf,enterConference,holdDirect,update]);
 
   const decline=useCallback(async()=>{
     const {callId}=state.current;cleanup();
@@ -229,9 +255,13 @@ export function useCalls(userId:string|undefined,csrf:string){
     for(const call of items){
       const incoming=()=>update({...idle,phase:'incoming',callId:call.id,conversationId:call.conversationId,mode:call.mode,topology:call.topology});
       if(call.topology==='sfu'){incoming();return;}
-      if(call.state==='ringing'&&call.initiatorId!==userId){incoming();return;}
-      // Refusé par le serveur si l'appel est tenu par une autre session.
-      await leave(call.id);
+      const release=await lockDirectCall(userId,call.conversationId);
+      if(!release)continue;
+      try{
+        if(state.current.phase!=='idle')return;
+        if(call.state==='ringing'&&call.initiatorId!==userId){incoming();return;}
+        await leave(call.id);
+      }finally{release();}
     }
   },[leave,update,userId]);
 

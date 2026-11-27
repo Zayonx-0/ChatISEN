@@ -141,3 +141,73 @@ test('calls: conference admission, eviction of a removed member and room closing
     assert.deepEqual(orders,[`close chatisen_${call.id}`]);
   }finally{await h.close();}
 });
+
+test('calls: revoked sessions are evicted from conferences and the last revocation closes the room',async t=>{
+  if(!process.env.DATABASE_URL)return t.skip('DATABASE_URL not set');
+  const removals:string[]=[];const closed:string[]=[];
+  const media={
+    admit:(_room:string,identity:string,seconds:number)=>({serverUrl:'wss://chat.test/livekit',token:identity,expiresAt:new Date(Date.now()+seconds*1000).toISOString()}),
+    removeParticipant:async(room:string,identity:string)=>{removals.push(`${room}:${identity}`);},
+    closeRoom:async(room:string)=>{closed.push(room);},
+  };
+  const h=await startApp({media,background:false});
+  try{
+    const alice=await h.register('alice'),bob=await h.register('bob'),admin=await h.register('admin');
+    const anotherSession=await h.login(bob);
+    await h.pool.query("update identity.users set global_role='admin' where id=$1",[admin.id]);
+    const group=(await h.call(alice,'POST','/groups',{clientId:randomUUID(),title:'Conf',memberIds:[bob.id]})).json();
+    const created=await h.call(alice,'POST',`/conversations/${group.id}/calls`,{clientId:randomUUID(),mode:'audio'});
+    assert.equal(created.statusCode,201,created.body);
+    const {id}=created.json(),room=`chatisen_${id}`;
+    const token=(who:Who)=>h.call(who,'POST',`/calls/${id}/media-tokens`);
+    assert.equal((await h.call(bob,'PUT',`/calls/${id}/participants/me`,{state:'joined'})).statusCode,200);
+    assert.equal((await token(alice)).statusCode,201);
+    const admission=await token(bob);
+    assert.equal(admission.statusCode,201);
+
+    assert.equal((await h.call(bob,'DELETE','/sessions/current')).statusCode,204);
+    assert.equal((await token(bob)).statusCode,401);
+    assert.equal((await token(anotherSession)).statusCode,409);
+    const participate=(who:Who,state:string)=>h.call(who,'PUT',`/calls/${id}/participants/me`,{state});
+    assert.equal((await participate(anotherSession,'joined')).statusCode,409);
+    assert.equal((await h.call(alice,'GET','/calls?state=active')).json().items[0].id,id);
+    await h.services.calls.runMediaJobs();
+    assert.deepEqual(removals.filter(order=>order.startsWith(room)),[`${room}:${bob.id}`]);
+    const delayed=await h.pool.query("select run_after from calls.media_jobs where call_id=$1 and participant_user_id=$2 and state='pending'",[id,bob.id]);
+    assert.equal(delayed.rowCount,1);
+    assert.ok(delayed.rows[0].run_after>new Date(admission.json().expiresAt));
+    await h.pool.query('update calls.media_jobs set run_after=now() where call_id=$1',[id]);
+    await h.services.calls.runMediaJobs();
+    assert.deepEqual(removals.filter(order=>order.startsWith(room)),[`${room}:${bob.id}`,`${room}:${bob.id}`]);
+    assert.equal((await participate(anotherSession,'joined')).statusCode,200);
+    assert.equal((await token(anotherSession)).statusCode,201);
+    assert.equal((await participate(anotherSession,'left')).statusCode,200);
+
+    assert.equal((await h.call(admin,'PATCH',`/users/${alice.id}`,{disabled:true})).statusCode,200);
+    const ended=(await h.pool.query('select state,end_reason from calls.calls where id=$1',[id])).rows[0];
+    assert.deepEqual(ended,{state:'ended',end_reason:'disconnected'});
+    await h.services.calls.runMediaJobs();
+    assert.ok(removals.includes(`${room}:${alice.id}`));
+    assert.ok(closed.includes(room));
+  }finally{await h.close();}
+});
+
+test('calls: LiveKit administration tries the next SFU when the first fails',async t=>{
+  const fetch=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
+    const url=new URL(String(input));
+    assert.equal(init?.method,'POST');
+    assert.ok(new Headers(init?.headers).get('authorization')?.startsWith('Bearer '));
+    if(url.hostname==='sfu1.test'){
+      if(url.pathname.endsWith('RemoveParticipant'))throw new Error('SFU injoignable');
+      return new Response(null,{status:503});
+    }
+    return new Response(null,{status:200});
+  });
+  const media=livekitFromEnv({LIVEKIT_URL:'wss://chat.test/livekit',LIVEKIT_API_URL:'http://sfu1.test:7880, http://sfu2.test:7880/',LIVEKIT_API_KEY:'key',LIVEKIT_API_SECRET:'secret'})!;
+  await media.removeParticipant('room','participant');
+  await media.closeRoom('room');
+  assert.deepEqual(fetch.mock.calls.map(call=>String(call.arguments[0])),[
+    'http://sfu1.test:7880/twirp/livekit.RoomService/RemoveParticipant','http://sfu2.test:7880/twirp/livekit.RoomService/RemoveParticipant',
+    'http://sfu1.test:7880/twirp/livekit.RoomService/DeleteRoom','http://sfu2.test:7880/twirp/livekit.RoomService/DeleteRoom',
+  ]);
+});

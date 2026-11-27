@@ -11,11 +11,15 @@ const storage=createServer((request,response)=>{
   const url=new URL(request.url!,'http://storage'),key=url.pathname.slice(1);
   response.setHeader('Access-Control-Allow-Origin',process.env.CORS_ORIGIN!);
   response.setHeader('Access-Control-Allow-Methods','GET,PUT');
-  response.setHeader('Access-Control-Allow-Headers','content-type,x-goog-content-length-range');
+  response.setHeader('Access-Control-Allow-Headers','content-type,x-goog-content-length-range,x-goog-if-generation-match');
   if(request.method==='OPTIONS'){response.writeHead(204).end();return;}
   if(request.method==='PUT'){
+    if(request.headers['x-goog-if-generation-match']!=='0'){response.writeHead(400).end();return;}
     const chunks:Buffer[]=[];request.on('data',chunk=>chunks.push(chunk));
-    request.on('end',()=>{bucket.set(key,{bytes:Buffer.concat(chunks),mediaType:String(request.headers['content-type'])});response.writeHead(200).end();});
+    request.on('end',()=>{
+      if(bucket.has(key)){response.writeHead(412).end();return;}
+      bucket.set(key,{bytes:Buffer.concat(chunks),mediaType:String(request.headers['content-type'])});response.writeHead(200).end();
+    });
     return;
   }
   const object=bucket.get(key);
@@ -26,7 +30,7 @@ await new Promise<void>(ready=>storage.listen(0,'127.0.0.1',ready));
 const base=`http://127.0.0.1:${(storage.address() as {port:number}).port}`;
 
 const {app}=await buildApp({databaseUrl:process.env.DATABASE_URL!,objects:{
-  signUpload:async(key,mediaType,size)=>({url:`${base}/${key}`,headers:{'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`}}),
+  signUpload:async(key,mediaType,size)=>({url:`${base}/${key}`,headers:{'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`,'x-goog-if-generation-match':'0'}}),
   signDownload:async(key,fileName)=>`${base}/${key}?name=${encodeURIComponent(fileName)}`,
   inspect:async key=>{const o=bucket.get(key);return o&&{size:o.bytes.length,mediaType:o.mediaType,sha256:createHash('sha256').update(o.bytes).digest('hex'),head:o.bytes.subarray(0,4096)};},
   remove:async key=>{bucket.delete(key);},

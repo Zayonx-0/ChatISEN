@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {Database,Tx} from '../../platform/db.js';
 import {conflict,forbidden,keyReused,notFound} from '../../platform/errors.js';
 import type {SessionVerifier} from '../../platform/http.js';
-import {consumeOutbox,publishOutbox,publishToUsers,userEvent,type Target} from '../../platform/realtime.js';
+import {consumeOutbox,outboxChannel,publishOutbox,publishToUsers,userEvent,type Target} from '../../platform/realtime.js';
 import type {AccessPolicy,Membership} from '../groups/index.js';
 import * as store from './adapters/out/store.js';
 import {admissionSeconds,callEventData,type Call,type CallMode,type EndReason,type ParticipationState,type SignalType} from './domain.js';
@@ -10,6 +10,7 @@ import type {CallRegistry,MediaServer} from './ports.js';
 
 const unavailable=()=>notFound('Appel indisponible');
 const busy=()=>conflict('Appel incompatible avec la demande','CALL_CONFLICT');
+export const mediaJobsReady='call.media_jobs_ready';
 
 export class CallService implements CallRegistry{
   constructor(private db:Database,private access:AccessPolicy,private sessions:SessionVerifier,private media:MediaServer|undefined){}
@@ -77,6 +78,8 @@ export class CallService implements CallRegistry{
       if(call.state==='ended'){if(state==='joined')throw busy();return call;}
       if(state==='joined'){
         if(own?.state==='joined'){if(own.sessionId!==sessionId)throw busy();return call;} // déjà pris sur un autre appareil
+        // LiveKit réutilise l'identité de l'utilisateur : une éviction en attente toucherait aussi la nouvelle session.
+        if(call.topology==='sfu'&&own&&await store.hasPendingEviction(tx,callId,userId))throw busy();
         await store.join(tx,callId,userId,sessionId);
         // Une conférence que seul son initiateur a rejointe sonne encore pour les autres.
         const wasRinging=call.state==='ringing';
@@ -126,23 +129,46 @@ export class CallService implements CallRegistry{
       const {call}=await this.lockCall(tx,callId,userId);
       const own=await store.participant(tx,callId,userId);
       if(!media||call.topology!=='sfu'||call.state==='ended'||own?.state!=='joined'||own.sessionId!==sessionId)throw busy();
+      if(await store.hasPendingEviction(tx,callId,userId))throw busy();
       await store.setMediaIdentity(tx,callId,userId,userId,admissionSeconds);
       return media.admit(call.room,userId,admissionSeconds);
     });
   }
 
-  /** Une session fermée ne peut plus participer : ses appels directs se terminent. */
+  private async removeParticipant(tx:Tx,call:Call,userId:string,reason:EndReason){
+    await store.setParticipantState(tx,call.id,userId,'removed');
+    if(call.topology==='sfu'){
+      // Seconde éviction après l'expiration du dernier jeton délivré.
+      await store.enqueueMediaJob(tx,'remove_participant',call.id,userId);
+      await store.enqueueMediaJob(tx,'remove_participant',call.id,userId,admissionSeconds+5);
+      await tx.query('select pg_notify($1,$2)',[outboxChannel,mediaJobsReady]);
+    }
+    if(call.topology==='p2p'||!(await store.joined(tx,call.id)).length)await this.finish(tx,call.id,reason);
+    else await this.broadcast(tx,call,'call.updated');
+  }
+
+  private async removeSessionParticipant({callId,userId,sessionId}:store.OpenParticipant){
+    await this.db.transaction(async tx=>{
+      const call=await store.lock(tx,callId);
+      if(!call||call.state==='ended')return;
+      const participant=await store.participant(tx,callId,userId);
+      if(participant?.state!=='joined'||participant.sessionId!==sessionId)return;
+      if(call.topology==='p2p')await this.finish(tx,callId,'disconnected');
+      else await this.removeParticipant(tx,call,userId,'disconnected');
+    });
+  }
+
   async endForSession(sessionId:string){
-    for(const id of await store.directCallsOfSession(this.db.pool,sessionId))await this.db.transaction(tx=>this.finish(tx,id,'disconnected'));
+    for(const participant of await store.openParticipants(this.db.pool,sessionId))await this.removeSessionParticipant(participant);
   }
 
   /** Sonneries sans réponse et appels dont une session a expiré. Sans effet en double entre réplicas. */
   async sweep(){
     for(const id of await store.unanswered(this.db.pool))await this.db.transaction(tx=>this.finish(tx,id,'expired'));
-    const carried=await store.directSessions(this.db.pool);
+    const carried=await store.openParticipants(this.db.pool);
     const alive=await this.sessions.activeSessionIds(carried.flatMap(row=>row.sessionId?[row.sessionId]:[]));
-    for(const id of new Set(carried.filter(row=>!row.sessionId||!alive.has(row.sessionId)).map(row=>row.callId)))
-      await this.db.transaction(tx=>this.finish(tx,id,'disconnected'));
+    for(const participant of carried)
+      if(!participant.sessionId||!alive.has(participant.sessionId))await this.removeSessionParticipant(participant);
   }
 
   /** Un membre retiré ou parti quitte les appels de la conversation, y compris côté SFU. */
@@ -150,15 +176,10 @@ export class CallService implements CallRegistry{
     await this.db.transaction(tx=>consumeOutbox(tx,['conversation.member_gone'],async event=>{
       for(const {id} of await store.openIn(tx,event.conversationId)){
         const call=await store.lock(tx,id);
-        if(!call||call.state==='ended'||!await store.participant(tx,id,event.entityId))continue;
-        await store.setParticipantState(tx,id,event.entityId,'removed');
-        if(call.topology==='sfu'){
-          // Seconde éviction après l'expiration du dernier jeton délivré.
-          await store.enqueueMediaJob(tx,'remove_participant',id,event.entityId);
-          await store.enqueueMediaJob(tx,'remove_participant',id,event.entityId,admissionSeconds+5);
-        }
-        if(call.topology==='p2p'||!(await store.joined(tx,id)).length)await this.finish(tx,id,'ended');
-        else await this.broadcast(tx,call,'call.updated');
+        if(!call||call.state==='ended')continue;
+        const participant=await store.participant(tx,id,event.entityId);
+        if(!participant||participant.state==='removed')continue;
+        await this.removeParticipant(tx,call,event.entityId,'ended');
       }
     }));
   }

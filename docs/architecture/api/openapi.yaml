@@ -390,6 +390,7 @@ paths:
       tags: [calls]
       operationId: putOwnCallParticipation
       summary: Accepter, refuser ou quitter un appel
+      description: Une conférence renvoie 409 tant que les évictions de la participation précédente sont en attente.
       x-module: calls
       x-scope: mvp
       x-code: [api, demo]
@@ -442,6 +443,7 @@ paths:
       tags: [calls]
       operationId: createMediaToken
       summary: Obtenir un jeton de salle SFU pour une conférence
+      description: Un jeton est délivré après la fin des évictions de la participation précédente.
       x-module: calls
       x-scope: v2
       x-code: [api]
@@ -919,11 +921,17 @@ components:
         state: { type: string, enum: [pending, available, rejected] }
     FileUpload:
       type: object
-      required: [file, uploadUrl, expiresAt]
+      required: [file, uploadUrl, headers, expiresAt]
       properties:
         file: { $ref: '#/components/schemas/File' }
         uploadUrl: { type: string, format: uri, description: URL signée Cloud Storage }
-        headers: { type: object, additionalProperties: { type: string }, description: En-têtes signés que l'envoi PUT doit reprendre }
+        headers:
+          type: object
+          description: En-têtes signés à reprendre au PUT. La précondition de génération réserve l'URL à la création de l'objet.
+          required: [x-goog-if-generation-match]
+          properties:
+            x-goog-if-generation-match: { const: '0' }
+          additionalProperties: { type: string }
         expiresAt: { $ref: '#/components/schemas/DateTime' }
     CompleteFileRequest:
       type: object
