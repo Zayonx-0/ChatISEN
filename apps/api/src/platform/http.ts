@@ -16,18 +16,21 @@ type AuthenticatedRequest=FastifyRequest&{identity?:Identity};
 export const identityOf=(request:FastifyRequest)=>(request as AuthenticatedRequest).identity!;
 
 const statuses:Record<FailureKind,number>={invalid:400,unauthorized:401,forbidden:403,not_found:404,conflict:409,too_large:413,unsupported:415,rate_limited:429,unavailable:503};
-export const apiError=(code:string,message:string)=>({code,message,requestId:randomUUID()});
+export function requestId(header:unknown){
+  return process.env.TRUST_PROXY==='true'&&typeof header==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(header)?header:randomUUID();
+}
+const apiError=(request:FastifyRequest,code:string,message:string)=>({code,message,requestId:request.id});
 
 /** Toutes les erreurs sortent au format ApiError du contrat. */
 export function useApiErrors(app:FastifyInstance){
   app.setErrorHandler((error:Error&{statusCode?:number},request,reply)=>{
-    if(error instanceof Failure)return reply.code(statuses[error.kind]).send(apiError(error.code,error.message));
+    if(error instanceof Failure)return reply.code(statuses[error.kind]).send(apiError(request,error.code,error.message));
     const status=error.statusCode;
-    if(status&&status>=400&&status<500)return reply.code(status).send(apiError(status===413?'PAYLOAD_TOO_LARGE':status===429?'RATE_LIMITED':'VALIDATION_ERROR','Requête refusée'));
+    if(status&&status>=400&&status<500)return reply.code(status).send(apiError(request,status===413?'PAYLOAD_TOO_LARGE':status===429?'RATE_LIMITED':'VALIDATION_ERROR','Requête refusée'));
     request.log.error({err:error},'Unhandled request error');
-    return reply.code(500).send(apiError('INTERNAL_ERROR','Erreur interne'));
+    return reply.code(500).send(apiError(request,'INTERNAL_ERROR','Erreur interne'));
   });
-  app.setNotFoundHandler((_request,reply)=>reply.code(404).send(apiError('NOT_FOUND','Route inconnue')));
+  app.setNotFoundHandler((request,reply)=>reply.code(404).send(apiError(request,'NOT_FOUND','Route inconnue')));
 }
 
 export const sameOrigin=(request:FastifyRequest)=>Boolean(process.env.CORS_ORIGIN)&&request.headers.origin===process.env.CORS_ORIGIN;

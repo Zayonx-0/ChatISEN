@@ -29,10 +29,16 @@ if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; t
 fi
 
 # Journaux et métriques système vers Cloud Logging et Cloud Monitoring.
-if ! systemctl list-unit-files | grep -q '^google-cloud-ops-agent'; then
-  curl -fsSo /tmp/ops-agent.sh https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
-  bash /tmp/ops-agent.sh --also-install >/var/log/ops-agent-install.log 2>&1 || echo "Ops Agent non installé"
+if ! systemctl cat google-cloud-ops-agent.service >/dev/null 2>&1; then
+  curl -fsSo /tmp/ops-agent.sh https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh &&
+    bash /tmp/ops-agent.sh --also-install >/var/log/ops-agent-install.log 2>&1 || echo "Ops Agent non installé"
 fi
 
 install -d -m 750 /opt/chatisen
 install -d -m 700 /opt/chatisen/secrets
+
+install -d -m 755 /etc/google-cloud-ops-agent
+cat >/etc/google-cloud-ops-agent/config.yaml <<'EOC'
+@@CHATISEN_OPS_AGENT@@
+EOC
+systemctl restart google-cloud-ops-agent || echo "Configuration Ops Agent à vérifier"

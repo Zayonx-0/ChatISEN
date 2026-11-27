@@ -5,7 +5,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import {Database} from './platform/db.js';
 import {SessionHooks} from './platform/hooks.js';
-import {useApiErrors} from './platform/http.js';
+import {requestId,useApiErrors} from './platform/http.js';
 import {collectMetrics,observeHttp,registry} from './platform/metrics.js';
 import {registerWebsocket} from './platform/websocket.js';
 import {IdentityService,registerIdentityRoutes} from './modules/identity/index.js';
@@ -27,7 +27,15 @@ export type AppOptions={
 };
 
 export async function buildApp(options:AppOptions){
-  const app=Fastify({logger:options.logger??false,trustProxy:process.env.TRUST_PROXY==='true'});
+  const app=Fastify({
+    logger:options.logger?{redact:{paths:['err'],remove:true}}:false,
+    trustProxy:process.env.TRUST_PROXY==='true',requestIdLogLabel:'requestId',
+    disableRequestLogging:true,requestIdHeader:false,genReqId:request=>requestId(request.headers['x-request-id']),
+  });
+  app.addHook('onResponse',async(request,reply)=>{
+    if(request.url==='/readyz'||request.url==='/metrics')return;
+    request.log.info({method:request.method,status:reply.statusCode,elapsedMs:reply.elapsedTime},'Requête HTTP');
+  });
   // Inventaire des routes, comparé au contrat par les tests.
   const routes:{method:string;url:string}[]=[];
   app.addHook('onRoute',route=>{for(const method of [route.method].flat())routes.push({method,url:route.url});});
@@ -48,6 +56,11 @@ export async function buildApp(options:AppOptions){
   const groups=new GroupService(db,identity,identity,report('List change notification failed'));
   const files=new FileService(db,groups,setting('objects',()=>process.env.FILES_BUCKET?gcsStore(process.env.FILES_BUCKET):undefined),report('Object storage signing failed'));
   const messages=new MessageService(db,groups,files);
+  const sweepFiles=()=>files.sweep((tx,id)=>messages.referencesFile(tx,id));
+  if(options.background??true){
+    const sweep=setInterval(()=>{sweepFiles().catch(report('File sweep failed'));},900_000);sweep.unref();
+    app.addHook('onClose',async()=>clearInterval(sweep));
+  }
   const calls=new CallService(db,groups,identity,setting('media',()=>livekitFromEnv()));
   const quality=new QualityService(db,calls);
   const notifications=new NotificationService(db,groups,identity,identity,setting('push',()=>webPushFromEnv()),(message,error)=>app.log.warn({err:error},message));
@@ -71,5 +84,5 @@ export async function buildApp(options:AppOptions){
     catch{return reply.code(503).send({status:'unavailable',database:'postgres'});}
   });
   if(options.metricsRoute)app.get('/metrics',async(_request,reply)=>{reply.header('Content-Type',registry.contentType);return collectMetrics(db.pool);});
-  return {app,db,routes,services:{identity,groups,files,messages,calls,quality,notifications}};
+  return {app,db,routes,services:{identity,groups,files,messages,calls,quality,notifications,sweepFiles}};
 }

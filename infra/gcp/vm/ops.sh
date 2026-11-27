@@ -65,6 +65,7 @@ cat >/opt/chatisen/compose.yml <<'EOF'
 name: chatisen-supervision
 services:
   prometheus:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: prom/prometheus:v3.1.0
     restart: always
     volumes:
@@ -74,6 +75,7 @@ services:
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
     ports: ["127.0.0.1:9090:9090"]
   grafana:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: grafana/grafana:12.0.0
     restart: always
     environment:

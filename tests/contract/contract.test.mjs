@@ -102,7 +102,7 @@ test('fixtures contain the four deterministic demo identities', async () => {
 
 test('migration files are ordered and guarded for idempotent application', async () => {
   const files = await migrationFiles();
-  assert.deepEqual(files, ['001_initial.sql', '002_group_commands.sql', '003_calls_p2p_push.sql', '004_module_schemas.sql', '005_call_transport.sql']);
+  assert.deepEqual(files, ['001_initial.sql', '002_group_commands.sql', '003_calls_p2p_push.sql', '004_module_schemas.sql', '005_call_transport.sql', '006_file_attachment.sql']);
   const sql = await readFile(join(project, 'db/migrations/001_initial.sql'), 'utf8');
   for (const table of ['users', 'sessions', 'conversations', 'conversation_members', 'conversation_events', 'messages', 'attachments', 'calls', 'call_participants', 'media_jobs', 'webhook_receipts', 'quality_samples']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));

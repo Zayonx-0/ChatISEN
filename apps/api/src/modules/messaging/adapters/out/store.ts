@@ -20,3 +20,7 @@ export async function latest(db:Queryable,conversationId:string,limit:number,bef
     order by seq desc limit $2`,[conversationId,limit,beforeSeq??null])).rows;
   return rows.map(toMessage);
 }
+
+export async function referencesFile(db:Queryable,id:string){
+  return Boolean((await db.query('select 1 from messaging.messages where file_id=$1',[id])).rowCount);
+}

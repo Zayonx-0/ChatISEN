@@ -44,25 +44,25 @@ ChatISEN est une messagerie web avec comptes, conversations privées et de group
 
 ## Couverture du sujet attendu
 
-| Attendu | Niveau | Conception retenue | État au 26/11 | Critère de recette |
+| Attendu | Niveau | Conception retenue | État documenté | Critère de recette |
 |---|---|---|---|---|
-| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | Cible : Argon2id, sessions révocables, auth_request, rôle admin et journal d’audit. Démo en ligne : scrypt. | Inscription, connexion, déconnexion, session révoquée refusée. |
-| Private and group messaging | Socle | Modules groups et messaging. | Cible : conversations privées et groupes gérés depuis l’interface. Démo : privé, création et retrait. | Un tiers ne lit aucun message. |
-| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Cible : livraison à 6 sockets à travers le load balancer vérifiée ; reprise afterSeq testée en CI. | Après coupure, aucun message perdu ni doublé. |
-| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Cible : son reçu en direct (deux navigateurs d’un même poste) et par le relais coturn. Reste : deux réseaux distincts. | Son reçu entre deux réseaux, y compris en relais forcé. |
-| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Cible : images décodées des deux côtés, en direct et par le relais. Reste : deux réseaux distincts. | Images décodées des deux côtés. |
-| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Cible : Terraform, déploiement continu, Prometheus, Grafana, Cloud Logging et alerte externe (destinataire à fournir). | Déploiement reproductible, alerte visible sur panne. |
-| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Cible : conférence à trois vérifiée, y compris par le relais ; un membre retiré est sorti de la salle. Reste : à quatre. | Conférence à quatre, pistes reçues. |
-| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Cible : envoi direct vérifié par le serveur et téléchargement à l’identique ; tiers, contenu mensonger et taille dépassée refusés. | Envoi et lecture réservés aux membres. |
-| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Codé. Réception vérifiée en test navigateur à deux avec un écran simulé. Reste : écran réel et conférence. | L'écran partagé est reçu, l'arrêt rend la caméra. |
-| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Reprise WebSocket testée. ICE restart codé, pas encore éprouvé par un changement de réseau. | Changer de réseau pendant un appel et un échange. |
-| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Cible : indicateur affiché, mesures enregistrées et comptées dans Prometheus. Reste : essai sur réseau bridé. | L'indicateur se dégrade sur réseau bridé. |
-| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | Cible : owner, moderator, member et administrateur ; matrice testée route par route en CI. | Matrice des droits testée route par route. |
-| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | Cible : arrêt d’une API (4 échecs sur 295, VM recréée en 7 min) ; mise à jour mesurée sans échec du point de santé (775 requêtes). | Arrêt d'une VM : le service continue. |
+| Authentication and user management | Socle | Module identity : comptes, Argon2id, sessions opaques, profils. Rôle admin en V2. | Implémentés dans la cible. Recette en ligne à mesurer. L’ancienne démo utilisait scrypt. | Inscription, connexion, déconnexion, session révoquée refusée. |
+| Private and group messaging | Socle | Modules groups et messaging. | Implémentés dans la cible. Tests d’accès et de groupes dans le dépôt. | Un tiers ne lit aucun message. |
+| Real-time delivery and history | Socle | WebSocket, journal numéroté, historique paginé. | Tests WebSocket et reprise `afterSeq` dans le dépôt. Livraison entre réplicas en cible à mesurer. | Après coupure, aucun message perdu ni doublé. |
+| One-to-one voice call | Socle | WebRTC pair-à-pair, signalisation par le serveur, ICE avec coturn. | Recette en cible à mesurer, dont le relais forcé entre deux réseaux. | Son reçu entre deux réseaux, y compris en relais forcé. |
+| One-to-one video call | Socle | Même chemin que la voix, piste vidéo en plus. | Recette en cible à mesurer, en direct et par le relais. | Images décodées des deux côtés. |
+| Basic deployment and monitoring | Socle | Docker Compose, CD, Prometheus, Grafana, Cloud Logging. | Configuration et tests du CD dans le dépôt. Recette en cible à mesurer. Destinataire de l’alerte à fournir. | Déploiement reproductible, alerte visible sur panne. |
+| Multi-participant video conferences | Extension V2 | SFU LiveKit auto-hébergé, jeton de salle court. | Admission et éviction implémentées. Recette à quatre et par le relais à mesurer. | Conférence à quatre, pistes reçues. |
+| File sharing | Extension V2 | Cloud Storage, URL signées, métadonnées en SQL. | Tests d’envoi, de contrôle du contenu et des droits dans le dépôt. Recette du bucket en cible à mesurer. | Envoi et lecture réservés aux membres. |
+| Screen sharing | Extension V2 | getDisplayMedia, remplacement de piste (à deux) ou piste publiée (SFU). | Implémenté. Test navigateur à deux prévu avec un écran simulé ; écran réel et conférence à mesurer. | L'écran partagé est reçu, l'arrêt rend la caméra. |
+| Connection recovery | Extension | Reprise WebSocket par afterSeq. ICE restart pour les appels. | Tests de reprise WebSocket dans le dépôt. Changement de réseau pendant un appel à mesurer. | Changer de réseau pendant un appel et un échange. |
+| Communication quality indicators | Extension V2 | getStats() toutes les 5 s, indicateur dans l'appel, envoi par lot. | Indicateur, stockage et métriques dans le dépôt. Essai sur réseau bridé à mesurer. | L'indicateur se dégrade sur réseau bridé. |
+| More advanced access control | Extension | Rôles de groupe, rôle moderator et admin global, journal d'audit. | Rôles implémentés et test de matrice dans le dépôt. | Matrice des droits testée route par route. |
+| Improved scalability and availability | Extension | 2 VM sur 2 zones, API sans état durable, SQL HA, MIG autoréparant. | MIG sur deux zones et Cloud SQL HA déclarés. Disponibilité, réparation et déploiement en cible à mesurer. | Arrêt d'une VM : le service continue. |
 | Performance and load testing | Investigation | k6 pour REST et WebSocket, lk load-test pour le SFU. | À faire. | Rapport avec p95, erreurs et ressources par palier. |
 | Communication quality analysis | Investigation | Mesures getStats() comparées entre direct et relais, réseau bridé. | À faire. | Graphiques perte, gigue et RTT par scénario. |
 | Infrastructure and resource optimisation | Investigation | Mesure CPU, mémoire, trafic TURN, puis dimensionnement et coût. | À faire. | Tableau coût et capacité avant et après. |
-| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests d’accès, de passerelle et de conformité au contrat en CI. Audit de dépendances, Trivy et ZAP à faire. | Constats classés, corrigés ou assumés. |
+| Security testing | Investigation | Tests d'accès, pnpm audit, Trivy, OWASP ZAP sur banc. | Tests d’accès, de passerelle et de conformité au contrat déclarés dans la CI. Audit de dépendances et Trivy configurés. ZAP sur banc à faire. | Constats classés, corrigés ou assumés. |
 | Data analysis | Investigation | Mesures anonymisées de qualité et d'usage, sans contenu. | Script d'amorce analysis/study.py, sans données. | Jeu de données décrit et analyse rejouable. |
 | AI-based feature or proof of concept | Investigation | Détection d'anomalies de qualité d'appel (proposition). | Proposé. | Comparaison avec de simples seuils sur des pannes provoquées. |
 
@@ -171,13 +171,13 @@ Pourquoi garder Nginx plutôt qu'ajouter Kong ou APISIX : il est déjà là et `
 | Nommer un moderator, transférer la propriété | Non | Non | Oui | Non |
 | Désactiver un compte, lire le journal d'audit | Non | Non | Non | Oui |
 
-La matrice est codée dans la cible et testée route par route. Le premier administrateur est nommé par l'exploitant (`db/promote-admin.mjs`). L'administrateur ne lit pas les conversations par son rôle. Un accès direct à la base reste possible pour qui administre le projet GCP : il est à limiter par IAM et à journaliser. Il n'y a pas de chiffrement de bout en bout des messages.
+Le dépôt contient la matrice et un test des routes concernées. Le premier administrateur est nommé par l'exploitant (`db/promote-admin.mjs`). L'administrateur ne lit pas les conversations par son rôle. Un accès direct à la base reste possible pour qui administre le projet GCP : il est à limiter par IAM et à journaliser. Il n'y a pas de chiffrement de bout en bout des messages.
 
 ## 5. Temps réel
 
 **Une seule WebSocket par onglet**, découpée en topics : `conversation:{id}` (abonnement explicite) et `user:{id}` (appels et changements de liste). Les écritures passent par REST.
 
-Chaque conversation a un numéro `seq` croissant. `ready` annonce un heartbeat de 30 s. Le client envoie `ping` à cette cadence, se reconnecte si `pong` manque, puis reprend avec `subscribe` et `afterSeq`. Il acquitte le dernier événement appliqué avec `ack`. Le serveur revérifie la session et le membre, et signale `resync_required` quand un client est trop lent. PostgreSQL réveille les deux réplicas par `LISTEN/NOTIFY`.
+Chaque conversation a un numéro `seq` croissant. `ready` annonce un heartbeat de 30 s. Le client envoie `ping` à cette cadence, se reconnecte si `pong` manque, puis reprend avec `subscribe` et `afterSeq`. Il acquitte le dernier événement appliqué avec `ack`. Le serveur revérifie la session et le membre, et signale `resync_required` quand un client est trop lent. PostgreSQL réveille les deux réplicas par `LISTEN/NOTIFY` et tient le rôle de coordination des réplicas.
 
 **WebSocket ou SSE.** SSE serait possible : les écritures sont déjà en REST, il est plus léger et reste du HTTP simple. La WebSocket est conservée car elle est déjà codée et testée avec reprise, et le client s'abonne, acquitte et se désabonne sur la même connexion. SSE deviendrait intéressant si le client n'envoyait plus rien sur ce canal. La démo expose d'ailleurs les deux ; son interface utilise la WebSocket.
 
@@ -233,7 +233,7 @@ Le **MCD** (vue 8) décrit les objets métier. Le **MLD** (vue 4) les répartit 
 - **PostgreSQL** : données relationnelles, transactions (numéro, message, événement et outbox ensemble), contraintes d'unicité contre les doublons, `LISTEN/NOTIFY` pour le temps réel.
 - **Pas de base NoSQL** : aucun besoin de schéma libre, et les transactions comptent plus que la souplesse. Le contenu des événements utilise déjà `jsonb`.
 - **Fichiers (V2) dans un Object Storage** (Cloud Storage, équivalent de S3 ou Blob Storage) : 1. `POST /conversations/{id}/files` vérifie le membre, le type et la taille ; 2. l'API rend une **URL signée** courte ; 3. le navigateur envoie les octets **directement** au bucket ; 4. `PATCH /files/{id}` confirme, et le serveur contrôle l'objet ; 5. un message référence `fileId`. Les gros envois ne passent pas par les VM applicatives. Le bucket est privé. Un transfert pair-à-pair ne conserverait pas d'historique et exigerait les deux personnes en ligne. Le plafond de 25 Mio du contrat est une proposition.
-- **État du code le 26/11** : ce parcours est codé. La taille, l'empreinte SHA-256 et la signature du type sont vérifiées à la confirmation ; les envois abandonnés sont effacés.
+- **Vérification et cycle de vie (T22).** L’API vérifie taille, empreinte SHA-256 et signature du type à la confirmation. Le bucket annule les téléversements multiparties incomplets après un jour. Le nettoyage SQL et Cloud Storage vise les envois incomplets ou refusés après une heure et les fichiers confirmés sans message après 24 h. Le contrôle de la référence au message se fait sous verrou SQL. Recette en cible à mesurer.
 
 ## 8. Infrastructure et déploiement
 
@@ -243,14 +243,14 @@ La vue 6 montre les machines et les conteneurs. Le sous-réseau média existe po
 
 | Composant | Implantation | Rôle et critère de sortie |
 |---|---|---|
-| Load balancer | External Application Load Balancer global, certificat géré. | HTTPS et WSS 443, redirection 80, backends en HTTPS 8443. Retrait d'un backend défaillant. |
+| Load balancer | External Application Load Balancer global avec certificat géré dans la vue 6. Contraintes de la cible en §14. | HTTPS et WSS 443, redirection 80, backends en HTTPS 8443. Retrait d'un backend défaillant. |
 | Réseau | VPC chatisen-cible : app 10.40.10.0/24, média 10.40.20.0/24, ops 10.40.30.0/24. PSA 10.40.32.0/20 proposée. | VM app sans IP publique, sortie par Cloud NAT. |
 | VM applicatives | MIG régional de 2 VM Debian 13, zones a et b. Docker Compose : nginx, api, cloud-sql-proxy, node-exporter. | Mêmes digests sur les deux VM. Une VM en échec est recréée. |
 | API | Monolithe modulaire Fastify, port 3000 non publié, /metrics sur 9091. | Aucun état durable local : reprise sur l'autre VM par session SQL et curseur. |
 | PostgreSQL | Cloud SQL PostgreSQL 17 régional HA, IP privée. | Sauvegardes et PITR vérifiés par une restauration. |
 | coturn | VM dédiée, IPv4 réservée, certificat public. | STUN et TURN UDP 3478, TLS 5349. Candidats srflx et relay observés. |
 | Supervision | VM ops : Prometheus et Grafana par Compose, accès IAP. | Tableau et alerte sur API indisponible. |
-| Journaux | Ops Agent vers Cloud Logging. | Recherche par requestId, rétention et région vérifiées. |
+| Journaux | Ops Agent vers le bucket Cloud Logging de la cible en `europe-west4`, rétention 30 jours. | Recherche par requestId, rétention et région vérifiées. À mesurer. |
 | SFU (V2) | 2 VM LiveKit, une par zone. | Une salle sur un nœud à la fois. Reconnexion si un nœud tombe. |
 | Redis (V2) | Memorystore Standard, IP privée, TLS et AUTH. | Coordination des SFU. Inutile pour le MVP. |
 | Fichiers (V2) | Bucket Cloud Storage privé europe-west4. | URL signées courtes, droits revérifiés. |
@@ -283,7 +283,7 @@ Pour la signalisation des conférences, le client passe par Nginx (`/livekit/`) 
 | T06 · Authentification | Navigateur → identity, puis Nginx → identity | Argon2id, session opaque, cookie, CSRF, puis auth_request. | Session reconnue sur l'autre VM, refusée après déconnexion. |
 | T07 · Écriture | messaging → PostgreSQL | Clé client, droit, numéro, message, événement et outbox en une transaction. | Envois concurrents sans doublon. |
 | T08 · Temps réel | API a et b → navigateurs | LISTEN/NOTIFY, lecture du journal, WSS par topics, reprise afterSeq. | Deux clients sur deux VM, coupure sans trou. |
-| T09 · Données | API → Cloud SQL | cloud-sql-proxy, mTLS, IP privée. | Base injoignable depuis Internet. |
+| T09 · Données | API → Cloud SQL | cloud-sql-proxy, mTLS, IP privée, rôle SQL limité aux données. | Base injoignable depuis Internet et DDL refusé à l’API. |
 | T10 · Signalisation | Navigateur → calls → correspondant | Offre, réponse et candidats : REST à l'aller, topic user au retour. | Seuls les deux participants reçoivent les signaux. |
 | T11 · Média direct | Navigateur A ↔ navigateur B | WebRTC, ICE, DTLS-SRTP, sans passer par les VM applicatives. | Paire ICE sélectionnée de type host ou srflx. |
 | T12 · STUN et TURN | Navigateurs ↔ coturn | STUN et TURN UDP 3478, TLS 5349, relais UDP 49160–49200. | srflx obtenu, puis appel en relais forcé. |
@@ -293,10 +293,10 @@ Pour la signalisation des conférences, le client passe par Nginx (`/livekit/`) 
 | T16 · Exploitation | Ops et Admin → GCP | IAP et OS Login pour SSH et Grafana, console avec MFA. | Refus hors IAM. |
 | T17 · Observabilité | VM → Prometheus et Cloud Logging | Métriques collectées toutes les 15 s, journaux centralisés. | Alerte sur API arrêtée. |
 | T18 · Images | GitHub Actions CI → Artifact Registry | HTTPS, identité fédérée, images par digest. | Commit relié au digest. |
-| T19 · Déploiement | GitHub Actions CD → API GCP | Migration par Cloud Run Job, puis mise à jour progressive du MIG. | Retour au digest précédent. |
-| T20 · Lecture d'image | VM → Artifact Registry | Pull par digest avec un compte de service lecteur. | Digest effectif comparé. |
-| T21 · Reprise | Cloud SQL → sauvegardes et restauration | PITR, restauration isolée. | RPO et RTO mesurés. |
-| T22 · Fichiers (V2) | Navigateur ↔ Cloud Storage | URL signée par l'API, octets envoyés et lus directement en HTTPS. | URL expirée et non-membre refusés. |
+| T19 · Déploiement | GitHub Actions CD → API GCP | Approbation manuelle, Cloud Run Job avec rôle SQL dédié, puis APP-A et APP-B. | Échec de migration arrêté et retour aux digests précédents. À mesurer en cible. |
+| T20 · Lecture d'image | VM → Artifact Registry | Pull par digest avec un compte de service lecteur. Chaque VM publie les digests réellement actifs. | Digest effectif comparé. À mesurer en cible. |
+| T21 · Reprise | Cloud SQL → sauvegardes et restauration | PITR, restauration isolée. | Comparaison du contenu, RPO et RTO à mesurer. |
+| T22 · Fichiers (V2) | Navigateur ↔ Cloud Storage | URL signée par l'API, octets envoyés et lus directement en HTTPS, cycle de vie et plafond du contrat. | URL expirée et non-membre refusés, fichiers référencés conservés. |
 
 ## 9. TLS et PKI
 
@@ -344,22 +344,24 @@ Un **SPOF** est un élément dont la panne arrête une fonction. La démo actuel
 
 Pendant une panne du serveur, un appel **direct déjà établi** peut continuer à transporter le média, mais la messagerie et la signalisation s'arrêtent, et la démo marque les appels terminés à son redémarrage.
 
+**Recette de reprise (T21).** Restaurer dans un clone PITR jetable, comparer l’empreinte du contenu et mesurer le RPO et le RTO. Pour la VM de supervision, remplacer la machine par Terraform, puis vérifier Grafana et les cibles Prometheus via IAP (T16, FW2 et FW3). RPO, RTO et durée de reprise de la supervision à mesurer. [Procédures GCP](../../infra/gcp/README.md#reprise-e38-et-e39-10-t21-t16-fw2-et-fw3)
+
 **Kubernetes (GKE).** Il gérerait des pods, leurs sondes, leur remplacement et leur autoscaling. Le **MIG** apporte déjà au niveau des VM le remplacement d'une instance en échec et la répartition sur deux zones, sans cluster à apprendre. GKE devient pertinent avec plusieurs services à déployer séparément : c'est la trajectoire V3, avec une passerelle d'API (Kong ou APISIX) et une base par service. La planche de la version précédente en montre le découpage en services.
 
 ## 11. Observabilité
 
 - **Métriques** : Prometheus collecte l'API, les VM (node-exporter), coturn et, en V2, LiveKit. Grafana affiche et alerte. Le dépôt contient déjà cette configuration pour le banc local.
-- **Indicateurs**. Grafana affiche la latence et les erreurs HTTP, les connexions WebSocket, le délai jusqu'à l'acquittement des messages, l'âge du plus ancien événement non traité, les échecs, expirations et reprises Push, les appels à deux établis par première route ICE observée et les mesures de qualité. Il affiche les alertes Prometheus, dont l'indisponibilité d'un SFU.
-- **Journaux** : logs JSON avec `requestId`, centralisés dans Cloud Logging par l'Ops Agent. Cela joue le rôle d'un serveur Syslog central. Ni mot de passe, ni cookie, ni contenu de message dans les logs.
+- **Indicateurs prévus dans les tableaux Grafana.** Latence et erreurs HTTP, connexions WebSocket, délai jusqu’à l’acquittement des messages, âge du plus ancien événement non traité, échecs, expirations et reprises Push, appels à deux par première route ICE observée et mesures de qualité. Alertes Prometheus, dont l'indisponibilité d'un SFU. Recette en cible à mesurer.
+- **Journaux (T17).** L’Ops Agent centralise les journaux structurés Nginx, API, Cloud SQL Proxy, coturn et LiveKit dans Cloud Logging. Un même `requestId` relie Nginx, l’API et le corps d’erreur lorsque la requête atteint l’API. Les champs collectés excluent les mots de passe, cookies, contenus de message, jetons et URL signées. Les fichiers de journaux locaux tournent et le bucket de cible conserve les entrées 30 jours en `europe-west4`. Recette à mesurer.
 - **Sondes** : `/healthz` (processus) et `/readyz` (base). `/metrics` ne doit pas être public.
 
 ## 12. CI/CD
 
 1. **CI** sur chaque pull request. Vérification des types, build, tests, Playwright, contrôle des frontières entre modules, validation des deux contrats, `pnpm audit` et Trivy. La publication analyse aussi chaque image retenue avant son envoi au registre. `pnpm audit` bloque sur les vulnérabilités élevées ou critiques ; Trivy bloque sur celles qui disposent d'un correctif. Les actions de la CI et l'image Trivy sont figées par leur empreinte.
 2. **Images** construites une fois, poussées dans Artifact Registry et désignées par digest.
-3. **CD de la démo** (en place) : chaque minute, la VM compare son commit à la tête de `main` et ne le déploie que si la CI a réussi. Copie des données avant redémarrage, contrôle de santé, retour arrière automatique, résultat publié dans `/version.json` et repris par le job GitHub « Déploiement en production ». Aucun secret côté GitHub. Détails dans `ops/gcp/README.md`.
-4. **CD de la cible** : après une CI réussie sur `main`, identité fédérée sans clé, migration par Cloud Run Job, nouveaux digests posés sur le groupe de VM, remplacement sans retirer une VM avant que sa remplaçante soit saine, retour arrière sur les digests précédents. L'environnement `cible` est limité à `main`, sans approbation manuelle. Détails dans `infra/gcp/README.md`.
-5. Les migrations restent rétrocompatibles le temps que deux versions cohabitent. Seule exception, avant la mise en service : la migration 004, qui répartit les tables en schémas.
+3. **CD de l’ancienne démo** (branche `standalone`) : chaque minute, la VM compare son commit à la tête de `main` et ne le déploie que si la CI a réussi. Copie des données avant redémarrage, contrôle de santé, retour arrière automatique, résultat publié dans `/version.json` et repris par le job GitHub « Déploiement en production ». Aucun secret côté GitHub. Détails dans `ops/gcp/README.md`.
+4. **CD de la cible** sur environnement protégé avec approbation manuelle. Après une CI réussie sur le commit exact de `main`, GitHub utilise OIDC sans clé stockée. `cible-images` publie les images avec `sa-images`. Seul le job `cible`, avec `sa-deploy`, attend l’approbation. Il exécute la migration par Cloud Run Job, puis met à jour APP-A. Après contrôle de santé et comparaison des digests réellement actifs, il traite APP-B. En cas d’échec, le retour aux digests précédents suit le même principe, une VM saine à la fois. Chaque VM démarre ses conteneurs avec Docker Compose. La cible modélisée déploie un nouveau modèle d’instance. En exploitation, Terraform garde ce modèle et le CD applique les digests dans `all-instances-config` pour éviter deux auteurs du modèle. Le changement du modèle lui-même passe par Terraform et par la même recette ordonnée. [Procédure](../../infra/gcp/README.md#déploiement-continu-e36-12-t18-à-t20-fw1)
+5. Les migrations restent rétrocompatibles le temps que deux versions cohabitent. Le Job utilise un rôle SQL dédié et vérifie l’AC propre à l’instance Cloud SQL sur l’IP privée. Le rôle de l’API dispose des droits de données nécessaires. La migration 004 est antérieure à la mise en service de la cible.
 
 ## 13. Travail d'investigation
 
@@ -368,7 +370,7 @@ Pendant une panne du serveur, un appel **direct déjà établi** peut continuer 
 | Charge et performance | k6 : connexions, messages et WebSocket par paliers. lk load-test pour le SFU. | p95 d'envoi à livraison, erreurs, CPU, mémoire, connexions SQL. | Rapport par palier avec le point de saturation. |
 | Qualité des communications | getStats() en direct puis en relais forcé, réseau dégradé avec tc netem. | Pertes, gigue, RTT, débit, type de candidat. | Courbes comparées par scénario. |
 | Optimisation des ressources | Mesures sous charge, puis changement d'un paramètre à la fois. | Capacité par vCPU, trafic relayé, coût mensuel estimé. | Tableau avant et après, taille de VM retenue. |
-| Sécurité | Tests d'accès entre comptes, OWASP ZAP sur banc, pnpm audit, Trivy. | Constats par gravité. | Liste des corrections et risques assumés. Premiers constats : /metrics public sur la démo, aucune limite de débit. |
+| Sécurité | Tests d'accès entre comptes, OWASP ZAP sur banc, pnpm audit, Trivy. | Constats par gravité. | Liste des corrections et risques assumés. |
 | Analyse de données | Export anonymisé des mesures et de l'usage, script Python rejouable. | Répartition, corrélations, intervalles de confiance. | Jeu de données décrit et résultats reproductibles. |
 | Preuve de concept IA | Détection d'anomalies sur des fenêtres de mesures (par exemple Isolation Forest) contre une référence à seuils. | Précision et rappel sur des dégradations provoquées et étiquetées. | Décision argumentée : le modèle fait mieux que les seuils, ou non. |
 
@@ -398,23 +400,43 @@ L'IA proposée n'utilise **ni message ni média** : seulement des mesures résea
 
 ## 14. État réel et écarts
 
-Le 27 novembre à 00 h 20 UTC, le domaine est passé de la démo à l’architecture cible. Le DNS n’a pas changé : l’adresse qu’il désigne a quitté la VM de démo pour le load balancer. Les comptes, conversations et messages de la démo ont été repris.
+La cible réutilise l’adresse régionale de la démo, car le DNS de l’école reste fixe. Le load balancer est donc régional et FW1 inclut son sous-réseau de proxys. Le certificat du load balancer est géré par l’équipe, car le certificat géré régional exige une validation DNS. Le nom TURN utilise `sslip.io`, car l’équipe ne peut pas ajouter d’enregistrement au DNS de l’école. Les ports ACME servent aux preuves de contrôle du nom (T01, T02, T12, FW1 et FW4).
 
-| | Ancienne démo (branche `standalone`, arrêtée) | En ligne sur ia-pple.isen.fedyna.fr |
+Le jeton de salle LiveKit expire en 60 secondes afin de borner la fenêtre de réadmission d’un membre retiré avec un jeton déjà émis. Les identifiants TURN durent au plus une heure, bornée par la durée restante de la session, pour permettre le rafraîchissement d’allocation (T12, T13, FW4 à FW6). [Écarts d’infrastructure](../../infra/gcp/README.md#écarts-avec-la-première-version-du-schéma)
+
+| Élément | Ancienne démo (branche `standalone`) | Cible décrite dans le dépôt |
 |---|---|---|
-| Serveur | Node sans framework, un fichier | Monolithe modulaire Fastify sur 2 VM |
-| Interface | HTML et JavaScript sans framework | React servi par Nginx |
-| Données | Fichier JSON | Cloud SQL HA, un schéma par module |
-| Authentification | scrypt, session 24 h | Argon2id, session 24 h, auth_request |
-| Appels | Pair-à-pair, STUN Google, sans TURN | Pair-à-pair et coturn ; conférences par 2 SFU |
-| Notifications Push | Oui | Oui, vérifiées avec le service Push de Chrome |
-| TLS | Caddy et Let's Encrypt | Load balancer, Nginx et coturn |
-| Supervision | /healthz, /readyz, /metrics | Prometheus, Grafana, Cloud Logging, alerte externe |
-| Déploiement | Automatique après CI verte : la VM tire le commit | Automatique après CI verte : GitHub pousse les digests |
+| Serveur et données | Node, fichier JSON | Fastify, deux VM, PostgreSQL HA et un schéma SQL par module |
+| Interface et sessions | HTML et JavaScript, scrypt et session 24 h | React servi par Nginx, Argon2id, auth_request et session 24 h |
+| Appels et notifications | Pair-à-pair avec STUN Google, Web Push | coturn pour le relais, deux SFU pour les conférences, module Web Push |
+| Exploitation | Sondes et déploiement reçu par la VM | Prometheus, Grafana, Cloud Logging, déploiement approuvé et ordonné |
 
-**Reste à éprouver** : un appel entre deux réseaux distincts, la reprise après un changement de réseau et une conférence à quatre. L’alerte externe n’a pas de destinataire. Les schémas dessinés n’ont pas été régénérés. Les écarts d’infrastructure sont listés dans `infra/gcp/README.md`.
+### Relecture des modifications depuis `e87915c`
 
-Constats à traiter : `/metrics` de la démo répond publiquement (nombre de comptes et de messages) ; aucune limite de débit sur la connexion ; un arrêt pendant l'écriture du JSON peut le corrompre.
+| Passage modifié | Exigence ou preuve à rétablir |
+|---|---|
+| §1, « Cible : Argon2id, sessions révocables, auth_request, rôle admin et journal d’audit » et « conversations privées et groupes gérés depuis l’interface » | Le code démontre l’implémentation. Une recette de la cible doit la confirmer. |
+| §1, « livraison à 6 sockets à travers le load balancer vérifiée ; reprise afterSeq testée en CI » | Les tests de reprise sont dans le dépôt. Le passage de six sockets par le LB n’a pas de relevé lié. |
+| §1, « son reçu en direct […] et par le relais coturn », « images décodées des deux côtés », « conférence à trois vérifiée […] un membre retiré est sorti » | Les comptes rendus de banc et de démo ont un autre périmètre. Relais et conférence en cible à mesurer, avec deux réseaux et quatre participants selon les critères. |
+| §1, « déploiement continu, Prometheus, Grafana, Cloud Logging et alerte externe » | La configuration seule ne démontre pas la livraison ordonnée, le routage des journaux ou la réception d’une alerte. Destinataire à renseigner. |
+| §1, « envoi direct vérifié […] téléchargement à l’identique ; tiers, contenu mensonger et taille dépassée refusés » | Les tests d’intégration couvrent ces contrôles avec un stockage de test. La recette Cloud Storage en cible est à mesurer. |
+| §1, « écran simulé » et « reprise WebSocket testée » | Les tests sont présents. Écran réel, conférence et changement de réseau à mesurer. |
+| §1, « indicateur affiché, mesures enregistrées et comptées dans Prometheus » | Le code et les règles portent ces indicateurs. La mesure en cible et l’essai sur réseau bridé restent à faire. |
+| §1 et §4, « matrice testée route par route » | La matrice et les cas de test sont versionnés. Les résultats de CI doivent être reliés au SHA de la recette. |
+| §1, « 4 échecs sur 295 », « recréée en 7 min », « 775 requêtes » | Aucun relevé lié dans le dépôt pour ces chiffres. Disponibilité, réparation et déploiement à mesurer. |
+| §1, « audit de dépendances, Trivy et ZAP à faire » | Audit et Trivy sont déclarés dans la CI ; ZAP sur banc reste prévu. |
+| §3, « apps/api suit ce découpage » et « un test de la CI refuse » | La migration 004, le contrôle des frontières et ses cas de test étayent le découpage du dépôt. |
+| §4, « apps/api sert les opérations » et « la CI vérifie […] y compris les 401 et 429 […] les trames » | L’inventaire et les tests versionnés couvrent ce contrôle sur leurs cas. Le passage de la suite doit être relié au SHA. |
+| §5, réécriture du paragraphe WebSocket | La phrase sur l’absence de broker avait disparu. PostgreSQL reste seul responsable du réveil des réplicas. |
+| §6 et §7, routes du worker puis détails de qualité | Les sources étayent les routes, la cadence et les lots. L’exposition du champ `senderName` était déjà à trancher. La mesure des indicateurs en cible reste à faire. |
+| §7, « les envois abandonnés sont effacés » | L’ancienne phrase donnait le nettoyage général comme achevé. La recette doit vérifier les fichiers confirmés non joints et la conservation des références. |
+| §11, « Grafana affiche […] l’indisponibilité d’un SFU » | Les tableaux et règles sont versionnés. L’affichage et les alertes en cible restent à mesurer. |
+| §12.1, audit, scan, seuils et actions figées | Les workflows déclarent ces contrôles. Le résultat de l’audit et du scan relève du run du SHA livré. |
+| §12.4, « sans approbation manuelle », « digests posés sur le groupe », « remplacement sans retirer une VM » | Le texte retirait l’approbation et l’ordre APP-A puis APP-B, et remplaçait le modèle d’instance de la cible. L’approbation et l’ordre sont remis. L’écart de gestion du modèle est motivé en §12. |
+| §12.5, « seule exception […] migration 004 » | L’exception est cantonnée à la phase antérieure à la cible. La rétrocompatibilité demeure exigée pour toutes les livraisons de production. |
+| §14, « 27 novembre à 00 h 20 UTC », « comptes, conversations et messages […] repris », inventaire « En ligne », « Push vérifiées […] Chrome », « Automatique […] GitHub pousse les digests » | La configuration de cible et les preuves de la démo ne prouvent ni l’heure de bascule, ni l’intégrité de la reprise, ni la recette des services en cible. La livraison doit être approuvée. |
+
+La démo arrêtée conservait ses données sur un fichier JSON. Les critères de la cible portent sur les sondes privées, la limitation des connexions et la restauration Cloud SQL.
 
 ## Migration, CD et reprise
 

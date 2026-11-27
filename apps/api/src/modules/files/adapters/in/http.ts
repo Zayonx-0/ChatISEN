@@ -9,8 +9,6 @@ const identifier=(value:string,what:string)=>{if(!isUuid(value))throw notFound(`
 
 export async function registerFileRoutes(app:FastifyInstance,files:FileService,sessions:SessionVerifier){
   const {authenticate,mutation}=guards(sessions);
-  const sweep=setInterval(()=>{files.sweep().catch(error=>app.log.error({err:error},'File sweep failed'));},900_000);sweep.unref();
-  app.addHook('onClose',async()=>clearInterval(sweep));
 
   app.post('/api/v1/conversations/:conversationId/files',{preHandler:mutation},async(request,reply)=>{
     const id=identifier((request.params as {conversationId:string}).conversationId,'Conversation');

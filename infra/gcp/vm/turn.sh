@@ -61,6 +61,12 @@ cat >/opt/chatisen/compose.yml <<'EOF'
 name: chatisen-turn
 services:
   coturn:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "com.docker.compose.service"
     image: coturn/coturn:4.6.3-alpine
     network_mode: host
     restart: always
@@ -68,6 +74,7 @@ services:
     volumes: ["/opt/chatisen/turn:/etc/coturn:ro"]
     command: ["-c", "/etc/coturn/turnserver.conf"]
   node-exporter:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: prom/node-exporter:v1.8.2
     network_mode: host
     pid: host

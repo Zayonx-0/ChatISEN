@@ -12,10 +12,28 @@ export async function setState(db:Queryable,id:string,state:'available'|'rejecte
 }
 export async function pendingCount(db:Queryable,ownerId:string){return Number((await db.query("select count(*) from files.files where owner_id=$1 and state='pending'",[ownerId])).rows[0].count);}
 export async function attachable(db:Queryable,id:string,conversationId:string,ownerId:string){
-  return Boolean((await db.query("select 1 from files.files where id=$1 and conversation_id=$2 and owner_id=$3 and state='available' for share",[id,conversationId,ownerId])).rowCount);
+  return Boolean((await db.query(`update files.files set attached_at=now()
+    where id=$1 and conversation_id=$2 and owner_id=$3 and state='available' and attached_at is null returning id`,
+    [id,conversationId,ownerId])).rowCount);
 }
-/** Envois abandonnés ou refusés, à effacer du stockage puis de la base. */
+
+const expired="attached_at is null and (case when state='available' then completed_at<now()-interval '24 hours' else created_at<now()-interval '1 hour' end)";
 export async function abandoned(db:Queryable){
-  return (await db.query<{id:string;object_key:string}>("select id,object_key from files.files where state<>'available' and created_at<now()-interval '1 hour' limit 100")).rows;
+  return (await db.query<{id:string}>(`select id from files.files where ${expired} order by created_at limit 100`)).rows;
 }
-export async function remove(db:Queryable,id:string){await db.query("delete from files.files where id=$1 and state<>'available'",[id]);}
+
+export async function lockAbandoned(db:Queryable,id:string){
+  return (await db.query<{object_key:string}>(`select object_key from files.files where id=$1 and ${expired} for update skip locked`,[id])).rows[0];
+}
+
+export async function markAttached(db:Queryable,id:string){
+  await db.query('update files.files set attached_at=now() where id=$1',[id]);
+}
+
+export async function reject(db:Queryable,id:string){
+  await db.query("update files.files set state='rejected' where id=$1",[id]);
+}
+
+export async function removeRejected(db:Queryable,id:string){
+  await db.query("delete from files.files where id=$1 and state='rejected' and attached_at is null",[id]);
+}

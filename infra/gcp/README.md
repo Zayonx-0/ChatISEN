@@ -24,14 +24,14 @@ Terraform décrit toute la cible de `docs/architecture/`. La démo (branche `sta
 | Certificat Let's Encrypt posé sur le load balancer | Un certificat géré régional exige une validation DNS. |
 | Sous-réseau de proxys en 10.40.50.0/24 ; FW1 depuis ces proxys et les sondes GCP | Propre au load balancer régional. |
 | Port 80 ouvert sur coturn et flux 8080 des applications vers la supervision | Preuve ACME des deux certificats. |
-| Jeton de salle de 60 secondes au lieu de 5 minutes | Un membre retiré ne peut pas revenir dans la conférence avec un ancien jeton. |
-| Noms publics en `sslip.io` | Aucun enregistrement DNS à gérer avant la bascule. |
+| Jeton de salle de 60 secondes au lieu de 5 minutes | Un jeton LiveKit déjà émis reste valable jusqu’à son expiration. Une durée plus courte et une seconde éviction à l’expiration bornent la réadmission après le retrait d’un membre (T13, FW6). Les identifiants TURN durent au plus une heure, bornée par la session, pour permettre les rafraîchissements d’allocation (T12). |
+| Nom TURN en `sslip.io` | L’équipe ne peut pas ajouter un nom TURN au DNS de l’école. Le nom résout l’IP réservée et permet la preuve ACME (T01, T12, FW4). |
 
 ## Domaine public
 
-Depuis le 27 novembre, `ia-pple.isen.fedyna.fr` désigne la cible. Le DNS appartient à l'école et n'a pas changé : l'adresse réservée `isenchatprojectt` est passée de la VM de démo au load balancer (`domaine.tf`, protégée contre la suppression). Les certificats publics sont posés sur le proxy HTTPS avec `gcloud`, pour que leurs clés restent hors de l'état Terraform. Celui du domaine est le certificat Let's Encrypt qu'utilisait la démo ; il expire le 23 février 2027 et ne se renouvelle pas automatiquement. Le nom en sslip.io reste servi pour le contrôle de santé du déploiement.
+La cible sert `ia-pple.isen.fedyna.fr`. Le DNS appartient à l’école. Le load balancer reprend l’adresse réservée `isenchatprojectt` de la démo (`domaine.tf`, protégée contre la suppression). Les certificats publics sont posés sur le proxy HTTPS avec `gcloud`, pour que leurs clés restent hors de l'état Terraform. Celui du domaine est le certificat Let's Encrypt qu'utilisait la démo ; il expire le 23 février 2027 et ne se renouvelle pas automatiquement. Le CD sonde le domaine du site. Le nom web en `sslip.io` peut servir pendant un essai avant raccordement du DNS.
 
-La VM de démo est conservée, service arrêté, avec ses données et deux instantanés de disque. Le retour arrière rend l'adresse à la démo ; les messages écrits sur la cible depuis la bascule n'y apparaîtraient pas.
+La VM de démo est conservée, service arrêté, avec ses données. Le retour arrière rend l'adresse à la démo ; les messages écrits sur la cible depuis la bascule n'y apparaîtraient pas.
 
 ## Utilisation
 
@@ -47,22 +47,59 @@ terraform apply plan.tfplan
 
 L'état contient des secrets : il vit dans le bucket privé et versionné du backend et n'est jamais commité.
 
-## Déploiement continu (flux T18 et T19)
+## Déploiement continu (E36, §12, T18 à T20, FW1)
 
-Une fusion sur `main` lance la CI. Si elle réussit, le workflow « Cible — images et déploiement » publie les deux images par digest (`cd/publish.sh`) puis lance `cd/deploy.sh` avec une identité fédérée, sans clé stockée. Une image dont les sources n'ont pas changé est reprise telle quelle : une fusion qui ne touche que la documentation ne remplace aucune VM. Étapes du déploiement :
+Le workflow vérifie la dernière CI de type `push` sur le SHA exact de `main`, y compris pour une relance manuelle. Le job `cible-images` utilise `sa-images` pour publier les images par digest dans le seul dépôt Artifact Registry `chatisen`. Le job `cible` est soumis à approbation manuelle et utilise `sa-deploy`. Les VM lisent le registre avec leur compte lecteur. Une version dont les deux digests sont déjà attestés évite une migration et un redémarrage.
 
-1. la tâche Cloud Run `chatisen-migration` reçoit la nouvelle image et migre la base ;
-2. la « configuration commune » du groupe reçoit les deux digests, et le groupe remplace ses VM sans retirer les anciennes avant que les nouvelles soient saines ;
-3. le script vérifie que toutes les VM saines portent les digests demandés et que le point de santé public répond ;
-4. sinon il remet les digests précédents, vérifie, et le workflow échoue. La base garde la migration.
+Le Job Cloud Run migre la base. Le CD pose les digests dans `all-instances-config` et demande au MIG opportuniste de mettre à jour APP-A (zone a) seule. Une fois APP-A saine, il compare les digests au rapport récent de ce démarrage, puis traite APP-B (zone b). Le rapport T20 est produit depuis l’ID de l’image de chaque conteneur actif et ses `RepoDigests`. Il passe par les guest attributes et la lecture Compute existante. Sur échec en A, seule A est remise à la version précédente. Sur échec en B, B revient d’abord à l’ancienne version et A attend que B soit saine. Un déploiement ou un retour arrière garde une VM saine avant de demander le redémarrage de l’autre. Une panne indépendante du seul réplica sain pendant ce redémarrage demeure possible.
 
-Conséquence : **toute migration doit rester compatible avec la version encore en service** (ajouter d'abord, retirer dans une version ultérieure). La migration 004, qui déplaçait les tables, a été la dernière exception, avant la mise en service. L'environnement GitHub `cible` est limité à `main`, sans approbation manuelle.
+Terraform reste propriétaire du modèle d’instance. Donner le modèle au CD ferait gérer la même ressource par deux auteurs. Le CD écrit donc les deux digests dans la configuration commune et Terraform ignore ce champ. Un changement du modèle, distinct d’une livraison d’images, se propage par le même ordre de zones via `--bootstrap`.
 
-**Droits de `sa-deploy`**, accordés par un propriétaire hors Terraform : `artifactregistry.writer`, `compute.instanceAdmin.v1`, `run.developer`, l'usage de `sa-app`, et un rôle personnalisé réduit à `compute.healthChecks.use`. Sans ce dernier, Google refuse toute mise à jour d'un groupe de VM doté de la réparation automatique. Un essai du script avec un compte plus large ne le montre pas.
+Les droits existants de `sa-deploy` comprennent `compute.instanceAdmin.v1`, `run.developer` et le rôle personnalisé `compute.healthChecks.use` nécessaire au MIG autoréparant. Terraform lui accorde `iam.serviceAccountUser` sur le seul compte du Job `sa-migration` pour mettre à jour l’image. Le rôle de publication historique est retiré à la fin de la transition.
 
-Terraform ignore la configuration commune du groupe et l'image de la tâche de migration : il gère l'infrastructure, la CI gère les versions. `images.auto.tfvars.json` ne sert qu'à la création. La région limite à 8 VM : tant que la démo existe, une seule VM de renfort est créée à la fois, d'où des erreurs `QUOTA_EXCEEDED` sans gravité et 10 à 15 minutes par déploiement.
+### Premier déploiement avec le nouveau CD
 
-**Mesurer la disponibilité** se fait depuis une VM qui a sa propre adresse publique, comme `chatisen-turn`. Depuis une VM sortant par Cloud NAT, une sonde d'une requête par seconde épuise les 64 ports réservés à la VM et rapporte de fausses coupures.
+1. Finir toute livraison en cours. Suspendre les fusions et les relances durant l’amorçage. Relever les deux digests en service dans la configuration du MIG et confirmer leur correspondance avec les deux hôtes. Si le groupe n’a pas encore d’override, conserver les deux digests actuels en entrée Terraform.
+2. Créer l’environnement GitHub `cible-images`, limité à `main`, sans relecteur. Préparer `cible` sur `main` avec relecteurs requis. Depuis la racine, lancer `bash infra/gcp/cd/wif.sh prepare` avec le compte d’exploitation. Le script vérifie le fournisseur et les liaisons du projet et des comptes. Le mappage laisse l’ancienne liaison opérationnelle pour `cible` seule. Vérifier aussi les éventuels droits IAM hérités, en particulier tout droit accordé à l’échelle du pool et les droits de `sa-images`.
+3. Préparer le rôle SQL et sa version de secret selon la procédure ci-dessous. Examiner et appliquer Terraform depuis cette version du dépôt, avec `-var=legacy_api_sql_access=true`. Le plan doit mettre le MIG en mode opportuniste, conserver les deux digests, laisser les VM actuelles en service et mettre à jour le Job, son AC et le nouveau modèle. Tester le Job existant avec `gcloud run jobs execute chatisen-migration --region europe-west4 --wait` avant la fusion.
+4. Depuis la racine, lancer `bash infra/gcp/cd/deploy.sh --bootstrap` avec le compte d’exploitation. Cela adopte le nouveau modèle sur APP-A puis APP-B avec les digests déjà en service, y compris si aucun guest attribute n’existait avant la mise à jour. Contrôler les deux rapports et les parcours de connexion et d’écriture avec le rôle restreint. En cas d’échec, laisser en service la VM saine et réappliquer le paramètre SQL précédent ou le modèle précédent avant de ne mettre à jour que la VM en échec.
+5. Fusionner et approuver une seule fois le job `cible` après la CI réussie. Contrôler les digests actifs, le Job et les journaux. Avant cette première réussite, le retour à l’ancien workflow reste possible avec `bash infra/gcp/cd/wif.sh rollback` et `terraform apply -var=ordered_app_rollout=false -var=legacy_api_sql_access=true`. Réactiver le mode opportuniste et refaire `prepare` avant de retenter la transition.
+6. Après une livraison effectivement vérifiée, lancer `bash infra/gcp/cd/wif.sh finalize <id-du-run>`. Le script exige le succès de l’étape de déploiement et retire l’ancienne liaison puis le writer historique. Appliquer ensuite Terraform avec `legacy_api_sql_access=false` pour couper l’ancien accès SQL des VM.
+
+Pour activer T17 sur les VM média déjà en service après Terraform, relancer le script de démarrage par IAP sur chaque SFU à tour de rôle, puis sur coturn dans un créneau prévu. Le redémarrage du SFU peut reconnecter ses salles. Celui de coturn interrompt ses allocations en cours.
+
+```sh
+gcloud compute ssh <vm> --zone <zone> --tunnel-through-iap \
+  --command='sudo google_metadata_script_runner startup'
+```
+
+### Transition SQL (E37, §12.5, T09 et T19)
+
+Utiliser `psql` depuis un poste d’exploitation qui joint l’IP privée, avec `PGDATABASE=chatisen`, `PGSSLMODE=verify-ca` et `PGSSLROOTCERT` pointant vers l’AC de cette instance. La console Cloud SQL fournit son certificat. Le rôle `chatisen` reste propriétaire du schéma et sert de rôle de migration. Le compte SQL `postgres` crée le rôle API sans appartenance à un groupe privilégié.
+
+1. Connecté en `postgres`, créer le rôle et choisir le mot de passe en session interactive. Les VM en service continuent d’utiliser `chatisen`.
+
+   ```sql
+   CREATE ROLE chatisen_api NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+   \password chatisen_api
+   ```
+
+2. Connecté en `chatisen`, appliquer `psql -X -v ON_ERROR_STOP=1 -f db/ops/api-grants.sql` depuis la racine. Revenir en `postgres` pour `ALTER ROLE chatisen_api LOGIN;`. Depuis `infra/gcp`, créer le secret et son accès seuls, puis saisir le même mot de passe directement dans le terminal.
+
+   ```sh
+   terraform apply -target=google_secret_manager_secret_iam_member.api_db
+   bash -c 'read -rsp "Mot de passe API PostgreSQL : " db_api_password; printf "\n" >&2
+     printf "%s" "$db_api_password" | gcloud secrets versions add db-api-password --data-file=-'
+   ```
+
+   Tester une connexion en `chatisen_api` et le refus de `CREATE SCHEMA preuve_ddl;` avant la bascule. Avant l’amorçage des VM, `ALTER ROLE chatisen_api NOLOGIN;` et la désactivation de la version du secret ramènent à l’état d’usage antérieur. Pour relancer, réactiver la version et remettre le rôle en `LOGIN`.
+
+3. Appliquer Terraform et amorcer les VM une par une selon l’ordre ci-dessus. À ce stade les deux accès SQL sont en état de fonctionner. Pour revenir au rôle historique, appliquer `-var=api_restricted_sql=false -var=legacy_api_sql_access=true`, puis amorcer de nouveau zone par zone avec les digests en service.
+4. Après vérification du déploiement, retirer l’ancien accès aux secrets des VM. Au besoin, restaurer d’abord `legacy_api_sql_access=true`, puis appliquer le retour du point 3. Dans chaque migration future, octroyer les droits sur les nouveaux objets à `chatisen_api` dans le même SQL versionné si l’API doit les utiliser.
+
+Le Job joint l’IP privée en TLS `verify-ca` avec l’AC Google propre à l’instance, montée depuis une version de secret explicite. La vérification de la chaîne et de la date est obligatoire. Ce mode convient à l’AC dédiée et au certificat serveur qui ne porte pas l’IP privée comme nom. En cas de rotation d’AC, réappliquer Terraform et retester le Job avant livraison. L’API passe toujours par le proxy Cloud SQL authentifié (T09).
+
+Le test local `node --import tsx --test tests/integration/migration/api-role.test.ts` attend un PostgreSQL jetable et une `DATABASE_URL` locale dont le nom de base se termine par `_test`. La CI exécute ce test et la suite de contrats après migration. Le digest exact en service dépend des approbations et des retours arrière. La CI de PR ne dispose ni d’un registre des versions effectivement déployées, ni d’une lecture de la production. Le test automatique de l’image précédente exacte reste à faire si cette provenance devient disponible. L’amorçage avec les digests encore en service permet de vérifier cette version avec le rôle restreint avant fusion.
 
 ## Premier administrateur
 
@@ -76,9 +113,31 @@ gcloud run jobs execute chatisen-migration --region europe-west4 --args=db/promo
 
 - Google interroge `/healthz-edge` chaque minute depuis plusieurs régions ; l'alerte « service public indisponible » se déclenche après 2 minutes d'échec dans au moins deux régions. Pour recevoir un courriel : créer `alertes.auto.tfvars` (non versionné) avec `alert_email = "..."`, puis appliquer.
 - Les alertes Prometheus (API, coturn, SFU) se lisent dans l'interface de supervision.
-- Sauvegardes Cloud SQL quotidiennes (7 conservées) et restauration à un instant donné. Restauration d'essai : `gcloud sql instances clone chatisen-pg chatisen-pg-restauration --point-in-time <date UTC>`, comparer, puis supprimer la copie. Une restauration réelle clone vers une nouvelle instance puis change le secret `db-password` et la connexion.
+### Journaux (E25, §11, T17, FW2 et FW3)
 
-**Certificat du site.** Émis sur la supervision avec `certbot certonly --standalone --http-01-port 8080 -d <nom>`, puis déposé comme certificat SSL régional et rattaché au proxy `chatisen-https`. Il n'est pas renouvelé automatiquement (expiration en février 2027, après la fin du projet).
+Le récepteur Ops Agent `chatisen_containers` décode les enveloppes JSON Docker et extrait des champs bornés de Nginx, de l’API, de Cloud SQL Proxy, de coturn et de LiveKit. La sortie native de coturn est textuelle et l’agent la structure. Les champs collectés sont filtrés avant leur expédition. Les tampons Docker contiennent les sorties natives des images tierces. Les journaux Docker locaux sont limités à trois fichiers de 10 Mio par conteneur. Pour le LB géré, le routeur écarte les entrées avec chaîne de requête afin d’éviter de stocker des jetons. Les journaux de la cible sont routés vers le bucket `chatisen-cible`, `europe-west4`, rétention 30 jours. Les buckets d’audit existants gardent leurs réglages GCP.
+
+Dans Logs Explorer, choisir le bucket régional et rechercher `log_id("chatisen_containers") AND jsonPayload.requestId="<UUID>"`. Provoquer une erreur de l’API passant par Nginx et reprendre l’UUID du corps. Attendre une entrée Nginx et une entrée API. Vérifier `jsonPayload.status`, la présence des cinq noms de conteneurs et la région et la rétention effectives. Une erreur de limitation produite directement par Nginx intervient avant l’appel à l’API. Résultat de la recette en cible à mesurer.
+
+### Fichiers (E40, §7, T22)
+
+Le bucket annule les téléversements multiparties incomplets après un jour. Les envois HTTPS du navigateur utilisent un PUT signé. L’API nettoie les envois en attente ou refusés après une heure et les objets confirmés qui sont restés sans message après 24 h. Chaque décision de suppression prend un verrou SQL sur la fiche et vérifie la référence au message. Une fiche rejetée reste à nettoyer si Cloud Storage est temporairement indisponible. La taille maximale suit le contrat, 25 Mio. Aucun quota supplémentaire n’est posé.
+
+### Reprise (E38 et E39, §10, T21, T16, FW2 et FW3)
+
+Depuis un poste joignant les IP privées, lancer `bash infra/gcp/ops/pitr.sh` à la racine, avec `gcloud`, `psql`, `jq` et `shasum`. Utiliser un rôle présent au point choisi, capable de lire les messages. Le script crée un clone PITR sans le raccorder à l’application, vérifie l’AC du clone, compare les empreintes des messages, des événements et des identifiants stables des comptes et conversations antérieurs à la coupure et mesure le délai de validation. Le RPO observé porte sur les dernières écritures visibles dans les messages et dépend du trafic pendant l’essai. Répéter avec du trafic de recette si la fenêtre est restée inactive. Seule la saisie du nom exact du clone déclenche sa suppression. RPO, RTO et comparaison en cible à mesurer.
+
+Pour remplacer la supervision depuis `infra/gcp` avec les réglages en service, examiner le plan, puis l’appliquer. La VM reprend l’IP privée 10.40.30.2. Prometheus et Grafana sont reprovisionnés et l’accès utilise IAP.
+
+```sh
+terraform plan -target=google_compute_instance.ops -replace=google_compute_instance.ops -out=ops-reprise.tfplan
+terraform apply ops-reprise.tfplan
+gcloud compute ssh chatisen-ops --zone europe-west4-a --tunnel-through-iap -- -L 3000:localhost:3000
+```
+
+Ouvrir Grafana sur `localhost:3000`, vérifier les cibles Prometheus et les alertes. Le disque de démarrage contient l’historique Prometheus, l’état local des alertes, les modifications Grafana hors provisioning et les fichiers Certbot locaux. Ils sont perdus avec ce disque. Le certificat déjà attaché au LB reste utilisable jusqu’à son expiration. Conserver de quoi renouveler ou réémettre avant l’échéance. Temps de remplacement et recette de supervision à mesurer.
+
+**Certificat du site.** Émis sur la supervision avec `certbot certonly --standalone --http-01-port 8080 -d <nom>`, puis déposé comme certificat SSL régional et rattaché au proxy `chatisen-https`. Le renouvellement est manuel. Vérifier l’échéance sur le certificat effectivement servi.
 
 **Administration.** `gcloud compute ssh <vm> --zone <zone> --tunnel-through-iap`. Grafana : tunnel IAP vers le port 3000 de `chatisen-ops` ; le mot de passe est dans le secret `grafana-admin-password`.
 

@@ -29,4 +29,4 @@ export async function start(){
   process.once('SIGTERM',stop);process.once('SIGINT',stop);
   return app;
 }
-if(import.meta.url===`file://${process.argv[1]}`)start().catch(error=>{console.error(error);process.exit(1);});
+if(import.meta.url===`file://${process.argv[1]}`)start().catch(()=>{console.error(JSON.stringify({level:50,msg:'Démarrage de l’API impossible'}));process.exit(1);});
