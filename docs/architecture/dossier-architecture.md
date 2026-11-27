@@ -398,9 +398,9 @@ L'IA proposée n'utilise **ni message ni média** : seulement des mesures résea
 
 ## 14. État réel et écarts
 
-Deux choses sont en ligne et ne doivent pas être confondues.
+Le 27 novembre à 00 h 20 UTC, le domaine est passé de la démo à l’architecture cible. Le DNS n’a pas changé : l’adresse qu’il désigne a quitté la VM de démo pour le load balancer. Les comptes, conversations et messages de la démo ont été repris.
 
-| | Démo en ligne (branche `standalone`) | Cible (adresse provisoire en sslip.io) |
+| | Ancienne démo (branche `standalone`, arrêtée) | En ligne sur ia-pple.isen.fedyna.fr |
 |---|---|---|
 | Serveur | Node sans framework, un fichier | Monolithe modulaire Fastify sur 2 VM |
 | Interface | HTML et JavaScript sans framework | React servi par Nginx |
@@ -412,7 +412,7 @@ Deux choses sont en ligne et ne doivent pas être confondues.
 | Supervision | /healthz, /readyz, /metrics | Prometheus, Grafana, Cloud Logging, alerte externe |
 | Déploiement | Automatique après CI verte : la VM tire le commit | Automatique après CI verte : GitHub pousse les digests |
 
-**Reste avant la bascule du domaine** : essais d'appel entre deux réseaux distincts, reprise après changement de réseau, destinataire des alertes, import des données de la démo, puis déplacement de l'adresse. Les schémas dessinés n'ont pas encore été régénérés. Les écarts d'infrastructure sont listés dans `infra/gcp/README.md`.
+**Reste à éprouver** : un appel entre deux réseaux distincts, la reprise après un changement de réseau et une conférence à quatre. L’alerte externe n’a pas de destinataire. Les schémas dessinés n’ont pas été régénérés. Les écarts d’infrastructure sont listés dans `infra/gcp/README.md`.
 
 Constats à traiter : `/metrics` de la démo répond publiquement (nombre de comptes et de messages) ; aucune limite de débit sur la connexion ; un arrêt pendant l'écriture du JSON peut le corrompre.
 

@@ -26,6 +26,10 @@ resource "google_monitoring_uptime_check_config" "public" {
     content = "\"database\":\"postgres\""
     matcher = "CONTAINS_STRING"
   }
+  # La règle d'alerte référence la surveillance : la nouvelle doit exister avant le retrait.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_monitoring_notification_channel" "email" {
