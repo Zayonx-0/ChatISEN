@@ -22,10 +22,10 @@ servers:
 security:
   - sessionCookie: []
 tags:
-  - { name: identity, description: Comptes, sessions et profils }
-  - { name: groups, description: Conversations, groupes, membres et rôles }
+  - { name: identity, description: "Comptes, sessions et profils" }
+  - { name: groups, description: "Conversations, groupes, membres et rôles" }
   - { name: messaging, description: Messages et historique }
-  - { name: calls, description: Appels, signalisation et accès média }
+  - { name: calls, description: "Appels, signalisation et accès média" }
   - { name: notifications, description: Abonnements Web Push }
   - { name: files, description: Partage de fichiers (V2) }
   - { name: quality, description: Qualité des communications (V2) }
@@ -305,7 +305,7 @@ paths:
         - { $ref: '#/components/parameters/UserId' }
         - { $ref: '#/components/parameters/CsrfToken' }
       responses:
-        '204': { description: Membre retiré, ses abonnements au fil sont coupés }
+        '204': { description: "Membre retiré, ses abonnements au fil sont coupés" }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -734,7 +734,7 @@ components:
     CallFound: { description: Appel, content: { application/json: { schema: { $ref: '#/components/schemas/Call' } } } }
     BadRequest: { description: Entrée invalide, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     Unauthorized: { description: Session absente ou expirée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
-    Forbidden: { description: Origine, CSRF ou rôle refusé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Forbidden: { description: "Origine, CSRF ou rôle refusé", content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     NotFound: { description: Absent ou non visible par cet utilisateur, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     Conflict: { description: État incompatible ou clé réutilisée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     TooLarge: { description: Fichier trop volumineux, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
@@ -766,7 +766,7 @@ components:
       required: [handle, password]
       properties:
         handle: { $ref: '#/components/schemas/Handle' }
-        password: { type: string, maxLength: 128, description: Mot de passe du compte, y compris ceux des comptes importés }
+        password: { type: string, maxLength: 128, description: "Mot de passe du compte, y compris ceux des comptes importés" }
     UpdateUserRequest:
       type: object
       additionalProperties: false
@@ -934,7 +934,7 @@ components:
         conversationId: { $ref: '#/components/schemas/Uuid' }
         initiatorId: { $ref: '#/components/schemas/Uuid' }
         mode: { $ref: '#/components/schemas/CallMode' }
-        topology: { type: string, enum: [p2p, sfu], description: p2p à deux, sfu pour une conférence (V2) }
+        topology: { type: string, enum: [p2p, sfu], description: "p2p à deux, sfu pour une conférence (V2)" }
         state: { $ref: '#/components/schemas/CallState' }
         createdAt: { $ref: '#/components/schemas/DateTime' }
         endedAt: { $ref: '#/components/schemas/DateTime' }
@@ -961,7 +961,7 @@ components:
       required: [type, data]
       properties:
         type: { type: string, enum: [offer, answer, ice] }
-        data: { type: object, description: RTCSessionDescriptionInit ou RTCIceCandidateInit, 30 000 caractères au plus }
+        data: { type: object, description: "RTCSessionDescriptionInit ou RTCIceCandidateInit, 30 000 caractères au plus" }
     IceServer:
       type: object
       required: [urls]
@@ -1012,7 +1012,7 @@ components:
       properties:
         fileName: { type: string, minLength: 1, maxLength: 255 }
         mediaType: { type: string, enum: [image/png, image/jpeg, application/pdf, text/plain] }
-        size: { type: integer, minimum: 1, maximum: 26214400, description: Plafond proposé de 25 Mio, à valider }
+        size: { type: integer, minimum: 1, maximum: 26214400, description: "Plafond proposé de 25 Mio, à valider" }
         sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
     File:
       type: object

@@ -25,6 +25,13 @@ test('contrats de la cible : références et opérations',()=>{
   }
 });
 
+test('contrats de la cible : aucune description coupée par une virgule',()=>{
+  // En notation compacte YAML, une virgule hors guillemets ouvre un champ sans valeur.
+  const orphans=(node,path)=>node&&typeof node==='object'?Object.entries(node).flatMap(([key,value])=>
+    value===null&&!Array.isArray(node)&&!['const','default','example'].includes(key)?[`${path}/${key}`]:orphans(value,`${path}/${key}`)):[];
+  assert.deepEqual([...orphans(target,'openapi'),...orphans(asyncapi,'asyncapi')],[]);
+});
+
 test('document OpenAPI 3.1 conforme au schéma officiel',async t=>{
   if(!process.env.OPENAPI_META_SCHEMA)return t.skip('OPENAPI_META_SCHEMA absent');
   // AJV résout mal « $dynamicRef: #meta » et exigerait un paramètre à la place d'un schéma.
