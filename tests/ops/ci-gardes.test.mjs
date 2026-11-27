@@ -19,7 +19,16 @@ test('CI : actions et image de scan figées par leur empreinte', () => {
       if (!action.startsWith('./')) assert.match(action, /@[0-9a-f]{40}$/, action);
     }
   }
-  for (const source of [workflows[0], readFileSync('infra/gcp/cd/publish.sh', 'utf8')]) {
+  for (const source of [workflows[0], readFileSync('infra/gcp/cd/scan.sh', 'utf8')]) {
     assert.match(source, /aquasec\/trivy:[\d.]+@sha256:[0-9a-f]{64} /);
   }
+});
+
+test('CI : chaque pull request construit et analyse les images avant la fusion', () => {
+  const ci = workflows[0];
+  assert.match(ci, /pull_request:/);
+  assert.match(ci, /docker build --pull --file apps\/api\/Dockerfile/);
+  assert.match(ci, /docker build --pull --file infra\/gcp\/edge\/Dockerfile/);
+  assert.equal(ci.match(/bash infra\/gcp\/cd\/scan\.sh/g)?.length, 2);
+  assert.match(readFileSync('infra/gcp/cd/publish.sh', 'utf8'), /scan\.sh" "\$tag"; fi\nif \[\[ \$built == 1 \]\]; then docker push/);
 });

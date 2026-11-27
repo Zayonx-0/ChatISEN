@@ -24,10 +24,10 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
                 localBrowser = container "Client standalone" "HTML, CSS et app.js. Messages via WebSocket, pistes audio et vidéo directement entre les navigateurs." "HTML / JavaScript / WebRTC"
             }
             group "Banc Compose R01 · environnement distinct" {
-                edge = container "nginx · frontal TLS" "Pile Compose de recette. Hôte :80 → redirection, :443 → TLS." "nginx:1.27-alpine" {
+                edge = container "nginx · frontal TLS" "Pile Compose de recette. Hôte :80 → redirection, :443 → TLS." "nginx:1.30-alpine" {
                     tags "Configuration"
                 }
-                webHost = container "web · serveur statique" "Sert index.html et assets/ depuis /usr/share/nginx/html, après compilation Vite 6.4.6." "nginx:1.27-alpine" {
+                webHost = container "web · serveur statique" "Sert index.html et assets/ depuis /usr/share/nginx/html, après compilation Vite 6.4.6." "nginx:1.30-alpine" {
                     tags "Configuration"
                 }
                 api = container "API applicative" "apps/api/dist/server.js sur node:24-bookworm-slim. DATABASE_URL active /api/v1 sur PostgreSQL. L’ancien /api utilise ses propres Maps." "Fastify 5.12.8 / Node.js 24" {
