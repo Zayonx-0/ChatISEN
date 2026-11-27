@@ -18,5 +18,5 @@ export async function insert(db:Queryable,message:{id:string;conversationId:stri
 export async function latest(db:Queryable,conversationId:string,limit:number,beforeSeq?:string){
   const rows=(await db.query<Row>(`select ${columns} from messaging.messages where conversation_id=$1 and ($3::bigint is null or seq<$3::bigint)
     order by seq desc limit $2`,[conversationId,limit,beforeSeq??null])).rows;
-  return rows.reverse().map(toMessage);
+  return rows.map(toMessage);
 }

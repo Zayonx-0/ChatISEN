@@ -22,7 +22,7 @@ export async function plan(tx:Tx,delivery:NewDelivery,subscriptionIds:string[]){
     [delivery.eventId,delivery.kind,delivery.conversationId,delivery.senderId,delivery.entityId,delivery.callMode,delivery.eventAt,subscriptionIds]);
 }
 export async function expireCall(tx:Tx,callId:string){
-  await tx.query("update notifications.push_deliveries set state='expired' where kind='call' and entity_id=$1 and state='pending'",[callId]);
+  return (await tx.query("update notifications.push_deliveries set state='expired' where kind='call' and entity_id=$1 and state='pending'",[callId])).rowCount??0;
 }
 
 export type Delivery={event_id:string;subscription_id:string;attempts:number;kind:Kind;conversation_id:string;sender_id:string;entity_id:string;call_mode:string|null;event_at:Date};
@@ -36,8 +36,8 @@ export async function claim(db:Queryable,limit:number){
 }
 /** N'écrase pas un état décidé entre-temps, par exemple un appel qui ne sonne plus. */
 export async function settle(db:Queryable,delivery:Delivery,state:'pending'|'sent'|'failed'|'expired',delaySeconds=0){
-  await db.query(`update notifications.push_deliveries set state=$3,lease_until=null,available_at=now()+make_interval(secs=>$4)
-    where event_id=$1 and subscription_id=$2 and state='pending'`,[delivery.event_id,delivery.subscription_id,state,delaySeconds]);
+  return Boolean((await db.query(`update notifications.push_deliveries set state=$3,lease_until=null,available_at=now()+make_interval(secs=>$4)
+    where event_id=$1 and subscription_id=$2 and state='pending' and attempts=$5`,[delivery.event_id,delivery.subscription_id,state,delaySeconds,delivery.attempts])).rowCount);
 }
 export async function stillPending(db:Queryable,delivery:Delivery){
   return Boolean((await db.query("select 1 from notifications.push_deliveries where event_id=$1 and subscription_id=$2 and state='pending'",[delivery.event_id,delivery.subscription_id])).rowCount);

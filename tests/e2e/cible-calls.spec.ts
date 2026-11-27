@@ -3,6 +3,7 @@ import {spawn,type ChildProcess} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {resolve} from 'node:path';
 import {createServer} from 'node:net';
+import {validateWsFrame} from '../contract/architecture.mjs';
 
 let origin:string;let apiUrl:string;let api:ChildProcess;let vite:ChildProcess;
 async function freePort():Promise<number>{const server=createServer();await new Promise<void>((ok,ko)=>{server.once('error',ko);server.listen(0,'127.0.0.1',ok);});const address=server.address();if(!address||typeof address==='string')throw new Error('Port indisponible');const port=address.port;await new Promise<void>(ok=>server.close(()=>ok()));return port;}
@@ -102,7 +103,7 @@ test('cible : resynchronisation paginée du fil et reprise des événements en d
   const a=await browser.newContext(),b=await browser.newContext();
   const alice=await a.newPage(),bob=await b.newPage();
   let wire:WebSocketRoute|undefined,paused=false,conversationId:string|undefined;
-  const afterSeqs:string[]=[],replayed:string[]=[];
+  const afterSeqs:string[]=[],replayed:string[]=[],acks:string[]=[];
   let repeated:string|undefined;
   try{
     await bob.routeWebSocket('**/api/v1/ws*',route=>{
@@ -110,11 +111,14 @@ test('cible : resynchronisation paginée du fil et reprise des événements en d
       const server=route.connectToServer();
       route.onMessage(raw=>{
         const frame=JSON.parse(String(raw));
+        validateWsFrame('receive',frame);
         if(frame.type==='subscribe'){conversationId=frame.conversationId;afterSeqs.push(frame.afterSeq);if(afterSeqs.length>1)paused=false;}
+        if(frame.type==='ack')acks.push(frame.seq);
         server.send(raw);
       });
       server.onMessage(raw=>{
         const frame=JSON.parse(String(raw));
+        validateWsFrame('send',frame);
         if(paused&&frame.type==='event'){if(frame.seq==='2')repeated=String(raw);return;}
         route.send(raw);
       });
@@ -136,6 +140,7 @@ test('cible : resynchronisation paginée du fil et reprise des événements en d
     await expect.poll(()=>afterSeqs).toEqual(['0']);
     await post('Premier message');
     await expect(bob.getByText('Premier message',{exact:true})).toBeVisible();
+    await expect.poll(()=>acks).toEqual(['1']);
     paused=true;
     await post('Message à rattraper');
     await post('Page suivante');
@@ -148,5 +153,46 @@ test('cible : resynchronisation paginée du fil et reprise des événements en d
     await expect(bob.getByText('De nouveau en direct',{exact:true})).toBeVisible();
     await expect(bob.getByText('Message à rattraper',{exact:true})).toHaveCount(1);
     await expect(bob.getByText('Page suivante',{exact:true})).toHaveCount(1);
+    await expect.poll(()=>acks).toEqual(['1','4']);
+
+    // Pendant le remplacement des réplicas, la première page peut encore venir de l'ancien code.
+    await bob.route('**/conversations/*/messages*',async route=>{
+      const url=new URL(route.request().url());
+      if(route.request().method()!=='GET')return route.continue();
+      const legacy=!url.searchParams.has('beforeSeq');url.searchParams.set('limit','2');
+      const response=await route.fetch({url:url.toString()});
+      if(!legacy)return route.fulfill({response});
+      const page=await response.json();page.items.reverse();
+      return route.fulfill({response,json:page});
+    });
+    await bob.reload();await bob.getByRole('button',{name:/Alice/}).click();
+    await expect.poll(()=>afterSeqs.at(-1)).toBe('4');
+    const history=bob.locator('.message p');
+    await expect(history).toHaveText(['Page suivante','De nouveau en direct']);
+    await bob.getByRole('button',{name:'Charger les messages précédents'}).click();
+    await expect(history).toHaveText(['Premier message','Message à rattraper','Page suivante','De nouveau en direct']);
   }finally{await a.close();await b.close();}
+});
+
+test('cible : cadence annoncée par ready et reconnexion sans pong',async({page})=>{
+  const sockets:string[]=[];let pings=0;
+  await page.routeWebSocket('**/api/v1/ws*',route=>{
+    sockets.push(route.url());
+    const server=route.connectToServer(),drop=sockets.length===1;
+    server.onMessage(raw=>{
+      const frame=JSON.parse(String(raw));
+      validateWsFrame('send',frame);
+      route.send(frame.type==='ready'?JSON.stringify({...frame,heartbeatSeconds:5}):raw);
+    });
+    route.onMessage(raw=>{
+      const frame=JSON.parse(String(raw));
+      validateWsFrame('receive',frame);
+      if(frame.type==='ping'){pings++;if(drop)return;}
+      server.send(raw);
+    });
+  });
+  await register(page,`heartbeat_${randomBytes(4).toString('hex')}`,'Heartbeat');
+  await expect.poll(()=>pings,{timeout:8000}).toBeGreaterThan(0);
+  await expect.poll(()=>sockets.length,{timeout:8000}).toBeGreaterThanOrEqual(2);
+  expect(new URL(sockets[1]).searchParams.get('resumeUserEvents')).toBe('1');
 });

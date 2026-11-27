@@ -22,12 +22,13 @@ test('quality: only participants send bounded network measures, without duplicat
         'chatisen_call_quality_samples_total{candidate_type="relay"}',
         'chatisen_call_rtt_milliseconds_count','chatisen_call_jitter_milliseconds_count',
         'chatisen_call_packets_total{result="received"}','chatisen_call_packets_total{result="lost"}',
+        'chatisen_calls_established_total{route="relay"}','chatisen_calls_established_total{route="direct"}',
       ].map(name=>Number(body.split('\n').find(line=>line.startsWith(name+' '))?.slice(name.length+1)??0));
     };
     const before=await metrics();
     assert.equal((await send(bob,[sample])).statusCode,202);
     const accepted=await metrics();
-    assert.deepEqual(accepted.map((value,index)=>value-before[index]),[1,1,1,980,20]);
+    assert.deepEqual(accepted.map((value,index)=>value-before[index]),[1,1,1,980,20,1,0]);
     assert.equal((await send(bob,[sample])).statusCode,202,'a retried batch adds nothing');
     assert.deepEqual(await metrics(),accepted);
     for(const bad of [[],[{...sample,candidateType:'unknown'}],[{...sample,packetsLost:-1}],[{...sample,sdp:'v=0'}],[{...sample,capturedAt:'2020-01-01T00:00:00Z'}],Array.from({length:31},()=>sample)])
@@ -37,6 +38,15 @@ test('quality: only participants send bounded network measures, without duplicat
     assert.equal((await send(alice,[{...sample,capturedAt:new Date(Date.now()+1).toISOString()}])).statusCode,202,'the last window arrives after hang-up');
     const summary=(await h.services.quality.summary(call.id))!;
     assert.equal(summary.samples,3);assert.ok(Math.abs(summary.relayShare-2/3)<1e-9);assert.ok(summary.lossRatio>0&&summary.lossRatio<0.02);
+    assert.deepEqual((await metrics()).slice(-2),accepted.slice(-2),'one count for the whole call across participants and ICE changes');
+    const next=(await h.call(alice,'POST',`/conversations/${cid}/calls`,{clientId:randomUUID(),mode:'audio'})).json();
+    const measure=(who:Who)=>h.call(who,'POST',`/calls/${next.id}/quality-samples`,{samples:[{...sample,candidateType:'host'}]});
+    assert.equal((await measure(alice)).statusCode,202,'a sample alone cannot mark a ringing call established');
+    assert.deepEqual((await metrics()).slice(-2),accepted.slice(-2));
+    await h.call(bob,'PUT',`/calls/${next.id}/participants/me`,{state:'joined'});
+    const results=await Promise.all([measure(alice),measure(bob)]);
+    assert.ok(results.every(result=>result.statusCode===202));
+    assert.deepEqual((await metrics()).slice(-2),[accepted.at(-2),accepted.at(-1)!+1]);
     let limited=0;for(let i=0;i<25;i++)if((await send(bob,[sample])).statusCode===429)limited++;
     assert.ok(limited>0);
   }finally{await h.close();}

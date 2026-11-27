@@ -63,8 +63,9 @@ function App(){
       const detail=await api<Conversation>(`/conversations/${conversation.id}`);
       const page=await api<Page>(`/conversations/${conversation.id}/messages`);
       if(request!==selection.current)return;
-      cursor.current=page.items.at(-1)?.seq||'0';selectedId.current=conversation.id;
-      setSelected(detail);setMessages(page.items);setBefore(page.nextBeforeSeq);setDraft(drafts.current[conversation.id]||'');setAttached(null);setShowMembers(false);setShowList(false);
+      const chronological=page.items.sort(bySequence);
+      cursor.current=chronological.at(-1)?.seq||'0';selectedId.current=conversation.id;
+      setSelected(detail);setMessages(chronological);setBefore(page.nextBeforeSeq);setDraft(drafts.current[conversation.id]||'');setAttached(null);setShowMembers(false);setShowList(false);
       setUnread(old=>{const next={...old};delete next[conversation.id];return next;});
     }catch(e){if(request===selection.current)setError(errorText(e,'Conversation indisponible.'));}
   };

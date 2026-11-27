@@ -1,10 +1,10 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {api,ApiError,write} from './api.js';
 import {joinConference,type Conference,type Tile} from './conference.js';
+import {monitorQuality,type Quality} from './quality.js';
 
 export type CallMode='audio'|'video';
 export type CallPhase='idle'|'outgoing'|'incoming'|'connecting'|'active';
-export type Quality={level:'bonne'|'moyenne'|'faible';rttMs:number|null;lossPercent:number;jitterMs:number|null;bitrateKbps:number;candidateType:string};
 export type Topology='p2p'|'sfu';
 export type Admission={serverUrl:string;token:string;expiresAt:string};
 export type CallView={phase:CallPhase;callId?:string;conversationId?:string;mode:CallMode;topology:Topology;initiator:boolean;muted:boolean;cameraOff:boolean;sharing:boolean;quality?:Quality;
@@ -40,13 +40,13 @@ export function useCalls(userId:string|undefined,csrf:string){
   const pendingIce=useRef<RTCIceCandidateInit[]>([]);const queued=useRef(new Map<string,Signal[]>());const chain=useRef(Promise.resolve());
   const conference=useRef<Conference|null>(null);
   const releaseDirect=useRef<(()=>void)|null>(null);
-  const lastState=useRef(new Map<string,string>());const timers=useRef<ReturnType<typeof setTimeout>[]>([]);const previous=useRef<{bytes:number;lost:number;received:number;at:number}|null>(null);
+  const lastState=useRef(new Map<string,string>());const stopQuality=useRef<(()=>void)|null>(null);
 
   const update=useCallback((patch:Partial<CallView>)=>{state.current={...state.current,...patch};setView(state.current);},[]);
 
   const cleanup=useCallback((message='')=>{
     releaseDirect.current?.();releaseDirect.current=null;
-    timers.current.forEach(t=>{clearTimeout(t);clearInterval(t);});timers.current=[];previous.current=null;
+    stopQuality.current?.();stopQuality.current=null;
     peer.current?.close();peer.current=null;pendingIce.current=[];queued.current.clear();
     void conference.current?.leave();conference.current=null;
     media.current?.getTracks().forEach(t=>t.stop());media.current=null;screen.current?.getTracks().forEach(t=>t.stop());screen.current=null;
@@ -71,29 +71,6 @@ export function useCalls(userId:string|undefined,csrf:string){
     await signal(callId,'offer',{type:description.type,sdp:description.sdp});
   },[signal]);
 
-  const sample=useCallback(async()=>{
-    const pc=peer.current,callId=state.current.callId;if(!pc||!callId||pc.connectionState!=='connected')return;
-    const stats=await pc.getStats();let pair:any,bytes=0,lost=0,received=0,jitter:number|null=null;
-    stats.forEach((s:any)=>{
-      if(s.type==='transport'&&s.selectedCandidatePairId)pair=stats.get(s.selectedCandidatePairId);
-      if(s.type==='inbound-rtp'){bytes+=s.bytesReceived||0;lost+=Math.max(0,s.packetsLost||0);received+=s.packetsReceived||0;if(s.kind==='audio'&&typeof s.jitter==='number')jitter=Math.round(s.jitter*1000);}
-    });
-    if(!pair)stats.forEach((s:any)=>{if(s.type==='candidate-pair'&&s.nominated&&s.state==='succeeded')pair=s;});
-    const local=pair?(stats.get(pair.localCandidateId) as any):undefined,remote=pair?(stats.get(pair.remoteCandidateId) as any):undefined;
-    const now=Date.now(),before=previous.current;previous.current={bytes,lost,received,at:now};if(!before)return;
-    const deltaLost=Math.max(0,lost-before.lost),deltaReceived=Math.max(0,received-before.received);
-    const lossPercent=deltaLost+deltaReceived?Math.round(1000*deltaLost/(deltaLost+deltaReceived))/10:0;
-    const rttMs=typeof pair?.currentRoundTripTime==='number'?Math.round(pair.currentRoundTripTime*1000):null;
-    const bitrateKbps=Math.max(0,Math.round((bytes-before.bytes)*8/(now-before.at)));
-    const candidateType=[local?.candidateType,remote?.candidateType].includes('relay')?'relay':local?.candidateType||'unknown';
-    const level=lossPercent>8||(rttMs??0)>400||(deltaReceived===0)?'faible':lossPercent>2||(rttMs??0)>200||(jitter??0)>40?'moyenne':'bonne';
-    const quality:Quality={level,rttMs,lossPercent,jitterMs:jitter,bitrateKbps,candidateType};
-    update({quality});
-    // Mesures réseau seulement : ni message ni média. Une perte d'un lot est sans conséquence.
-    if(['host','srflx','prflx','relay'].includes(candidateType))
-      void api(`/calls/${callId}/quality-samples`,write(csrf,'POST',{samples:[{capturedAt:new Date(now).toISOString(),packetsReceived:deltaReceived,packetsLost:deltaLost,jitterMs:jitter??0,rttMs:rttMs??0,bitrateKbps,candidateType}]})).catch(()=>{});
-  },[csrf,update]);
-
   const createPeer=useCallback(async(initiator:boolean)=>{
     const {iceServers}=await iceConfiguration();
     const pc=new RTCPeerConnection({iceServers,...(relayOnly()?{iceTransportPolicy:'relay' as const}:{})});
@@ -106,13 +83,18 @@ export function useCalls(userId:string|undefined,csrf:string){
     pc.onicecandidate=event=>{if(event.candidate&&state.current.callId)void signal(state.current.callId,'ice',event.candidate.toJSON()).catch(()=>{});};
     pc.ontrack=event=>{remote.addTrack(event.track);setRemote(new MediaStream(remote.getTracks()));};
     pc.onconnectionstatechange=()=>{
-      if(pc.connectionState==='connected'){update({phase:'active'});if(!timers.current.length)timers.current.push(setInterval(()=>void sample(),5000));}
+      if(pc.connectionState==='connected'&&peer.current===pc){
+        update({phase:'active'});
+        const {callId}=state.current;
+        if(callId&&!stopQuality.current)stopQuality.current=monitorQuality(callId,csrf,
+          async()=>pc.connectionState==='connected'?[await pc.getStats()]:[],quality=>update({quality}));
+      }
       // Reprise : l'initiateur relance ICE, par exemple après un changement de réseau.
       if(pc.connectionState==='failed')void offer(true).catch(()=>{});
       if(pc.connectionState==='disconnected')setTimeout(()=>{if(peer.current===pc&&pc.connectionState==='disconnected')void offer(true).catch(()=>{});},4000);
     };
     return pc;
-  },[offer,sample,signal,update]);
+  },[csrf,offer,signal,update]);
 
   const applySignal=useCallback(async({type,data}:Signal)=>{
     const pc=peer.current,callId=state.current.callId;if(!pc||!callId)return;
@@ -155,6 +137,7 @@ export function useCalls(userId:string|undefined,csrf:string){
       });
       if(!current()){void room.leave();return;}
       conference.current=room;update({phase:'active'});
+      stopQuality.current=monitorQuality(callId,csrf,room.getStats,quality=>update({quality}));
     }catch(error){
       if(!current())return;
       void leave(callId);
@@ -268,7 +251,7 @@ export function useCalls(userId:string|undefined,csrf:string){
   useEffect(()=>{
     // Un changement de réseau pendant une conférence est repris par le SDK du SFU.
     const online=()=>{if(peer.current&&state.current.initiator)void offer(true).catch(()=>{});};
-    const pagehide=()=>{const {callId,phase}=state.current;if(callId&&phase!=='incoming')void leave(callId,true);};
+    const pagehide=()=>{stopQuality.current?.();const {callId,phase}=state.current;if(callId&&phase!=='incoming')void leave(callId,true);};
     window.addEventListener('online',online);window.addEventListener('pagehide',pagehide);
     return()=>{window.removeEventListener('online',online);window.removeEventListener('pagehide',pagehide);};
   },[leave,offer]);

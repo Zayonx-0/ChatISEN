@@ -125,7 +125,7 @@ Le journal d'événements et l'outbox (schéma `realtime` : streams, events, out
 - **Lecture** : la vue 9 montre l'UML des ressources et des schémas, générés depuis `openapi.yaml`.
 - **Usage prévu** : générer les types du front et du back, importer dans Bruno ou Postman, ajouter en CI un contrôle des réponses réelles.
 
-**État du code le 26/11** : `apps/api` sert exactement les opérations d'`openapi.yaml`. Un test de la CI échoue si une route manque ou si une route hors contrat est servie, et valide des réponses réelles contre les schémas. La colonne `x-today` garde la correspondance avec les routes antérieures. [packages/contracts](../../packages/contracts/schemas/openapi.json) est l'ancien contrat du laboratoire R01.
+`apps/api` sert les opérations d'`openapi.yaml`. La CI vérifie le document, l'inventaire des routes, les statuts et les corps des réponses testées, y compris les 401 et 429 de la passerelle. Elle vérifie aussi les trames WebSocket émises et reçues contre `asyncapi.yaml`. La colonne `x-today` garde la correspondance avec les routes antérieures. [packages/contracts](../../packages/contracts/schemas/openapi.json) est l'ancien contrat du laboratoire R01.
 
 ## Authentification d'un utilisateur
 
@@ -177,7 +177,7 @@ La matrice est codée dans la cible et testée route par route. Le premier admin
 
 **Une seule WebSocket par onglet**, découpée en topics : `conversation:{id}` (abonnement explicite) et `user:{id}` (appels et changements de liste). Les écritures passent par REST.
 
-Mécanismes **déjà codés** dans apps/api : numéro `seq` croissant par conversation, `subscribe` avec `afterSeq` pour reprendre après une coupure, `ready` annonçant un heartbeat de 30 s, `ping` et `pong`, `resync_required` quand un client est trop lent, revérification de la session et du membre. Les deux réplicas sont réveillés par `LISTEN/NOTIFY` de PostgreSQL : aucun broker n'est nécessaire.
+Chaque conversation a un numéro `seq` croissant. `ready` annonce un heartbeat de 30 s. Le client envoie `ping` à cette cadence, se reconnecte si `pong` manque, puis reprend avec `subscribe` et `afterSeq`. Il acquitte le dernier événement appliqué avec `ack`. Le serveur revérifie la session et le membre, et signale `resync_required` quand un client est trop lent. PostgreSQL réveille les deux réplicas par `LISTEN/NOTIFY`.
 
 **WebSocket ou SSE.** SSE serait possible : les écritures sont déjà en REST, il est plus léger et reste du HTTP simple. La WebSocket est conservée car elle est déjà codée et testée avec reprise, et le client s'abonne, acquitte et se désabonne sur la même connexion. SSE deviendrait intéressant si le client n'envoyait plus rien sur ce canal. La démo expose d'ailleurs les deux ; son interface utilise la WebSocket.
 
@@ -215,7 +215,7 @@ Le serveur utilise la bibliothèque **web-push** : il signe l'envoi avec **VAPID
 - **Chiffrement.** WebRTC chiffre en DTLS-SRTP. À deux, les clés restent chez les navigateurs, et le relais TURN ne peut pas déchiffrer. Cela suppose une signalisation honnête, puisque le serveur transporte les empreintes. Avec un SFU, le serveur média termine le chiffrement : l'E2EE de LiveKit serait une option à activer.
 - **Partage d'écran (V2)** : `getDisplayMedia()`, puis `replaceTrack()` à deux, ou publication d'une piste vers le SFU.
 - **Reprise (V2)** : sur état `disconnected` ou `failed`, `restartIce()` puis nouvelle offre par la signalisation.
-- **Qualité (V2)** : `getStats()` toutes les 5 s (pertes, gigue, RTT, débit, type de candidat), indicateur à l'écran, envoi par lot.
+- **Qualité (V2)**. Le navigateur mesure les pertes, la gigue, le RTT, le débit et le type de candidat toutes les 5 s, via WebRTC à deux et via les statistiques exposées par LiveKit en conférence. Il affiche l'indicateur, envoie les mesures par lots de six et transmet le reliquat à la fin de l'appel.
 
 ## STUN, TURN et résidence
 
@@ -349,13 +349,13 @@ Pendant une panne du serveur, un appel **direct déjà établi** peut continuer 
 ## 11. Observabilité
 
 - **Métriques** : Prometheus collecte l'API, les VM (node-exporter), coturn et, en V2, LiveKit. Grafana affiche et alerte. Le dépôt contient déjà cette configuration pour le banc local.
-- **À instrumenter** : latence et erreurs HTTP, connexions WebSocket, délai entre envoi et livraison, âge de l'outbox, échecs Push, appels établis directs ou relayés.
+- **Indicateurs**. Grafana affiche la latence et les erreurs HTTP, les connexions WebSocket, le délai jusqu'à l'acquittement des messages, l'âge du plus ancien événement non traité, les échecs, expirations et reprises Push, les appels à deux établis par première route ICE observée et les mesures de qualité. Il affiche les alertes Prometheus, dont l'indisponibilité d'un SFU.
 - **Journaux** : logs JSON avec `requestId`, centralisés dans Cloud Logging par l'Ops Agent. Cela joue le rôle d'un serveur Syslog central. Ni mot de passe, ni cookie, ni contenu de message dans les logs.
 - **Sondes** : `/healthz` (processus) et `/readyz` (base). `/metrics` ne doit pas être public.
 
 ## 12. CI/CD
 
-1. **CI** sur chaque pull request : types, build, tests, Playwright (en place) ; à ajouter : contrôle des dépendances entre modules, validation des deux contrats, `pnpm audit`, Trivy.
+1. **CI** sur chaque pull request. Vérification des types, build, tests, Playwright, contrôle des frontières entre modules, validation des deux contrats, `pnpm audit` et Trivy. La publication analyse aussi chaque image retenue avant son envoi au registre. `pnpm audit` bloque sur les vulnérabilités élevées ou critiques ; Trivy bloque sur celles qui disposent d'un correctif. Les actions de la CI et l'image Trivy sont figées par leur empreinte.
 2. **Images** construites une fois, poussées dans Artifact Registry et désignées par digest.
 3. **CD de la démo** (en place) : chaque minute, la VM compare son commit à la tête de `main` et ne le déploie que si la CI a réussi. Copie des données avant redémarrage, contrôle de santé, retour arrière automatique, résultat publié dans `/version.json` et repris par le job GitHub « Déploiement en production ». Aucun secret côté GitHub. Détails dans `ops/gcp/README.md`.
 4. **CD de la cible** : après une CI réussie sur `main`, identité fédérée sans clé, migration par Cloud Run Job, nouveaux digests posés sur le groupe de VM, remplacement sans retirer une VM avant que sa remplaçante soit saine, retour arrière sur les digests précédents. L'environnement `cible` est limité à `main`, sans approbation manuelle. Détails dans `infra/gcp/README.md`.

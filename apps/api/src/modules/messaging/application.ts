@@ -21,7 +21,7 @@ export class MessageService implements MessageTimeline{
   async list(conversationId:string,userId:string,limit:number,beforeSeq?:string){
     await this.requireMember(conversationId,userId);
     const items=await store.latest(this.db.pool,conversationId,limit,beforeSeq);
-    return {items,nextBeforeSeq:items.length===limit?items[0].seq:null};
+    return {items,nextBeforeSeq:items.length===limit?items[items.length-1].seq:null};
   }
 
   /** Rattrapage après une coupure : les événements strictement postérieurs au curseur. */

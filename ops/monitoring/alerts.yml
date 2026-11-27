@@ -1,0 +1,23 @@
+groups:
+  - name: disponibilite
+    rules:
+      - alert: ApiIndisponible
+        expr: up{job=~"api|chatisen-api"} == 0
+        for: 1m
+        labels: {gravite: critique}
+        annotations: {resume: "API injoignable sur {{ $labels.instance }}"}
+      - alert: AucuneApi
+        expr: (count(up{job=~"api|chatisen-api"} == 1) or vector(0)) == 0
+        for: 1m
+        labels: {gravite: critique}
+        annotations: {resume: "Plus aucune API disponible"}
+      - alert: CoturnIndisponible
+        expr: up{job="coturn"} == 0
+        for: 2m
+        labels: {gravite: majeure}
+        annotations: {resume: "coturn injoignable"}
+      - alert: SfuIndisponible
+        expr: up{job="livekit"} == 0
+        for: 2m
+        labels: {gravite: majeure}
+        annotations: {resume: "SFU LiveKit injoignable sur {{ $labels.instance }}"}

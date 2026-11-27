@@ -16,6 +16,7 @@ export class CallService implements CallRegistry{
   constructor(private db:Database,private access:AccessPolicy,private sessions:SessionVerifier,private media:MediaServer|undefined){}
 
   participated(callId:string,userId:string){return store.participated(this.db.pool,callId,userId);}
+  recordMediaRoute(tx:Tx,callId:string,route:'direct'|'relay'){return store.recordMediaRoute(tx,callId,route);}
 
   /** Verrous dans l'ordre commun : conversation, appartenance, puis appel. */
   private async lockCall(tx:Tx,callId:string,userId:string):Promise<{call:Call;member:Membership}>{

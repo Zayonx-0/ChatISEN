@@ -32,14 +32,18 @@ test('messaging: idempotent concurrent writes, atomic numbering, pagination, cat
 
     const writes=await Promise.all(Array.from({length:100},(_,i)=>h.call(i%2?alice:bob,'POST',url,{clientId:randomUUID(),text:`message ${i}`})));
     assert.ok(writes.every(r=>r.statusCode===201),writes.find(r=>r.statusCode!==201)?.body);
-    let before='',pages=0;const seen:string[]=[];
+    let before='',pages=0;const seen:string[]=[],sequences:string[]=[];
     do{
       const page=await h.call(bob,'GET',`${url}?limit=50${before?`&beforeSeq=${before}`:''}`);assert.equal(page.statusCode,200);matches('MessagePage',page.json());
-      seen.push(...page.json().items.map((m:{id:string})=>m.id));before=page.json().nextBeforeSeq;pages++;
+      const {items,nextBeforeSeq}=page.json();
+      seen.push(...items.map((m:{id:string})=>m.id));sequences.push(...items.map((m:{seq:string})=>m.seq));before=nextBeforeSeq;pages++;
+      if(before)assert.equal(before,items.at(-1).seq);
     }while(before);
     assert.equal(pages,3);assert.equal(seen.length,101);assert.equal(new Set(seen).size,101);
+    assert.deepEqual(sequences,Array.from({length:101},(_,i)=>String(101-i)));
 
     const events=`/conversations/${cid}/events`;
+    assert.equal((await h.call(bob,'GET',events)).statusCode,400);
     assert.equal((await h.call(eve,'GET',`${events}?afterSeq=0`)).statusCode,404);
     const head=await h.call(bob,'GET',`${events}?afterSeq=0&limit=100`);matches('EventPage',head.json());
     assert.deepEqual([head.json().items.length,head.json().hasMore,head.json().nextAfterSeq],[100,true,'100']);

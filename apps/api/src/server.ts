@@ -1,6 +1,6 @@
 import {createServer} from 'node:http';
 import {buildApp} from './app.js';
-import {registry} from './platform/metrics.js';
+import {collectMetrics,registry} from './platform/metrics.js';
 
 function required(name:string){
   const value=process.env[name];
@@ -14,11 +14,11 @@ export async function start(){
   const port=Number(process.env.PORT||3000),host=process.env.HOST||'0.0.0.0';
   // Avec METRICS_PORT, les métriques quittent le port applicatif : seul Prometheus joint ce second port.
   const metricsPort=Number(process.env.METRICS_PORT||0);
-  const {app}=await buildApp({databaseUrl,logger:true,metricsRoute:!metricsPort});
+  const {app,db}=await buildApp({databaseUrl,logger:true,metricsRoute:!metricsPort});
   if(metricsPort){
     const server=createServer((request,response)=>{
       if(request.url!=='/metrics'){response.writeHead(404).end();return;}
-      registry.metrics().then(body=>{response.writeHead(200,{'Content-Type':registry.contentType});response.end(body);}).catch(()=>response.writeHead(500).end());
+      collectMetrics(db.pool).then(body=>{response.writeHead(200,{'Content-Type':registry.contentType});response.end(body);}).catch(()=>response.writeHead(500).end());
     });
     await new Promise<void>((ok,fail)=>{server.once('error',fail);server.listen(metricsPort,host,ok);});
     app.addHook('onClose',async()=>{server.close();});

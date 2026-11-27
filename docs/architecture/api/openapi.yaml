@@ -22,10 +22,10 @@ servers:
 security:
   - sessionCookie: []
 tags:
-  - { name: identity, description: Comptes, sessions et profils }
-  - { name: groups, description: Conversations, groupes, membres et rôles }
+  - { name: identity, description: "Comptes, sessions et profils" }
+  - { name: groups, description: "Conversations, groupes, membres et rôles" }
   - { name: messaging, description: Messages et historique }
-  - { name: calls, description: Appels, signalisation et accès média }
+  - { name: calls, description: "Appels, signalisation et accès média" }
   - { name: notifications, description: Abonnements Web Push }
   - { name: files, description: Partage de fichiers (V2) }
   - { name: quality, description: Qualité des communications (V2) }
@@ -45,7 +45,10 @@ paths:
       responses:
         '201': { $ref: '#/components/responses/SessionOpened' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
     get:
       tags: [identity]
@@ -62,6 +65,7 @@ paths:
         '200':
           description: Profils publics correspondants
           content: { application/json: { schema: { $ref: '#/components/schemas/UserList' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /users/me:
     get:
@@ -93,6 +97,8 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /users/{userId}:
     patch:
       tags: [identity]
@@ -109,8 +115,13 @@ paths:
         '200':
           description: Compte mis à jour, action inscrite au journal d'audit
           content: { application/json: { schema: { $ref: '#/components/schemas/UserPublic' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /audit-events:
     get:
       tags: [identity]
@@ -126,6 +137,7 @@ paths:
         '200':
           description: Entrées de la plus récente à la plus ancienne
           content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventPage' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /sessions:
@@ -141,7 +153,11 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/CreateSession' }
       responses:
         '201': { $ref: '#/components/responses/SessionOpened' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /sessions/current:
     delete:
@@ -174,6 +190,7 @@ paths:
         '200':
           description: Page de conversations dont on est membre actif
           content: { application/json: { schema: { $ref: '#/components/schemas/ConversationList' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [groups]
@@ -188,7 +205,12 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/ConversationFound' }
         '201': { $ref: '#/components/responses/ConversationCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /conversations/{conversationId}:
     get:
       tags: [groups]
@@ -201,6 +223,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/ConversationId' }]
       responses:
         '200': { $ref: '#/components/responses/ConversationFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /groups:
@@ -218,7 +241,12 @@ paths:
         '200': { $ref: '#/components/responses/ConversationFound' }
         '201': { $ref: '#/components/responses/ConversationCreated' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /groups/{groupId}:
     patch:
       tags: [groups]
@@ -234,8 +262,12 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/UpdateGroup' }
       responses:
         '200': { $ref: '#/components/responses/ConversationFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /groups/{groupId}/members/{userId}:
     put:
       tags: [groups]
@@ -253,9 +285,13 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/PutMember' }
       responses:
         '200': { $ref: '#/components/responses/ConversationFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
     delete:
       tags: [groups]
       operationId: deleteGroupMember
@@ -269,7 +305,8 @@ paths:
         - { $ref: '#/components/parameters/UserId' }
         - { $ref: '#/components/parameters/CsrfToken' }
       responses:
-        '204': { description: Membre retiré, ses abonnements au fil sont coupés }
+        '204': { description: "Membre retiré, ses abonnements au fil sont coupés" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
@@ -289,8 +326,10 @@ paths:
         - { $ref: '#/components/parameters/Limit' }
       responses:
         '200':
-          description: Page de messages triés par séquence
+          description: Page de messages triés par séquence décroissante
           content: { application/json: { schema: { $ref: '#/components/schemas/MessagePage' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [messaging]
@@ -312,8 +351,12 @@ paths:
           description: Message enregistré, événement message.created publié
           content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /conversations/{conversationId}/events:
     get:
@@ -332,6 +375,8 @@ paths:
         '200':
           description: Événements strictement postérieurs au curseur
           content: { application/json: { schema: { $ref: '#/components/schemas/EventPage' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /conversations/{conversationId}/calls:
@@ -351,8 +396,13 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/CallFound' }
         '201': { $ref: '#/components/responses/CallFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /calls:
     get:
       tags: [calls]
@@ -368,6 +418,8 @@ paths:
         '200':
           description: Appels ouverts qui concernent l'utilisateur
           content: { application/json: { schema: { $ref: '#/components/schemas/CallList' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /calls/{callId}:
     patch:
       tags: [calls]
@@ -383,8 +435,12 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/UpdateCall' }
       responses:
         '200': { $ref: '#/components/responses/CallFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /calls/{callId}/participants/me:
     put:
       tags: [calls]
@@ -401,8 +457,13 @@ paths:
       requestBody: { $ref: '#/components/requestBodies/PutParticipation' }
       responses:
         '200': { $ref: '#/components/responses/CallFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
   /calls/{callId}/signals:
     post:
       tags: [calls]
@@ -420,9 +481,18 @@ paths:
         - { $ref: '#/components/parameters/CsrfToken' }
       requestBody: { $ref: '#/components/requestBodies/CreateSignal' }
       responses:
-        '202': { description: Signal accepté pour remise à la session du correspondant }
+        '202':
+          description: Signal accepté pour remise à la session du correspondant
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: false, required: [accepted], properties: { accepted: { const: true } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /ice-servers:
     get:
@@ -455,6 +525,9 @@ paths:
         '201':
           description: Jeton court limité à une salle et à un membre
           content: { application/json: { schema: { $ref: '#/components/schemas/MediaToken' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
@@ -471,6 +544,7 @@ paths:
         '200':
           description: Disponibilité et clé publique
           content: { application/json: { schema: { $ref: '#/components/schemas/PushConfiguration' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /push-subscriptions:
     post:
       tags: [notifications]
@@ -487,6 +561,10 @@ paths:
           description: Abonnement lié à la session
           content: { application/json: { schema: { $ref: '#/components/schemas/PushSubscriptionRef' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '503': { $ref: '#/components/responses/Unavailable' }
   /push-subscriptions/{subscriptionId}:
     delete:
@@ -502,6 +580,8 @@ paths:
         - { $ref: '#/components/parameters/CsrfToken' }
       responses:
         '204': { description: Abonnement supprimé }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /conversations/{conversationId}/files:
@@ -524,8 +604,14 @@ paths:
         '201':
           description: Fichier en attente et URL d'envoi à durée courte
           content: { application/json: { schema: { $ref: '#/components/schemas/FileUpload' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '415': { $ref: '#/components/responses/UnsupportedType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /files/{fileId}:
     patch:
       tags: [files]
@@ -542,7 +628,14 @@ paths:
         '200':
           description: Fichier utilisable dans un message
           content: { application/json: { schema: { $ref: '#/components/schemas/File' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
+        '503': { $ref: '#/components/responses/Unavailable' }
     get:
       tags: [files]
       operationId: getFile
@@ -555,7 +648,9 @@ paths:
         '200':
           description: Réservé aux membres actifs de la conversation
           content: { application/json: { schema: { $ref: '#/components/schemas/FileDownload' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /calls/{callId}/quality-samples:
     post:
@@ -571,8 +666,17 @@ paths:
         - { $ref: '#/components/parameters/CsrfToken' }
       requestBody: { $ref: '#/components/requestBodies/CreateQualitySamples' }
       responses:
-        '202': { description: Lot accepté }
+        '202':
+          description: Lot accepté
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: false, required: [accepted], properties: { accepted: { const: true } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
 components:
@@ -630,17 +734,17 @@ components:
     CallFound: { description: Appel, content: { application/json: { schema: { $ref: '#/components/schemas/Call' } } } }
     BadRequest: { description: Entrée invalide, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     Unauthorized: { description: Session absente ou expirée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
-    Forbidden: { description: Origine, CSRF ou rôle refusé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Forbidden: { description: "Origine, CSRF ou rôle refusé", content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     NotFound: { description: Absent ou non visible par cet utilisateur, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     Conflict: { description: État incompatible ou clé réutilisée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     TooLarge: { description: Fichier trop volumineux, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     UnsupportedType: { description: Type refusé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
-    TooManyRequests: { description: Limite de débit atteinte (à mettre en place), content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    TooManyRequests: { description: Limite de débit atteinte, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
     Unavailable: { description: Fonction non configurée, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
 
   schemas:
     Uuid: { type: string, format: uuid }
-    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$', description: Entier 64 bits transmis en texte }
+    Seq: { type: string, pattern: '^(0|[1-9][0-9]*)$', maxLength: 19, description: Entier signé 64 bits positif ou nul transmis en texte }
     DateTime: { type: string, format: date-time }
     Handle: { type: string, pattern: '^[a-z0-9_]{3,32}$' }
     DisplayName: { type: string, minLength: 1, maxLength: 80 }
@@ -662,7 +766,7 @@ components:
       required: [handle, password]
       properties:
         handle: { $ref: '#/components/schemas/Handle' }
-        password: { $ref: '#/components/schemas/Password' }
+        password: { type: string, maxLength: 128, description: "Mot de passe du compte, y compris ceux des comptes importés" }
     UpdateUserRequest:
       type: object
       additionalProperties: false
@@ -830,7 +934,7 @@ components:
         conversationId: { $ref: '#/components/schemas/Uuid' }
         initiatorId: { $ref: '#/components/schemas/Uuid' }
         mode: { $ref: '#/components/schemas/CallMode' }
-        topology: { type: string, enum: [p2p, sfu], description: p2p à deux, sfu pour une conférence (V2) }
+        topology: { type: string, enum: [p2p, sfu], description: "p2p à deux, sfu pour une conférence (V2)" }
         state: { $ref: '#/components/schemas/CallState' }
         createdAt: { $ref: '#/components/schemas/DateTime' }
         endedAt: { $ref: '#/components/schemas/DateTime' }
@@ -857,7 +961,7 @@ components:
       required: [type, data]
       properties:
         type: { type: string, enum: [offer, answer, ice] }
-        data: { type: object, description: RTCSessionDescriptionInit ou RTCIceCandidateInit, 30 000 caractères au plus }
+        data: { type: object, description: "RTCSessionDescriptionInit ou RTCIceCandidateInit, 30 000 caractères au plus" }
     IceServer:
       type: object
       required: [urls]
@@ -908,7 +1012,7 @@ components:
       properties:
         fileName: { type: string, minLength: 1, maxLength: 255 }
         mediaType: { type: string, enum: [image/png, image/jpeg, application/pdf, text/plain] }
-        size: { type: integer, minimum: 1, maximum: 26214400, description: Plafond proposé de 25 Mio, à valider }
+        size: { type: integer, minimum: 1, maximum: 26214400, description: "Plafond proposé de 25 Mio, à valider" }
         sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
     File:
       type: object

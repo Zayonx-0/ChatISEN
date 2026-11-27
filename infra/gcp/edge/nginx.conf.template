@@ -13,7 +13,12 @@ http {
   real_ip_header X-Forwarded-For;
   real_ip_recursive on;
 
-  log_format json escape=json '{"time":"$time_iso8601","requestId":"$request_id","method":"$request_method",'
+  # Le format UUID garde les mêmes identifiants dans l'erreur et le journal.
+  map $request_id $request_uuid {
+    "~^(?<uuid_a>[0-9a-f]{8})(?<uuid_b>[0-9a-f]{4})[0-9a-f](?<uuid_c>[0-9a-f]{3})[0-9a-f](?<uuid_d>[0-9a-f]{3})(?<uuid_e>[0-9a-f]{12})$"
+      $uuid_a-$uuid_b-4$uuid_c-a$uuid_d-$uuid_e;
+  }
+  log_format json escape=json '{"time":"$time_iso8601","requestId":"$request_uuid","method":"$request_method",'
     '"path":"$uri","status":$status,"durationSeconds":$request_time,"client":"$remote_addr"}';
   access_log /var/log/nginx/access.log json;
 
@@ -49,7 +54,7 @@ http {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Request-ID $request_id;
+    proxy_set_header X-Request-ID $request_uuid;
     # L'identité vient de la vérification de session, jamais du navigateur.
     set $chat_user "";
     proxy_set_header X-User-Id $chat_user;
@@ -67,19 +72,19 @@ http {
       proxy_set_header Content-Length "";
       proxy_set_header Connection "";
       proxy_set_header Host $host;
-      proxy_set_header X-Request-ID $request_id;
+      proxy_set_header X-Request-ID $request_uuid;
     }
     location @session_requise {
       default_type application/json;
       add_header Cache-Control "no-store" always;
       add_header X-Content-Type-Options nosniff always;
-      return 401 '{"code":"UNAUTHORIZED","message":"Authentification requise","requestId":"$request_id"}';
+      return 401 '{"code":"UNAUTHORIZED","message":"Authentification requise","requestId":"$request_uuid"}';
     }
     location @trop_de_requetes {
       default_type application/json;
       add_header Cache-Control "no-store" always;
       add_header X-Content-Type-Options nosniff always;
-      return 429 '{"code":"RATE_LIMITED","message":"Trop de tentatives, patientez une minute","requestId":"$request_id"}';
+      return 429 '{"code":"RATE_LIMITED","message":"Trop de tentatives, patientez une minute","requestId":"$request_uuid"}';
     }
 
     location = /healthz-edge { access_log off; proxy_pass http://api/readyz; }
@@ -108,7 +113,7 @@ http {
       proxy_set_header Host $host;
       proxy_set_header X-Forwarded-For $remote_addr;
       proxy_set_header X-Forwarded-Proto https;
-      proxy_set_header X-Request-ID $request_id;
+      proxy_set_header X-Request-ID $request_uuid;
       proxy_set_header X-User-Id $chat_user;
       proxy_set_header X-Session-Id "";
       proxy_read_timeout 3600s;
@@ -142,8 +147,11 @@ http {
     location /api/ { return 404; }
     location = /metrics { return 404; }
 
-    location /livekit/ {
-      proxy_pass http://livekit/;
+    location = /livekit { return 404; }
+    location /livekit/ { return 404; }
+    location ~ ^/livekit/rtc(/validate)?$ {
+      rewrite ^/livekit(/rtc(/validate)?)$ $1 break;
+      proxy_pass http://livekit;
       proxy_set_header Upgrade $http_upgrade;
       proxy_set_header Connection $connection_upgrade;
       proxy_set_header Host $host;
