@@ -13,6 +13,8 @@ const busy=()=>conflict('Appel incompatible avec la demande','CALL_CONFLICT');
 export const mediaJobsReady='call.media_jobs_ready';
 
 export class CallService implements CallRegistry{
+  activeCallCount(){return store.activeCallCount(this.db.pool);}
+
   constructor(private db:Database,private access:AccessPolicy,private sessions:SessionVerifier,private media:MediaServer|undefined){}
 
   participated(callId:string,userId:string){return store.participated(this.db.pool,callId,userId);}

@@ -1,4 +1,4 @@
-# Matrice FW1 à FW6 de l'architecture. Tout autre flux entrant est refusé par la
+# Matrice FW1 à FW7 de l'architecture. Tout autre flux entrant est refusé par la
 # règle implicite du VPC. Les cibles sont désignées par étiquette réseau.
 
 locals {
@@ -116,6 +116,18 @@ resource "google_compute_firewall" "fw6_sfu_api" {
   allow {
     protocol = "tcp"
     ports    = ["7880"]
+  }
+}
+
+# FW7 : requêtes de la console sur le Prometheus privé de la supervision.
+resource "google_compute_firewall" "fw7_app_prometheus" {
+  name        = "fw7-app-vers-prometheus"
+  network     = google_compute_network.cible.id
+  source_tags = ["app"]
+  target_tags = ["ops"]
+  allow {
+    protocol = "tcp"
+    ports    = ["9090"]
   }
 }
 

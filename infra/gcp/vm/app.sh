@@ -1,5 +1,6 @@
 # VM applicative : Nginx, API, Cloud SQL Auth Proxy et node-exporter par Docker Compose.
 export API_IMAGE EDGE_IMAGE SQL_CONNECTION PUBLIC_HOST LB_PUBLIC_IP PROXY_CIDR ACME_UPSTREAM TURN_HOST SFU_1_HOST SFU_2_HOST FILES_BUCKET
+export OPERATIONS_RESTARTS_ENABLED OPERATIONS_ZONE_A OPERATIONS_ZONE_B OPERATIONS_PROJECT OPERATIONS_SQL_INSTANCE
 SFU_1_HOST=$(meta instance/attributes/sfu-1-host)
 SFU_2_HOST=$(meta instance/attributes/sfu-2-host)
 API_IMAGE=$(meta instance/attributes/api-image)
@@ -11,6 +12,11 @@ PROXY_CIDR=$(meta instance/attributes/proxy-cidr)
 ACME_UPSTREAM=$(meta instance/attributes/acme-upstream)
 TURN_HOST=$(meta instance/attributes/turn-host)
 FILES_BUCKET=$(meta instance/attributes/files-bucket)
+OPERATIONS_RESTARTS_ENABLED=$(meta instance/attributes/operations-enabled)
+OPERATIONS_ZONE_A=$(meta instance/attributes/operations-zone-a)
+OPERATIONS_ZONE_B=$(meta instance/attributes/operations-zone-b)
+OPERATIONS_PROJECT=$(meta project/project-id)
+OPERATIONS_SQL_INSTANCE=$(meta instance/attributes/operations-sql-instance)
 db_user=$(meta instance/attributes/app-db-user)
 db_secret=db-password
 if [[ $db_user == chatisen_api ]]; then db_secret=db-api-password; fi
@@ -67,6 +73,13 @@ services:
       FILES_BUCKET: ${FILES_BUCKET}
       TURN_HOST: ${TURN_HOST}
       VAPID_SUBJECT: https://${PUBLIC_HOST}
+      OPERATIONS_RESTARTS_ENABLED: ${OPERATIONS_RESTARTS_ENABLED}
+      OPERATIONS_ZONE_A: ${OPERATIONS_ZONE_A}
+      OPERATIONS_ZONE_B: ${OPERATIONS_ZONE_B}
+      OPERATIONS_PROJECT: ${OPERATIONS_PROJECT}
+      OPERATIONS_SQL_INSTANCE: ${OPERATIONS_SQL_INSTANCE}
+      OPERATIONS_WEB_HOST: ${PUBLIC_HOST}
+      OPERATIONS_PROMETHEUS_URL: http://${ACME_UPSTREAM}:9090
     ports: ["9091:9091"]
     depends_on: [cloud-sql-proxy]
   nginx:
@@ -95,9 +108,11 @@ services:
     pid: host
     restart: always
     volumes: ["/:/host:ro,rslave"]
-    command: ["--path.rootfs=/host"]
+    command: ["--path.rootfs=/host", "--collector.textfile.directory=/host/var/lib/node_exporter/textfile_collector"]
 EOC
 
+install -d -m 755 /var/lib/node_exporter/textfile_collector
+rm -f /var/lib/node_exporter/textfile_collector/chatisen-release.prom
 registry_login
 docker compose -f /opt/chatisen/compose.yml pull -q
 docker compose -f /opt/chatisen/compose.yml up -d --remove-orphans
@@ -120,8 +135,20 @@ api=$(active api || true)
 edge=$(active nginx || true)
 ready=false
 if curl -fksS --max-time 5 -o /dev/null https://127.0.0.1:8443/healthz-edge; then ready=true; fi
+now=$(date +%s)
+stats=/var/lib/node_exporter/textfile_collector
+tmp=$(mktemp "$stats/chatisen-release.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+{
+  printf 'chatisen_release_timestamp_seconds %s\n' "$now"
+  if $ready; then printf 'chatisen_release_ready 1\n'; else printf 'chatisen_release_ready 0\n'; fi
+  if [[ -n $api ]]; then printf 'chatisen_release_info{container="api",digest="%s"} 1\n' "${api##*@}"; fi
+  if [[ -n $edge ]]; then printf 'chatisen_release_info{container="edge",digest="%s"} 1\n' "${edge##*@}"; fi
+} >"$tmp"
+chmod 644 "$tmp"
+mv "$tmp" "$stats/chatisen-release.prom"
 printf '{"api":"%s","edge":"%s","boot":"%s","time":%s,"ready":%s}' \
-  "$api" "$edge" "$(cat /proc/sys/kernel/random/boot_id)" "$(date +%s)" "$ready" |
+  "$api" "$edge" "$(cat /proc/sys/kernel/random/boot_id)" "$now" "$ready" |
   curl -fsS --max-time 5 -H 'Metadata-Flavor: Google' -X PUT --data-binary @- \
     http://metadata.google.internal/computeMetadata/v1/instance/guest-attributes/chatisen/release
 EOC

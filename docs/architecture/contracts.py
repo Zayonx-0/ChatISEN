@@ -11,7 +11,7 @@ import yaml
 VERBS = ("get", "put", "post", "delete", "patch")
 SCOPES = {"mvp": "MVP", "mvp-plus": "MVP+", "v2": "V2"}
 CODE = {"api": "apps/api", "demo": "démo en ligne", "a-faire": "à faire"}
-MODULES = ("identity", "groups", "messaging", "calls", "notifications", "files", "quality")
+MODULES = ("identity", "groups", "messaging", "calls", "notifications", "files", "quality", "operations")
 
 
 def load(path):

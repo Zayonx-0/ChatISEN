@@ -12,3 +12,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON files.files, notifications.push_subscrip
   notifications.push_deliveries, realtime.outbox TO chatisen_api;
 GRANT SELECT, INSERT, DELETE ON realtime.user_events TO chatisen_api;
 GRANT USAGE ON SEQUENCE identity.audit_log_id_seq, quality.samples_id_seq, realtime.user_events_id_seq TO chatisen_api;
+DO $$ BEGIN
+  IF to_regclass('operations.restart_gate') IS NOT NULL THEN
+    GRANT USAGE ON SCHEMA operations TO chatisen_api;
+    GRANT SELECT, UPDATE ON operations.restart_gate TO chatisen_api;
+  END IF;
+END $$;

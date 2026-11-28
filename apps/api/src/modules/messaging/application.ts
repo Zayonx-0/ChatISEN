@@ -17,6 +17,7 @@ export class MessageService implements MessageTimeline{
   constructor(private db:Database,private access:AccessPolicy,private files:FileCatalog){}
 
   referencesFile(tx:Tx,id:string){return store.referencesFile(tx,id);}
+  dailyMessageCounts(){return store.dailyMessageCounts(this.db.pool);}
 
   private async requireMember(conversationId:string,userId:string){if(!await this.access.membership(conversationId,userId))throw unavailable();}
 

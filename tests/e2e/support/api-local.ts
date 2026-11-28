@@ -29,7 +29,15 @@ const storage=createServer((request,response)=>{
 await new Promise<void>(ready=>storage.listen(0,'127.0.0.1',ready));
 const base=`http://127.0.0.1:${(storage.address() as {port:number}).port}`;
 
-const {app}=await buildApp({databaseUrl:process.env.DATABASE_URL!,objects:{
+const operations=process.env.CHATISEN_E2E_OPERATIONS==='true'?{
+  restartsEnabled:true,inventory:{coturn:{name:'chatisen-turn-e2e',zone:'test-a'}},
+  monitoring:{
+    health:async()=>({coturn:{health:'healthy' as const,boot:1,digests:null}}),
+    alerts:async()=>[],metrics:async()=>({httpRequests:[1,2,3]}),resources:async()=>({}),
+  },
+  cloud:{isRunning:async()=>true,reset:async()=>'accepted' as const,lastBackup:async()=>null},
+}:undefined;
+const {app}=await buildApp({databaseUrl:process.env.DATABASE_URL!,operations,objects:{
   signUpload:async(key,mediaType,size)=>({url:`${base}/${key}`,headers:{'content-type':mediaType,'x-goog-content-length-range':`${size},${size}`,'x-goog-if-generation-match':'0'}}),
   signDownload:async(key,fileName)=>`${base}/${key}?name=${encodeURIComponent(fileName)}`,
   inspect:async key=>{const o=bucket.get(key);return o&&{size:o.bytes.length,mediaType:o.mediaType,sha256:createHash('sha256').update(o.bytes).digest('hex'),head:o.bytes.subarray(0,4096)};},

@@ -37,3 +37,7 @@ export async function reject(db:Queryable,id:string){
 export async function removeRejected(db:Queryable,id:string){
   await db.query("delete from files.files where id=$1 and state='rejected' and attached_at is null",[id]);
 }
+export async function availableFileBytes(db:Queryable){
+  const {rows:[row]}=await db.query("select coalesce(sum(size_bytes),0) as total from files.files where state='available'");
+  return Number(row.total);
+}

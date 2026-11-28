@@ -29,6 +29,7 @@ tags:
   - { name: notifications, description: Abonnements Web Push }
   - { name: files, description: Partage de fichiers (V2) }
   - { name: quality, description: Qualité des communications (V2) }
+  - { name: operations, description: Console du webmaster (lot D) }
 
 paths:
   /users:
@@ -103,7 +104,7 @@ paths:
     patch:
       tags: [identity]
       operationId: administerUser
-      summary: Changer le rôle global ou désactiver un compte (administrateur)
+      summary: Changer le rôle ou l’état d’un compte, ou révoquer ses sessions (administrateur)
       x-module: identity
       x-scope: v2
       x-code: [api]
@@ -132,7 +133,9 @@ paths:
       x-code: [api]
       parameters:
         - { $ref: '#/components/parameters/Limit' }
-        - { name: beforeId, in: query, required: false, schema: { type: string, pattern: '^[1-9][0-9]*$' } }
+        - { name: beforeId, in: query, required: false, schema: { type: string, pattern: '^[1-9][0-9]{0,17}$' } }
+        - { name: action, in: query, schema: { type: string, pattern: '^[a-z][a-z0-9_.-]{2,63}$' } }
+        - { name: targetType, in: query, schema: { $ref: '#/components/schemas/AuditTargetType' } }
       responses:
         '200':
           description: Entrées de la plus récente à la plus ancienne
@@ -140,6 +143,62 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/users:
+    get:
+      tags: [identity]
+      operationId: listAdminUsers
+      summary: Rechercher et lister les comptes, y compris désactivés (administrateur)
+      x-module: identity
+      x-scope: v2
+      x-code: [api]
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: cursor, in: query, schema: { $ref: '#/components/schemas/Handle' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: Identifiant ou nom affiché }
+      responses:
+        '200':
+          description: Comptes triés par identifiant et nombre de sessions actives
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserPage' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/overview:
+    get:
+      tags: [operations]
+      operationId: getAdminOverview
+      summary: Lire la vue agrégée et l’état des redémarrages (administrateur)
+      x-module: operations
+      x-scope: v2
+      x-code: [api]
+      responses:
+        '200':
+          description: Vue d’ensemble. Une valeur nulle indique une donnée indisponible, sauf retryAt.
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminOverview' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/restarts:
+    post:
+      tags: [operations]
+      operationId: restartServer
+      summary: Demander le redémarrage d’une VM autorisée (administrateur)
+      description: Une seule demande active pour les deux réplicas. Un résultat incertain maintient le verrou jusqu’à confirmation.
+      x-module: operations
+      x-scope: v2
+      x-code: [api]
+      parameters: [{ $ref: '#/components/parameters/CsrfToken' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RestartRequest' } } }
+      responses:
+        '202': { description: "Demande acceptée par Compute, redémarrage à vérifier" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedType' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /sessions:
     post:
       tags: [identity]
@@ -781,6 +840,122 @@ components:
       properties:
         globalRole: { type: string, enum: [user, admin] }
         disabled: { type: boolean }
+        revokeSessions: { const: true }
+    AdminUserPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        nextCursor: { type: [string, 'null'] }
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, handle, displayName, createdAt, globalRole, disabled, activeSessions]
+            properties:
+              id: { $ref: '#/components/schemas/Uuid' }
+              handle: { $ref: '#/components/schemas/Handle' }
+              displayName: { $ref: '#/components/schemas/DisplayName' }
+              createdAt: { $ref: '#/components/schemas/DateTime' }
+              globalRole: { type: string, enum: [user, admin] }
+              disabled: { type: boolean }
+              activeSessions: { type: integer, minimum: 0 }
+    RestartTarget: { type: string, enum: [app-a, app-b, sfu-1, sfu-2, coturn, supervision] }
+    RestartRequest:
+      type: object
+      additionalProperties: false
+      required: [target, confirmation, password]
+      properties:
+        target: { $ref: '#/components/schemas/RestartTarget' }
+        confirmation: { type: string, minLength: 1, maxLength: 63 }
+        password: { type: string, maxLength: 128, writeOnly: true }
+    AdminHealth: { type: string, enum: [healthy, down, unknown] }
+    AdminSeries:
+      type: array
+      maxItems: 61
+      items: { type: [number, 'null'] }
+    AdminOverview:
+      type: object
+      additionalProperties: false
+      required: [servers, database, alerts, metrics, activity, lastBackup, tls, grafanaCommand, restarts]
+      properties:
+        servers:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/AdminServer' }
+        database: { $ref: '#/components/schemas/AdminHealth' }
+        alerts:
+          type: [array, 'null']
+          items: { type: object, additionalProperties: false, required: [name, count], properties: { name: { type: string }, count: { type: integer, minimum: 1 } } }
+        metrics:
+          type: object
+          description: Séries alignées sur les quinze dernières minutes, un point toutes les quinze secondes. Les trous sont nuls.
+          propertyNames: { enum: [httpRequests, httpErrors, httpP95, websockets, messages, deliveryP95, outboxAge, pushFailures, directCalls, relayCalls, callRtt, callJitter, callBitrate, callLoss] }
+          additionalProperties: { $ref: '#/components/schemas/AdminSeries' }
+        activity:
+          type: object
+          additionalProperties: false
+          required: [accounts, conversations, dailyMessages, activeCalls, fileBytes]
+          properties:
+            accounts:
+              type: [object, 'null']
+              additionalProperties: false
+              required: [total, active, disabled]
+              properties:
+                total: { type: integer, minimum: 0 }
+                active: { type: integer, minimum: 0 }
+                disabled: { type: integer, minimum: 0 }
+            conversations: { type: [integer, 'null'], minimum: 0 }
+            dailyMessages:
+              type: [array, 'null']
+              items: { type: object, additionalProperties: false, required: [day, count], properties: { day: { type: string, format: date }, count: { type: integer, minimum: 0 } } }
+            activeCalls: { type: [integer, 'null'], minimum: 0 }
+            fileBytes: { type: [integer, 'null'], minimum: 0 }
+        lastBackup: { type: [string, 'null'], format: date-time }
+        tls:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [endpoint, expiresAt, expiring]
+            properties:
+              endpoint: { type: string, enum: [load-balancer, coturn] }
+              expiresAt: { type: [string, 'null'], format: date-time }
+              expiring: { type: [boolean, 'null'] }
+        grafanaCommand: { type: [string, 'null'] }
+        restarts:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [enabled, active, retryAt]
+          properties:
+            enabled: { type: boolean }
+            active: { type: [string, 'null'], enum: [app-a, app-b, sfu-1, sfu-2, coturn, supervision, null] }
+            retryAt: { type: [string, 'null'], format: date-time }
+    AdminServer:
+      type: object
+      additionalProperties: false
+      required: [target, health, confirmationName, resources, digests]
+      properties:
+        target: { $ref: '#/components/schemas/RestartTarget' }
+        health: { $ref: '#/components/schemas/AdminHealth' }
+        confirmationName: { type: [string, 'null'], description: Nom à saisir pour confirmer un redémarrage disponible }
+        resources:
+          type: object
+          additionalProperties: false
+          required: [cpu, memory, disk]
+          properties:
+            cpu: { $ref: '#/components/schemas/AdminSeries' }
+            memory: { $ref: '#/components/schemas/AdminSeries' }
+            disk: { $ref: '#/components/schemas/AdminSeries' }
+        digests:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [api, edge]
+          properties:
+            api: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
+            edge: { type: [string, 'null'], pattern: '^sha256:[0-9a-f]{64}$' }
     UserPublic:
       type: object
       required: [id, handle, displayName]
@@ -805,7 +980,7 @@ components:
         id: { type: string }
         actorId: { $ref: '#/components/schemas/Uuid' }
         action: { type: string, examples: [group.role_changed] }
-        targetType: { type: string, enum: [user, conversation] }
+        targetType: { $ref: '#/components/schemas/AuditTargetType' }
         targetId: { $ref: '#/components/schemas/Uuid' }
         detail: { type: object }
         at: { $ref: '#/components/schemas/DateTime' }
@@ -815,6 +990,7 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AuditEvent' } }
         nextBeforeId: { type: [string, 'null'] }
+    AuditTargetType: { type: string, enum: [user, conversation, server] }
     UserList:
       type: object
       required: [items]

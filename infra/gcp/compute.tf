@@ -79,9 +79,10 @@ resource "google_compute_instance" "ops" {
   metadata = {
     enable-oslogin = "TRUE"
     startup-script = join("\n", ["#!/usr/bin/env bash", local.base_script,
-      replace(replace(file("${path.module}/vm/ops.sh"),
+      replace(replace(replace(file("${path.module}/vm/ops.sh"),
         "@@CHATISEN_ALERTS@@", chomp(file("${path.module}/../../ops/monitoring/alerts.yml"))),
-      "@@CHATISEN_DASHBOARD@@", chomp(file("${path.module}/../../ops/monitoring/grafana/provisioning/dashboards/chatisen.json")))
+        "@@CHATISEN_DASHBOARD@@", chomp(file("${path.module}/../../ops/monitoring/grafana/provisioning/dashboards/chatisen.json"))),
+      "@@CHATISEN_OPS_IP@@", local.ops_ip)
     ])
   }
 

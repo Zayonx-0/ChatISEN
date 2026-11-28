@@ -15,7 +15,7 @@ async function register(page:Page,handle:string,name:string){await page.goto(ori
 test.beforeAll(async()=>{
   if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL est requis pour le parcours navigateur');
   const apiPort=await freePort(),webPort=await freePort();apiUrl=`http://127.0.0.1:${apiPort}`;origin=`http://127.0.0.1:${webPort}`;
-  api=spawn(process.execPath,['--import','tsx',resolve('tests/e2e/support/api-local.ts')],{env:{...process.env,PORT:String(apiPort),CORS_ORIGIN:origin,CSRF_SECRET:'e2e-test-only'},stdio:'inherit'});
+  api=spawn(process.execPath,['--import','tsx',resolve('tests/e2e/support/api-local.ts')],{env:{...process.env,PORT:String(apiPort),CORS_ORIGIN:origin,CSRF_SECRET:'e2e-test-only',CHATISEN_E2E_OPERATIONS:'true'},stdio:'inherit'});
   await waitFor(`${apiUrl}/readyz`,api);
   vite=spawn(process.execPath,['apps/web/node_modules/vite/bin/vite.js','apps/web','--config','apps/web/vite.config.ts'],{stdio:'inherit',env:{...process.env,CHATISEN_WEB_PORT:String(webPort),CHATISEN_API_TARGET:apiUrl}});
   await waitFor(origin,vite);
@@ -82,15 +82,54 @@ test('cible : rôles de groupe, pièce jointe et administration depuis le naviga
     await expect(alice.getByRole('button',{name:/Projet CHAT/})).toHaveCount(0);
 
     // Administration : le rôle est donné par l'exploitant, jamais par l'interface.
-    await expect(alice.getByRole('button',{name:'Administration'})).toHaveCount(0);
+    await expect(alice.getByRole('link',{name:'Administration'})).toHaveCount(0);
     const db=new Client({connectionString:process.env.DATABASE_URL});await db.connect();
     try{await db.query("update identity.users set global_role='admin' where handle=$1",[`alice_${suffix}`]);}finally{await db.end();}
-    await alice.reload();await alice.getByRole('button',{name:'Administration'}).click();
-    await search(alice,'Compte à désactiver',`carol_${suffix}`);await alice.getByRole('button',{name:'Désactiver ce compte'}).click();
-    await expect(alice.getByRole('dialog',{name:'Administration'}).getByRole('status')).toContainText('Compte désactivé');
+    await alice.reload();await alice.getByRole('link',{name:'Administration'}).click();
+    await expect(alice).toHaveURL(origin+'/administration');
+    await alice.getByRole('button',{name:'Comptes',exact:true}).click();
+    await alice.getByLabel('Identifiant ou nom').fill(`carol_${suffix}`);
+    await alice.getByRole('button',{name:'Rechercher',exact:true}).click();
+    const account=alice.getByRole('listitem').filter({hasText:`@carol_${suffix}`});
+    await account.getByRole('button',{name:'Désactiver',exact:true}).click();
+    await expect(alice.getByRole('status')).toContainText('Compte désactivé');
     await carol.reload();await expect(carol.getByRole('button',{name:'Se connecter'})).toBeVisible();
-    await alice.getByRole('button',{name:'Réactiver'}).first().click();
-    await expect(alice.getByRole('dialog',{name:'Administration'}).getByRole('status')).toContainText('Compte réactivé');
+    await account.getByRole('button',{name:'Réactiver',exact:true}).click();
+    await expect(alice.getByRole('status')).toContainText('Compte réactivé');
     expect(failures).toEqual([]);
   }finally{await a.context.close();await b.context.close();await c.context.close();}
+});
+
+test('lot D : console mobile, avertissement, confirmation et journal filtré',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  const handle='lotd_mobile_'+randomBytes(4).toString('hex');
+  await register(page,handle,'Webmaster de test');
+  await page.goto(origin+'/administration');
+  await expect(page.getByText('Accès réservé aux administrateurs.')).toBeVisible();
+  const db=new Client({connectionString:process.env.DATABASE_URL});await db.connect();
+  try{
+    await db.query("update identity.users set global_role='admin' where handle=$1",[handle]);
+    const conversations:string[]=[];
+    page.on('request',request=>{if(new URL(request.url()).pathname.startsWith('/api/v1/conversations'))conversations.push(request.url());});
+    await page.reload();
+    await expect(page.getByRole('heading',{name:'Santé des services'})).toBeVisible();
+    await expect(page.locator('.admin-metric svg').first()).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.getByRole('button',{name:'Serveurs',exact:true}).click();
+    await page.getByRole('button',{name:'Redémarrer coturn'}).click();
+    await expect(page.getByRole('alert')).toContainText('Les appels relayés par coturn seront coupés.');
+    await page.getByLabel('Nom de la VM').fill('chatisen-turn-e2e');
+    await page.getByLabel('Mot de passe').fill('test-password-2026');
+    await page.getByRole('button',{name:'Confirmer le redémarrage'}).click();
+    await expect(page.getByText('Redémarrage demandé. Vérification en cours.')).toBeVisible();
+    await page.getByRole('button',{name:'Journal d’audit',exact:true}).click();
+    await page.getByLabel('Type de cible').selectOption('server');
+    // Le journal garde aussi les entrées des tests précédents : la plus récente suffit.
+    await expect(page.getByRole('listitem').getByText('Redémarrage demandé',{exact:true}).first()).toBeVisible();
+    expect(conversations).toEqual([]);
+  }finally{
+    await db.query(`update operations.restart_gate set retry_at=null,operation_id=null,actor_id=null,target=null,
+      vm_name=null,boot_before=null,started_at=null,uncertainty_audited=false where vm_name='chatisen-turn-e2e'`);
+    await db.end();
+  }
 });

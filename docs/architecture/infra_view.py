@@ -2,7 +2,7 @@
 
 from svgkit import arrow, card, flow, lines, logo, markers, rect, stylesheet, text
 
-WIDTH, HEIGHT = 2200, 1460
+WIDTH, HEIGHT = 2200, 1488
 LATER = {"stroke": "#c08a2e", "fill": "#fff9ee", "dash": "8 5"}
 
 
@@ -101,10 +101,10 @@ def vpc():
                 "Docker Compose",
                 "Prometheus : collecte les VM",
                 "  toutes les 15 s",
+                "TCP 9090 privé (FW7)",
                 "Grafana :3000, via IAP seul",
+                "node-exporter local",
                 "tableaux et alertes",
-                "(déjà configurés dans le",
-                "Compose du dépôt)",
             ], symbol="chart", kind="ops", step=21, style="micro"),
             card(720, 1010, 300, 108, "Cloud NAT", [
                 "sortie Internet des VM sans IP", "publique : Web Push, mises à jour",
@@ -159,6 +159,7 @@ def connections():
         arrow("M650 652H705", "ops"),
         arrow("M1676 576H1732V290H1760", "data", both=True),
         arrow("M1660 740V692H960V670", "ops", dashed=True),
+        arrow("M1669 670V740", "ops"),
         arrow("M1600 692V670", "ops", dashed=True),
         arrow("M1384 852H1340", "ops", dashed=True),
         arrow("M330 1106H352V1156H1744V848H1760", "ops"),
@@ -169,6 +170,7 @@ def connections():
         flow(1060, 252, ["HTTPS 8443"], "web", 82),
         flow(1732, 420, ["SQL"], "data", 34),
         flow(1180, 692, ["collecte des métriques"], "ops", 160),
+        flow(1674, 710, ["FW7"], "ops", 44),
         flow(900, 1156, ["images (CI) · migration et mise à jour du MIG (CD)"], "ops", 340),
         flow(1738, 720, ["pull"], "ops", 34),
     ]
@@ -182,9 +184,10 @@ def firewall():
         ("FW4", "Internet → coturn : STUN et TURN", "UDP 3478 · TCP 5349"),
         ("FW5", "Internet → coturn : relais vers les navigateurs", "UDP 49160–49200"),
         ("FW6 · V2", "Internet → SFU (média) ; sous-réseau app → SFU (API)", "UDP 7882 · TCP 7881, 7880"),
-        ("refus", "tout autre entrant : ni SSH public, ni 5432, ni 3000 de l’API, ni 9090", "bloqué"),
+        ("FW7", "VM app → Prometheus de la supervision, réseau privé", "TCP 9090"),
+        ("refus", "tout autre entrant : SSH public, 5432, API 3000 et Prometheus public interdits", "bloqué"),
     ]
-    out = [rect(30, 1190, 1060, 250, "#ffffff", "#b42318", 12, width=1.6),
+    out = [rect(30, 1190, 1060, 278, "#ffffff", "#b42318", 12, width=1.6),
            text(48, 1218, "PARE-FEU DU VPC", "zone")]
     for i, (rule, source, ports) in enumerate(rows):
         y = 1248 + i * 28

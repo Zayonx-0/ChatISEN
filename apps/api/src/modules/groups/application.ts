@@ -10,6 +10,8 @@ import type {AccessPolicy} from './ports.js';
 const unavailable=()=>notFound('Conversation indisponible');
 
 export class GroupService implements AccessPolicy{
+  conversationCount(){return store.conversationCount(this.db.pool);}
+
   constructor(private db:Database,private users:UserDirectory,private audit:AuditTrail,private onError:(error:unknown)=>void){}
 
   // Port AccessPolicy ---------------------------------------------------------

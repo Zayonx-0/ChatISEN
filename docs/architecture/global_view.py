@@ -68,7 +68,8 @@ def personas():
             ], "micro", 21)]
     out += persona(780, 215, "A", "ADMIN · projet GCP", "Infrastructure, pas les conversations", [
         "Console et API en HTTPS + MFA", "T16 · IAM, VPC, pare-feu", "Budgets et rôles",
-        "Moindre privilège par identité",
+        "Moindre privilège par identité", "T23 · console du webmaster",
+        "Rôle ChatISEN admin distinct d’IAM",
     ], "#f1e9fa")
     out += persona(1013, 249, "O", "OPS · équipe d’exploitation", "Livre, observe, restaure", [
         "git push et pull request → CI", "T19 · approuve le déploiement", "T16 · SSH et Grafana par IAP",
@@ -166,8 +167,8 @@ def vpc():
             lines(1668, 273, [
                 "FW5  Internet → coturn : UDP 49160–49200",
                 "FW6 (V2)  SFU : UDP 7882 · TCP 7881, 7880",
-                "Cloud SQL et Redis : IP privées seulement",
-                "Fermés : SSH public, 5432, API 3000, 9090",
+                "FW7  VM app → Prometheus : TCP 9090 privé",
+                "Fermés au public : SSH, 5432, API 3000, 9090",
                 "443 et 80 : frontal géré du LB, hors VPC",
             ], "small", 21)]
     return out
@@ -234,7 +235,9 @@ def app_subnet():
                             "schéma d’un autre module", "micro")]
     out += [rect(1248, 948, 400, 32, "#ffffff", "#8bbd9f", 8),
             icon("disk", 1256, 953, COLORS["data"], 21),
-            text(1284, 969, "Cloud SQL Auth Proxy sur chaque VM · mTLS", "micro")]
+            text(1284, 969, "Cloud SQL Auth Proxy sur chaque VM · mTLS", "micro"),
+            rect(1660, 948, 398, 32, "#fff", "#8d9ad0", 8),
+            text(1672, 969, "operations · T23 · agrégats, comptes, audit, redémarrages", "micro")]
     return out
 
 
@@ -266,6 +269,7 @@ def media_subnet():
                 "Prometheus + Grafana",
                 "T17 · métriques des",
                 "VM toutes les 15 s",
+                "T24 · Prometheus privé",
                 "Grafana via IAP seul",
                 "journaux : Cloud",
                 "Logging",
@@ -296,6 +300,7 @@ def managed_column():
         card(2140, 750, 316, 66, "Cloud SQL Backups + PITR", [
             "automatiques · stockage multi-région eu",
         ], symbol="disk", kind="data", step=18, style="micro"),
+        text(2140, 835, "T25 · API GCP : sauvegarde et reset borné", "micro"),
         card(2140, 876, 316, 78, "Cloud Logging", [
             "journaux centralisés des VM et du LB", "alertes sur les erreurs",
         ], symbol="chart", kind="ops", who="O", step=18, style="micro"),
@@ -501,6 +506,7 @@ def connections():
         flow(640, 603, ["T11 · média direct A ⇄ B", "appel à deux · DTLS-SRTP"], "media", 196),
         flow(1590, 116, ["T15 · Web Push : le fournisseur réveille le service worker A ou B"], "push", 440),
         flow(1010, 1100, ["T12 · STUN / TURN", "UDP 3478 · TLS 5349"], "media", 150),
+        flow(1066, 1008, ["T26 · échéances TLS publiques"], "ops", 212),
         flow(1010, 1212, ["T13 · V2 · conférence via SFU", "UDP 7882 · secours TCP 7881"], "media", 200),
         flow(1862, 982, ["T13 · jeton de salle (V2)"], "media", 168),
         flow(2111, 634, ["T09", "SQL"], "data", 44),

@@ -43,7 +43,7 @@ test('SQL : un propriétaire sans SUPERUSER prépare le rôle API et lui accorde
 
           const tables=(await owner.query(`SELECT format('%I.%I',nspname,relname) AS name
             FROM pg_class JOIN pg_namespace ON pg_namespace.oid=relnamespace
-            WHERE relkind IN ('r','p','f') AND nspname IN ('identity','groups','messaging','files','calls','quality','notifications','realtime')
+            WHERE relkind IN ('r','p','f') AND nspname IN ('identity','groups','messaging','files','calls','quality','notifications','realtime','operations')
             ORDER BY 1`)).rows;
           assert.ok(tables.length>0);
           url.username='chatisen_api';url.password=password;
@@ -65,7 +65,7 @@ test('SQL : un propriétaire sans SUPERUSER prépare le rôle API et lui accorde
               assert.equal(received.json().items[0].text,'message de test');
             }finally{await h.close();}
             for(const sql of ['CREATE SCHEMA extra','CREATE TABLE public.extra(id int)','ALTER TABLE messaging.messages ADD COLUMN extra int',
-              'DELETE FROM identity.users WHERE false','SELECT * FROM public._chatisen_migrations']){
+              'DELETE FROM identity.users WHERE false','DELETE FROM operations.restart_gate WHERE false','SELECT * FROM public._chatisen_migrations']){
               await assert.rejects(restricted.query(sql),{code:'42501'});
             }
           }finally{await restricted.end();}

@@ -86,19 +86,17 @@ def sequence_source(source, title):
     return "\n".join(lines) + "\n"
 
 
-def check_http_routes(root, details):
+def check_http_routes(root, openapi):
     route = re.compile(r"""\bapp\.(get|post|patch|put|delete)\(\s*['"]/api/v1(/[^'"]*)['"]""")
     registered = {
         (method.upper(), re.sub(r":(\w+)", r"{\1}", path))
         for handler in (root / "apps/api/src").rglob("*.ts")
         for method, path in route.findall(handler.read_text(encoding="utf-8"))
     }
-    rows = set()
-    for file in details.glob("1[45]-http-*.puml"):
-        rows.update(re.findall(r"^\s*\| (GET|POST|PATCH|PUT|DELETE) \| (\/\S+) \|",
-                               file.read_text(encoding="utf-8"), re.M))
-    if rows != registered:
-        raise ValueError(f"HTTP views differ from Fastify routes: {sorted(rows ^ registered)}")
+    declared = {(verb, path) for verb, path, _ in contracts.operations(openapi)}
+    http_routes = registered - {("GET", "/ws")}
+    if declared != http_routes:
+        raise ValueError(f"OpenAPI differs from Fastify routes: {sorted(declared ^ http_routes)}")
     spec = json.loads((root / "packages/contracts/schemas/openapi.json").read_text(encoding="utf-8"))
     planned = {(verb.upper(), path) for path, operations in spec["paths"].items() for verb in operations
                if verb in {"get", "post", "put", "patch", "delete"}}
@@ -112,7 +110,11 @@ def render(cli, plantuml):
     model = folder / "c4.dsl"
     details = folder / "details"
     appendix = details / "vues.dsl"
-    contract_gaps = check_http_routes(folder.parent.parent, details)
+    openapi = contracts.load(folder / "api" / "openapi.yaml")
+    asyncapi = contracts.load(folder / "api" / "asyncapi.yaml")
+    contracts.check_openapi(openapi)
+    contracts.check_asyncapi(asyncapi)
+    contract_gaps = check_http_routes(folder.parent.parent, openapi)
     migrations = {path.name: path.read_text(encoding="utf-8") for path in
                   sorted((folder.parent.parent / "db" / "migrations").glob("*.sql"))}
     style = (details / "style.iuml").read_text(encoding="utf-8")
@@ -146,10 +148,6 @@ def render(cli, plantuml):
             raise RuntimeError("Structurizr did not export any diagrams")
         implementation = [(path.stem, path.read_text(encoding="utf-8").replace("!include style.iuml", style))
                           for path in sorted(details.glob("*.puml"))]
-        openapi = contracts.load(folder / "api" / "openapi.yaml")
-        asyncapi = contracts.load(folder / "api" / "asyncapi.yaml")
-        contracts.check_openapi(openapi)
-        contracts.check_asyncapi(asyncapi)
         generated = [(CONTRACT_VIEW, contracts.rest_uml(openapi, style)),
                      ("34-schemas-json", contracts.schema_uml(openapi, style))]
         for name, content in [*implementation, *generated, *physical_views(migrations, style)]:

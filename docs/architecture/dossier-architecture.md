@@ -104,13 +104,14 @@ Pourquoi pas des microservices maintenant : le projet dure trois semaines, l'éq
 
 | Module | Responsabilité | Importe | Schéma et tables | Port public | Périmètre |
 |---|---|---|---|---|---|
-| identity | Comptes, profils, mots de passe, sessions, rôle global. | Aucun | identity : users, sessions | SessionVerifier, UserDirectory | MVP |
+| identity | Comptes, profils, mots de passe, sessions, rôle global, audit. | Aucun | identity : users, sessions, audit_log | SessionVerifier, UserDirectory, AuditTrail | MVP et lot D |
 | groups | Conversations privées et de groupe, membres, rôles, contrôle d'accès. | identity | groups : conversations, members, creation_commands | AccessPolicy, ConversationDirectory | MVP |
 | files | Métadonnées, droits, URL signées. | groups | files : files | FileCatalog | V2 |
 | messaging | Messages, ordre, historique, rattrapage. | groups, files | messaging : messages | MessageTimeline | MVP |
 | calls | Cycle d'appel, signaux, identifiants ICE, jeton de salle. | groups | calls : calls, participants, media_jobs, webhook_receipts | CallRegistry | MVP, conférence V2 |
 | quality | Mesures getStats(), indicateurs, export. | calls | quality : samples | QualityReport | V2 et investigation |
 | notifications | Abonnements Web Push, envoi, retries. | groups, identity | notifications : push_subscriptions, push_deliveries | PushSubscriptions | MVP+ |
+| operations | Vue d’ensemble du webmaster et redémarrages bornés. | identity | operations : restart_gate | OperationsService | Lot D |
 
 Le journal d'événements et l'outbox (schéma `realtime` : streams, events, outbox) appartiennent au noyau. `groups` et `messaging` y écrivent dans leur propre transaction. `notifications` y lit `message.created` et `call.invitation` : `messaging` et `calls` ne le connaissent pas.
 
@@ -249,7 +250,7 @@ La vue 6 montre les machines et les conteneurs. Le sous-réseau média existe po
 | API | Monolithe modulaire Fastify, port 3000 non publié, /metrics sur 9091. | Aucun état durable local : reprise sur l'autre VM par session SQL et curseur. |
 | PostgreSQL | Cloud SQL PostgreSQL 17 régional HA, IP privée. | Sauvegardes et PITR vérifiés par une restauration. |
 | coturn | VM dédiée, IPv4 réservée, certificat public. | STUN et TURN UDP 3478, TLS 5349. Candidats srflx et relay observés. |
-| Supervision | VM ops : Prometheus et Grafana par Compose, accès IAP. | Tableau et alerte sur API indisponible. |
+| Supervision | VM ops : Prometheus, node-exporter local et Grafana par Compose. | Collecte et alertes, Grafana par IAP (FW2), lecture Prometheus par la console (FW7). |
 | Journaux | Ops Agent vers le bucket Cloud Logging de la cible en `europe-west4`, rétention 30 jours. | Recherche par requestId, rétention et région vérifiées. À mesurer. |
 | SFU (V2) | 2 VM LiveKit, une par zone. | Une salle sur un nœud à la fois. Reconnexion si un nœud tombe. |
 | Redis (V2) | Memorystore Standard, IP privée, TLS et AUTH. | Coordination des SFU. Inutile pour le MVP. |
@@ -267,7 +268,8 @@ La vue 6 montre les machines et les conteneurs. Le sous-réseau média existe po
 | FW4 | Internet → coturn. | UDP 3478 et TCP 5349, allocations authentifiées. | Identifiant expiré refusé. |
 | FW5 | Internet → coturn, relais. Les pairs sont des navigateurs. | UDP 49160–49200, pairs privés interdits dans coturn. | Appel en relais forcé réussi ; relais vers 10.0.0.0/8 refusé. |
 | FW6 (V2) | Internet → SFU ; sous-réseau app → SFU. | UDP 7882, TCP 7881 ; TCP 7880 depuis l'app seulement. | API du SFU injoignable depuis Internet. |
-| Tout autre entrant | Toute source → toutes les VM. | Refusé. Ni SSH public, ni 5432, ni 3000, ni 9090. | Balayage de ports externe. |
+| FW7 (lot D) | VM app → VM de supervision. | TCP 9090 privé, étiquettes réseau `app` et `ops`. | Prometheus joignable depuis les VM app, refusé depuis Internet et les VM média. |
+| Tout autre entrant | Toute source → toutes les VM. | Refusé. Ni SSH public, ni 5432, ni 3000 public, ni 9090 public. | Balayage de ports externe. |
 
 Pour la signalisation des conférences, le client passe par Nginx (`/livekit/`) vers le port 7880 privé. [Filtres GCP](https://cloud.google.com/load-balancing/docs/https) · [Ports LiveKit](https://docs.livekit.io/transport/self-hosting/ports-firewall/)
 
@@ -297,6 +299,10 @@ Pour la signalisation des conférences, le client passe par Nginx (`/livekit/`) 
 | T20 · Lecture d'image | VM → Artifact Registry | Pull par digest avec un compte de service lecteur. Chaque VM publie les digests réellement actifs. | Digest effectif comparé. À mesurer en cible. |
 | T21 · Reprise | Cloud SQL → sauvegardes et restauration | PITR, restauration isolée. | Comparaison du contenu, RPO et RTO à mesurer. |
 | T22 · Fichiers (V2) | Navigateur ↔ Cloud Storage | URL signée par l'API, octets envoyés et lus directement en HTTPS, cycle de vie et plafond du contrat. | URL expirée et non-membre refusés, fichiers référencés conservés. |
+| T23 · Console | Navigateur admin → Nginx → API | Page React chargée à la demande, API REST, session et CSRF sur les écritures. Agrégats SQL et coordination via T09. | Matrice du §15 et parcours Playwright sur mobile et ordinateur. |
+| T24 · Métriques de la console | API → Prometheus de supervision | HTTP privé TCP 9090 (FW7), requêtes prédéfinies. Les collectes T17/FW3 incluent les digests actifs et la disponibilité de chaque hôte, avec une collecte locale de la VM de supervision. | Source manquante indiquée indépendamment, aucune adresse interne dans la réponse. |
+| T25 · Exploitation bornée | API → métadonnées GCE, API Compute et Cloud SQL Admin | Jeton du compte de service de la VM, API GCP en HTTPS 443. Lecture de la dernière sauvegarde réussie et redémarrage d'une seule VM autorisée. | Vérifier en IAM les cibles exactes, y compris le refus sur l'ancienne VM de démo. |
+| T26 · Échéances TLS | API → points TLS publics du LB et de coturn | Connexion TLS avec le nom public, TCP 443 et 5349 (T02, T12/FW4). Lecture du certificat effectivement présenté, alerte sous 30 jours. | Comparer les échéances au certificat servi par chaque point d’entrée. |
 
 ## 9. TLS et PKI
 
@@ -418,3 +424,19 @@ Le jeton de salle LiveKit expire en 60 secondes afin de borner la fenêtre de r�
 3. Importer les données de la démo sur un banc isolé et comparer comptes, groupes, droits et historique. Les anciens hash scrypt sont vérifiés puis recalculés en Argon2id à la connexion, ou les comptes sont réinitialisés. Les anciennes sessions sont invalidées.
 4. Basculer : suspendre les écritures, importer, contrôler, puis changer le DNS. Un retour arrière demande de réconcilier les nouvelles écritures.
 5. Budget : à chiffrer avant toute création (VM app, coturn, supervision, Cloud SQL HA, load balancer, NAT, trafic ; en V2, SFU, Redis et stockage). **Repli MVP** : une VM app, SQL zonal, supervision sur la même VM, sans SFU ni Redis. Ce repli réintroduit des SPOF, à annoncer.
+
+## 15. Lot D · Console du webmaster
+
+La page React `/administration` reprend le client sur ordinateur et téléphone. `operations` assemble des agrégats fournis par les façades du monolithe, la disponibilité et les alertes Prometheus, les séries courtes HTTP, WebSocket, messages, livraison, outbox, Push, appels et ressources des VM, les digests actifs, la dernière sauvegarde SQL réussie et les échéances TLS publiques. Chaque donnée manquante affiche « indisponible ». L’accès à Grafana reste par IAP (T16, FW2). L’équipe renouvelle manuellement le certificat du load balancer.
+
+| Capacité | Rôle `user` (quel que soit le rôle de groupe) | Rôle global `admin` |
+|---|---|---|
+| Console, état, alertes et agrégats sans contenu | Non | Lecture |
+| Comptes et audit paginés et filtrés | Non | Lecture des comptes et du journal |
+| Désactiver, réactiver, révoquer les sessions, nommer ou retirer un administrateur | Non | Écriture avec CSRF. Le dernier admin actif est conservé. Un admin ne peut pas se désactiver. |
+| Lire les conversations, les messages ou les noms de fichiers par la console | Non | Non |
+| Redémarrer une VM app ou un SFU | Non | Une cible connue, avec son pair sain |
+| Redémarrer coturn ou la supervision | Non | Une cible connue, avec avertissement sur la coupure des relais ou des métriques |
+| Arrêter, supprimer, créer, redimensionner, modifier un gabarit, déployer, exécuter une commande, accéder à SQL ou aux secrets | Non | Non |
+
+Les redémarrages exigent le rôle courant, le CSRF, le mot de passe et le nom exact de la VM. Un verrou durable en base coordonne les réplicas, avec au moins cinq minutes entre actions et un audit avant et après. La console attend une preuve de redémarrage avant de libérer une demande dont l’issue est incertaine. Un état de santé inconnu entraîne un refus. Terraform active les actions sur la cible et attribue à `sa-app` uniquement `compute.instances.get` et `compute.instances.reset` sur des noms exacts, ainsi que le droit de lister les sauvegardes de l’instance SQL cible. Les contrats et la mise en service ordonnée couvrent T23 à T26 et FW7. [Procédure de mise en service](../../infra/gcp/README.md#lot-d--console-du-webmaster-t23-à-t26-fw7)

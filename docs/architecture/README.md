@@ -1,6 +1,6 @@
 # Reconstruire ChatISEN depuis ses diagrammes
 
-**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG](svg/05-architecture-globale.svg). La vue d’accueil présente l’**architecture cible v2** (après la seconde revue du 26 novembre) : un monolithe modulaire Fastify, PostgreSQL, un appel à deux en pair-à-pair avec coturn, les extensions V2 en orange pointillé, les flux `T01` à `T22` et la couverture du sujet. Les touches `1` à `9` changent de vue.
+**[Ouvrir l’architecture globale](https://ia-pple.isen.fedyna.fr/architecture/#05-architecture-globale)** · [Copie locale](index.html#05-architecture-globale) · [SVG](svg/05-architecture-globale.svg). La vue d’accueil présente l’**architecture cible v2** (après la seconde revue du 26 novembre) : un monolithe modulaire Fastify, PostgreSQL, un appel à deux en pair-à-pair avec coturn, les extensions V2 en orange pointillé, le lot D et les flux `T01` à `T26`. Les touches `1` à `9` changent de vue.
 
 | Document | Contenu |
 |---|---|

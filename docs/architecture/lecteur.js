@@ -778,7 +778,8 @@ const architecture = {
         "Pare-feu de la cible",
         "Points de défaillance uniques",
         "Retours de la deuxième revue",
-        "Réponses aux retours de présentation"
+        "Réponses aux retours de présentation",
+        "15. Lot D · Console du webmaster"
       ]
     },
     {
@@ -917,7 +918,8 @@ const architecture = {
   ],
   "migrations": {
     "001_initial.sql": "-- ChatISEN schema v1.  This migration is safe to run twice: the runner\n-- records it in _chatisen_migrations and every object is guarded as well.\nCREATE EXTENSION IF NOT EXISTS pgcrypto;\n\nDO $$ BEGIN\n  CREATE TYPE conversation_type AS ENUM ('direct', 'group');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE member_role AS ENUM ('owner', 'member');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE message_kind AS ENUM ('text', 'file');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE call_mode AS ENUM ('audio', 'video');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE call_state AS ENUM ('ringing', 'active', 'ended');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE participant_state AS ENUM ('invited', 'joined', 'declined', 'left', 'removed');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE media_job_kind AS ENUM ('remove_participant', 'close_room', 'reconcile');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\nDO $$ BEGIN\n  CREATE TYPE media_job_state AS ENUM ('pending', 'running', 'done', 'failed');\nEXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\nCREATE TABLE IF NOT EXISTS users (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  handle varchar(32) NOT NULL UNIQUE,\n  display_name varchar(80) NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 80),\n  password_hash text NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT users_handle_format CHECK (handle = lower(handle) AND handle ~ '^[a-z0-9_]{3,32}$')\n);\n\nCREATE TABLE IF NOT EXISTS sessions (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  token_hash bytea NOT NULL UNIQUE,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  last_seen_at timestamptz NOT NULL DEFAULT now(),\n  expires_at timestamptz NOT NULL,\n  absolute_expires_at timestamptz NOT NULL,\n  revoked_at timestamptz,\n  CHECK (expires_at <= absolute_expires_at),\n  CHECK (octet_length(token_hash) = 32)\n);\nCREATE INDEX IF NOT EXISTS sessions_token_expiry_idx ON sessions (token_hash, expires_at) WHERE revoked_at IS NULL;\nCREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id, expires_at);\n\nCREATE TABLE IF NOT EXISTS conversations (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  type conversation_type NOT NULL,\n  title varchar(120),\n  direct_user_low uuid REFERENCES users(id) ON DELETE RESTRICT,\n  direct_user_high uuid REFERENCES users(id) ON DELETE RESTRICT,\n  last_seq bigint NOT NULL DEFAULT 0 CHECK (last_seq >= 0),\n  created_at timestamptz NOT NULL DEFAULT now(),\n  updated_at timestamptz NOT NULL DEFAULT now(),\n  closed_at timestamptz,\n  CONSTRAINT conversations_direct_pair_order CHECK (direct_user_low IS NULL OR direct_user_high IS NULL OR direct_user_low < direct_user_high),\n  CONSTRAINT conversations_type_shape CHECK (\n    (type = 'direct' AND direct_user_low IS NOT NULL AND direct_user_high IS NOT NULL AND title IS NULL)\n    OR (type = 'group' AND direct_user_low IS NULL AND direct_user_high IS NULL AND title IS NOT NULL AND char_length(title) BETWEEN 1 AND 120)\n  )\n);\nCREATE UNIQUE INDEX IF NOT EXISTS conversations_direct_pair_idx ON conversations (direct_user_low, direct_user_high) WHERE type = 'direct' AND closed_at IS NULL;\n\nCREATE TABLE IF NOT EXISTS conversation_members (\n  conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,\n  role member_role NOT NULL DEFAULT 'member',\n  joined_at timestamptz NOT NULL DEFAULT now(),\n  left_at timestamptz,\n  PRIMARY KEY (conversation_id, user_id)\n);\nCREATE INDEX IF NOT EXISTS conversation_members_user_active_idx ON conversation_members (user_id, conversation_id) WHERE left_at IS NULL;\nCREATE UNIQUE INDEX IF NOT EXISTS conversation_members_one_owner_idx ON conversation_members (conversation_id) WHERE role = 'owner' AND left_at IS NULL;\n\nCREATE TABLE IF NOT EXISTS conversation_events (\n  conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  seq bigint NOT NULL CHECK (seq > 0),\n  event_type varchar(64) NOT NULL CHECK (event_type ~ '^[a-z][a-z0-9_.-]{2,63}$'),\n  entity_id uuid,\n  payload jsonb NOT NULL,\n  occurred_at timestamptz NOT NULL DEFAULT now(),\n  PRIMARY KEY (conversation_id, seq),\n  CONSTRAINT conversation_events_payload_bound CHECK (octet_length(payload::text) <= 65536)\n);\nCREATE INDEX IF NOT EXISTS conversation_events_time_idx ON conversation_events (conversation_id, occurred_at);\n\nCREATE TABLE IF NOT EXISTS messages (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  conversation_id uuid NOT NULL,\n  seq bigint NOT NULL,\n  sender_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,\n  client_id uuid NOT NULL,\n  kind message_kind NOT NULL DEFAULT 'text',\n  text text,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  CONSTRAINT messages_event_fk FOREIGN KEY (conversation_id, seq) REFERENCES conversation_events(conversation_id, seq) ON DELETE CASCADE,\n  CONSTRAINT messages_text_bound CHECK (text IS NULL OR char_length(text) BETWEEN 1 AND 4000),\n  CONSTRAINT messages_kind_shape CHECK ((kind = 'text' AND text IS NOT NULL AND char_length(btrim(text)) > 0) OR (kind = 'file' AND text IS NULL)),\n  UNIQUE (conversation_id, seq),\n  UNIQUE (conversation_id, sender_id, client_id)\n);\nCREATE INDEX IF NOT EXISTS messages_conversation_order_idx ON messages (conversation_id, seq);\n\nCREATE TABLE IF NOT EXISTS attachments (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  message_id uuid NOT NULL UNIQUE REFERENCES messages(id) ON DELETE CASCADE,\n  file_name varchar(255) NOT NULL CHECK (char_length(file_name) BETWEEN 1 AND 255),\n  media_type varchar(64) NOT NULL CHECK (media_type IN ('image/png', 'image/jpeg', 'application/pdf', 'text/plain')),\n  size_bytes integer NOT NULL CHECK (size_bytes BETWEEN 1 AND 5242880),\n  sha256 bytea NOT NULL CHECK (octet_length(sha256) = 32),\n  data bytea NOT NULL,\n  created_at timestamptz NOT NULL DEFAULT now()\n);\n\nCREATE TABLE IF NOT EXISTS calls (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  initiator_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,\n  client_id uuid NOT NULL,\n  mode call_mode NOT NULL,\n  state call_state NOT NULL DEFAULT 'ringing',\n  room_name varchar(80) NOT NULL UNIQUE,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  active_at timestamptz,\n  ended_at timestamptz,\n  end_reason varchar(80),\n  UNIQUE (conversation_id, initiator_id, client_id),\n  CHECK ((state = 'ended' AND ended_at IS NOT NULL) OR (state <> 'ended' AND ended_at IS NULL))\n);\nCREATE UNIQUE INDEX IF NOT EXISTS calls_one_open_per_conversation_idx ON calls (conversation_id) WHERE state <> 'ended';\nCREATE INDEX IF NOT EXISTS calls_conversation_idx ON calls (conversation_id, created_at DESC);\n\nCREATE TABLE IF NOT EXISTS call_participants (\n  call_id uuid NOT NULL REFERENCES calls(id) ON DELETE CASCADE,\n  user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,\n  session_id uuid REFERENCES sessions(id) ON DELETE SET NULL,\n  state participant_state NOT NULL DEFAULT 'invited',\n  livekit_identity varchar(128),\n  admission_expires_at timestamptz,\n  joined_at timestamptz,\n  left_at timestamptz,\n  PRIMARY KEY (call_id, user_id),\n  UNIQUE (call_id, livekit_identity)\n);\nCREATE INDEX IF NOT EXISTS call_participants_session_idx ON call_participants (session_id) WHERE session_id IS NOT NULL;\n\nCREATE TABLE IF NOT EXISTS media_jobs (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  kind media_job_kind NOT NULL,\n  call_id uuid REFERENCES calls(id) ON DELETE CASCADE,\n  participant_user_id uuid REFERENCES users(id) ON DELETE CASCADE,\n  state media_job_state NOT NULL DEFAULT 'pending',\n  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),\n  run_after timestamptz NOT NULL DEFAULT now(),\n  last_error text,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  completed_at timestamptz,\n  UNIQUE (kind, call_id, participant_user_id, state)\n);\nCREATE INDEX IF NOT EXISTS media_jobs_ready_idx ON media_jobs (run_after, id) WHERE state IN ('pending', 'failed');\n\nCREATE TABLE IF NOT EXISTS webhook_receipts (\n  provider varchar(32) NOT NULL,\n  provider_event_id varchar(255) NOT NULL,\n  received_at timestamptz NOT NULL DEFAULT now(),\n  payload_hash bytea NOT NULL CHECK (octet_length(payload_hash) = 32),\n  PRIMARY KEY (provider, provider_event_id)\n);\n\nCREATE TABLE IF NOT EXISTS quality_samples (\n  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n  call_id uuid NOT NULL REFERENCES calls(id) ON DELETE CASCADE,\n  participant_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  study_session varchar(64) NOT NULL CHECK (study_session ~ '^[a-zA-Z0-9_-]{8,64}$'),\n  window_start timestamptz NOT NULL,\n  schema_version smallint NOT NULL DEFAULT 1 CHECK (schema_version = 1),\n  packets_received integer NOT NULL CHECK (packets_received >= 0),\n  packets_lost integer NOT NULL CHECK (packets_lost >= 0),\n  jitter_ms numeric(12,3) NOT NULL CHECK (jitter_ms >= 0),\n  rtt_ms numeric(12,3) NOT NULL CHECK (rtt_ms >= 0),\n  bitrate_kbps numeric(14,3) NOT NULL CHECK (bitrate_kbps >= 0),\n  track_present boolean NOT NULL,\n  scenario varchar(32),\n  created_at timestamptz NOT NULL DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS quality_samples_time_idx ON quality_samples (study_session, window_start);\n\nCREATE OR REPLACE FUNCTION chatisen_notify_conversation_event() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  PERFORM pg_notify('chatisen_conversation_events', json_build_object('conversationId', NEW.conversation_id::text, 'seq', NEW.seq::text)::text);\n  RETURN NEW;\nEND;\n$$;\nDROP TRIGGER IF EXISTS conversation_events_notify ON conversation_events;\nCREATE TRIGGER conversation_events_notify AFTER INSERT ON conversation_events FOR EACH ROW EXECUTE FUNCTION chatisen_notify_conversation_event();\n\nCREATE TABLE IF NOT EXISTS _chatisen_migrations (\n  id varchar(255) PRIMARY KEY,\n  applied_at timestamptz NOT NULL DEFAULT now()\n);\n\n",
-    "002_group_commands.sql": "-- Persist idempotency keys for group creation independently of message retries.\nCREATE TABLE group_creation_commands (\n  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  client_id uuid NOT NULL,\n  command_hash bytea NOT NULL CHECK (octet_length(command_hash) = 32),\n  conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  PRIMARY KEY (user_id, client_id)\n);\n"
+    "002_group_commands.sql": "-- Persist idempotency keys for group creation independently of message retries.\nCREATE TABLE group_creation_commands (\n  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  client_id uuid NOT NULL,\n  command_hash bytea NOT NULL CHECK (octet_length(command_hash) = 32),\n  conversation_id uuid NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  created_at timestamptz NOT NULL DEFAULT now(),\n  PRIMARY KEY (user_id, client_id)\n);\n",
+    "007_operations.sql": "CREATE SCHEMA operations;\nCREATE TABLE operations.restart_gate (\n  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),\n  retry_at timestamptz,\n  operation_id uuid,\n  actor_id uuid,\n  target text CHECK (target IN ('app-a','app-b','sfu-1','sfu-2','coturn','supervision')),\n  vm_name text,\n  boot_before double precision,\n  started_at timestamptz,\n  uncertainty_audited boolean NOT NULL DEFAULT false,\n  CHECK (num_nonnulls(operation_id,actor_id,target,vm_name,boot_before,started_at) IN (0,6))\n);\nINSERT INTO operations.restart_gate DEFAULT VALUES;\n\nDO $$ BEGIN\n  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='chatisen_api') THEN\n    GRANT USAGE ON SCHEMA operations TO chatisen_api;\n    GRANT SELECT, UPDATE ON operations.restart_gate TO chatisen_api;\n  END IF;\nEND $$;\n"
   },
   "contractGaps": [
     "GET /calls/{id}",
@@ -1579,11 +1581,11 @@ const architecture = {
       ],
       [
         "identity",
-        "Comptes, profils, mots de passe, sessions, rôle global.",
+        "Comptes, profils, mots de passe, sessions, rôle global, audit.",
         "Aucun",
-        "identity : users, sessions",
-        "SessionVerifier, UserDirectory",
-        "MVP"
+        "identity : users, sessions, audit_log",
+        "SessionVerifier, UserDirectory, AuditTrail",
+        "MVP et lot D"
       ],
       [
         "groups",
@@ -1632,6 +1634,14 @@ const architecture = {
         "notifications : push_subscriptions, push_deliveries",
         "PushSubscriptions",
         "MVP+"
+      ],
+      [
+        "operations",
+        "Vue d’ensemble du webmaster et redémarrages bornés.",
+        "identity",
+        "operations : restart_gate",
+        "OperationsService",
+        "Lot D"
       ]
     ],
     "Composants et placement": [
@@ -1672,8 +1682,8 @@ const architecture = {
       ],
       [
         "Supervision",
-        "VM ops : Prometheus et Grafana par Compose, accès IAP.",
-        "Tableau et alerte sur API indisponible."
+        "VM ops : Prometheus, node-exporter local et Grafana par Compose.",
+        "Collecte et alertes, Grafana par IAP (FW2), lecture Prometheus par la console (FW7)."
       ],
       [
         "Journaux",
@@ -1751,9 +1761,15 @@ const architecture = {
         "API du SFU injoignable depuis Internet."
       ],
       [
+        "FW7 (lot D)",
+        "VM app → VM de supervision.",
+        "TCP 9090 privé, étiquettes réseau `app` et `ops`.",
+        "Prometheus joignable depuis les VM app, refusé depuis Internet et les VM média."
+      ],
+      [
         "Tout autre entrant",
         "Toute source → toutes les VM.",
-        "Refusé. Ni SSH public, ni 5432, ni 3000, ni 9090.",
+        "Refusé. Ni SSH public, ni 5432, ni 3000 public, ni 9090 public.",
         "Balayage de ports externe."
       ]
     ],
@@ -1895,6 +1911,30 @@ const architecture = {
         "Navigateur ↔ Cloud Storage",
         "URL signée par l'API, octets envoyés et lus directement en HTTPS.",
         "URL expirée et non-membre refusés."
+      ],
+      [
+        "T23 · Console",
+        "Navigateur admin → Nginx → API",
+        "Page React chargée à la demande, API REST, session et CSRF sur les écritures. Agrégats SQL et coordination via T09.",
+        "Matrice du §15 et parcours Playwright sur mobile et ordinateur."
+      ],
+      [
+        "T24 · Métriques de la console",
+        "API → Prometheus de supervision",
+        "HTTP privé TCP 9090 (FW7), requêtes prédéfinies. Les collectes T17/FW3 incluent les digests actifs et la disponibilité de chaque hôte, avec une collecte locale de la VM de supervision.",
+        "Source manquante indiquée indépendamment, aucune adresse interne dans la réponse."
+      ],
+      [
+        "T25 · Exploitation bornée",
+        "API → métadonnées GCE, API Compute et Cloud SQL Admin",
+        "Jeton du compte de service de la VM, API GCP en HTTPS 443. Lecture de la dernière sauvegarde réussie et redémarrage d'une seule VM autorisée.",
+        "Vérifier en IAM les cibles exactes, y compris le refus sur l'ancienne VM de démo."
+      ],
+      [
+        "T26 · Échéances TLS",
+        "API → points TLS publics du LB et de coturn",
+        "Connexion TLS avec le nom public, TCP 443 et 5349 (T02, T12/FW4). Lecture du certificat effectivement présenté, alerte sous 30 jours.",
+        "Comparer les échéances au certificat servi par chaque point d’entrée."
       ]
     ],
     "Points de défaillance uniques": [
@@ -2117,10 +2157,38 @@ const architecture = {
       ],
       [
         "PATCH /api/v1/users/{userId}",
-        "Changer le rôle global ou désactiver un compte (administrateur)",
+        "Changer le rôle ou l’état d’un compte, ou révoquer ses sessions (administrateur)",
         "identity",
         "V2",
-        "à faire"
+        "apps/api"
+      ],
+      [
+        "GET /api/v1/audit-events",
+        "Lire le journal d’audit (administrateur)",
+        "identity",
+        "V2",
+        "apps/api"
+      ],
+      [
+        "GET /api/v1/admin/users",
+        "Rechercher et lister les comptes, y compris désactivés (administrateur)",
+        "identity",
+        "V2",
+        "apps/api"
+      ],
+      [
+        "GET /api/v1/admin/overview",
+        "Lire la vue agrégée et l’état des redémarrages (administrateur)",
+        "operations",
+        "V2",
+        "apps/api"
+      ],
+      [
+        "POST /api/v1/admin/restarts",
+        "Demander le redémarrage d’une VM autorisée (administrateur)",
+        "operations",
+        "V2",
+        "apps/api"
       ],
       [
         "POST /api/v1/sessions",
@@ -2459,6 +2527,48 @@ const architecture = {
         "serveur → client",
         "Offre, réponse ou candidat ICE du correspondant",
         "démo en ligne"
+      ]
+    ],
+    "15. Lot D · Console du webmaster": [
+      [
+        "Capacité",
+        "Rôle `user` (quel que soit le rôle de groupe)",
+        "Rôle global `admin`"
+      ],
+      [
+        "Console, état, alertes et agrégats sans contenu",
+        "Non",
+        "Lecture"
+      ],
+      [
+        "Comptes et audit paginés et filtrés",
+        "Non",
+        "Lecture des comptes et du journal"
+      ],
+      [
+        "Désactiver, réactiver, révoquer les sessions, nommer ou retirer un administrateur",
+        "Non",
+        "Écriture avec CSRF. Le dernier admin actif est conservé. Un admin ne peut pas se désactiver."
+      ],
+      [
+        "Lire les conversations, les messages ou les noms de fichiers par la console",
+        "Non",
+        "Non"
+      ],
+      [
+        "Redémarrer une VM app ou un SFU",
+        "Non",
+        "Une cible connue, avec son pair sain"
+      ],
+      [
+        "Redémarrer coturn ou la supervision",
+        "Non",
+        "Une cible connue, avec avertissement sur la coupure des relais ou des métriques"
+      ],
+      [
+        "Arrêter, supprimer, créer, redimensionner, modifier un gabarit, déployer, exécuter une commande, accéder à SQL ou aux secrets",
+        "Non",
+        "Non"
       ]
     ]
   }

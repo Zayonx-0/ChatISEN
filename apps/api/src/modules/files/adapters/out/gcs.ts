@@ -3,11 +3,11 @@
  * est demandée à IAM (signBlob) avec le compte de service de la VM.
  */
 import {createHash} from 'node:crypto';
+import {readServiceAccount,serviceAccountToken} from '../../../../platform/google-metadata.js';
 import type {MediaType} from '../../domain.js';
 import type {ObjectStore} from '../../ports.js';
 
 const host='storage.googleapis.com';
-const metadata='http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/';
 const encode=(value:string)=>encodeURIComponent(value).replace(/[!'()*]/g,c=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 
 export type Signer={email():Promise<string>;sign(value:string):Promise<Buffer>};
@@ -27,20 +27,9 @@ export function signedUrl(input:{method:'GET'|'PUT';bucket:string;key:string;ema
 
 /** Identité de la VM, lue sur le serveur de métadonnées. */
 export function metadataSigner(){
-  let token:{value:string;until:number}|undefined,address:string|undefined;
-  const read=async(path:string)=>{
-    const response=await fetch(metadata+path,{headers:{'Metadata-Flavor':'Google'},signal:AbortSignal.timeout(5000)});
-    if(!response.ok)throw new Error(`metadata ${path}: ${response.status}`);
-    return response;
-  };
-  const accessToken=async()=>{
-    if(!token||token.until<Date.now()){
-      const body=await (await read('token')).json() as {access_token:string;expires_in:number};
-      token={value:body.access_token,until:Date.now()+(body.expires_in-60)*1000};
-    }
-    return token.value;
-  };
-  const email=async()=>address??=(await (await read('email')).text()).trim();
+  let address:string|undefined;
+  const accessToken=serviceAccountToken;
+  const email=async()=>address??=(await (await readServiceAccount('email')).text()).trim();
   const sign=async(value:string)=>{
     const response=await fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${await email()}:signBlob`,{method:'POST',signal:AbortSignal.timeout(10_000),
       headers:{authorization:`Bearer ${await accessToken()}`,'content-type':'application/json'},body:JSON.stringify({payload:Buffer.from(value).toString('base64')})});

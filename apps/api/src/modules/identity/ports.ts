@@ -8,6 +8,7 @@ export interface UserDirectory{
   findMany(userIds:string[],db?:Queryable):Promise<Map<string,PublicUser>>;
 }
 
-export type AuditEntry={actorId:string;action:string;targetType:'user'|'conversation';targetId:string;detail?:Record<string,unknown>};
+export type AuditEntry={actorId:string;action:string;targetType:'user'|'conversation'|'server';targetId:string;detail?:Record<string,unknown>};
+export type AuditFilter={beforeId?:string;action?:string;targetType?:AuditEntry['targetType']};
 /** Journal d'audit, écrit dans la transaction de l'action qu'il décrit. */
 export interface AuditTrail{record(db:Queryable,entry:AuditEntry):Promise<void>}
