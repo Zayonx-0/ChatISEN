@@ -12,6 +12,8 @@ const expiry=(seconds:number)=>iso(new Date(Date.now()+seconds*1000));
 const unknownFile=()=>notFound('Fichier indisponible');
 
 export class FileService implements FileCatalog{
+  availableFileBytes(){return store.availableFileBytes(this.db.pool);}
+
   private allowed=budget(20);
   constructor(private db:Database,private access:AccessPolicy,private objects:ObjectStore|undefined,private onError:(error:unknown)=>void=()=>{}){}
 

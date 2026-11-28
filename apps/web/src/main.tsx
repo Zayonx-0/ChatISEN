@@ -1,8 +1,7 @@
-import React,{useCallback,useEffect,useRef,useState} from 'react';
+import React,{lazy,Suspense,useCallback,useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './styles.css';
 import {api,ApiError,write} from './api.js';
-import {AdminPanel} from './AdminPanel.js';
 import {Attachment} from './Attachment.js';
 import {Auth} from './Auth.js';
 import {CallPanel} from './CallPanel.js';
@@ -23,7 +22,7 @@ const nameOf=(conversation:Conversation,userId:string)=>conversation.title||conv
 function App(){
   const [user,setUser]=useState<User|null>(null);const [loading,setLoading]=useState(true);const [conversations,setConversations]=useState<Conversation[]>([]);const [selected,setSelected]=useState<Conversation|null>(null);const [messages,setMessages]=useState<Message[]>([]);const [before,setBefore]=useState<string|null>(null);
   const [draft,setDraft]=useState('');const [attached,setAttached]=useState<File|null>(null);const [error,setError]=useState('');const [sendBusy,setSendBusy]=useState(false);const [showList,setShowList]=useState(true);const [unread,setUnread]=useState<Record<string,number>>({});
-  const [showMembers,setShowMembers]=useState(false);const [showAdmin,setShowAdmin]=useState(false);
+  const [showMembers,setShowMembers]=useState(false);
   const cursor=useRef('0');const selection=useRef(0);const selectedId=useRef<string|null>(null);const drafts=useRef<Record<string,string>>({});const pending=useRef<Record<string,Pending>>({});const sending=useRef(false);const picker=useRef<HTMLInputElement>(null);
   const [callMembers,setCallMembers]=useState<Member[]>([]);
   const csrf=user?.csrfToken||'';
@@ -147,7 +146,7 @@ function App(){
   const logout=async()=>{
     try{
       await api('/sessions/current',mutation('DELETE'));
-      reset();pending.current={};drafts.current={};details.current.clear();setDraft('');setError('');setUnread({});setShowAdmin(false);setUser(null);setConversations([]);
+      reset();pending.current={};drafts.current={};details.current.clear();setDraft('');setError('');setUnread({});setUser(null);setConversations([]);
     }catch(e){setError(errorText(e,'Déconnexion impossible.'));}
   };
 
@@ -166,13 +165,12 @@ function App(){
           <button className="ghost" onClick={()=>void rename()}>Mon nom</button>
           {(push.state==='on'||push.state==='off'||push.state==='busy')&&<button className="ghost" disabled={push.state==='busy'} aria-pressed={push.state==='on'} onClick={()=>void (push.state==='on'?push.disable():push.enable())}>{push.state==='on'?'Notifications activées':'Activer les notifications'}</button>}
           {push.state==='denied'&&<span className="push-hint">Notifications bloquées par le navigateur</span>}
-          {user.globalRole==='admin'&&<button className="ghost" onClick={()=>setShowAdmin(true)}>Administration</button>}
+          {user.globalRole==='admin'&&<a className="ghost admin-link" href="/administration">Administration</a>}
           <button className="ghost" onClick={()=>void logout()}>Déconnexion</button>
         </div>
       </header>
       {calls.notice&&<div className="toast" role="status">{calls.notice}</div>}
       {push.error&&<div className="error inline" role="alert">{push.error}</div>}
-      {showAdmin&&<AdminPanel user={user} csrf={csrf} onClose={()=>setShowAdmin(false)}/>}
       <CallPanel calls={calls} peerName={(()=>{const c=conversations.find(x=>x.id===calls.view.conversationId);return c?nameOf(c,user.id):'Correspondant';})()}
         memberName={id=>callMembers.find(m=>m.user.id===id)?.user.displayName??'Participant'}/>
       <div className={`layout ${showList?'show-list':'show-chat'}`}>
@@ -242,4 +240,25 @@ function App(){
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App/>);
+const AdminPanel=lazy(()=>import('./AdminPanel.js'));
+function AdminPage(){
+  const [user,setUser]=useState<User|null>();const [error,setError]=useState('');
+  useEffect(()=>{
+    api<User>('/users/me').then(setUser).catch(e=>{
+      if(!(e instanceof ApiError&&e.status===401))setError(errorText(e,'Service indisponible.'));
+      setUser(null);
+    });
+  },[]);
+  const denied=useCallback((status:number)=>{
+    if(status===401)setUser(null);
+    if(status===403)setUser(old=>old&&{...old,globalRole:'user'});
+  },[]);
+  if(user===undefined)return <main className="empty">Chargement de votre session…</main>;
+  if(!user)return <Auth initialError={error} onAuthenticated={setUser}/>;
+  if(user.globalRole!=='admin')return <main className="auth"><section className="card">
+    <h1>Administration</h1><p>Accès réservé aux administrateurs.</p><a href="/">Retour à la messagerie</a>
+  </section></main>;
+  return <Suspense fallback={<main className="empty">Chargement de la console…</main>}><AdminPanel user={user} onDenied={denied}/></Suspense>;
+}
+
+createRoot(document.getElementById('root')!).render(location.pathname==='/administration'?<AdminPage/>:<App/>);

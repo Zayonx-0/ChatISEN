@@ -6,7 +6,7 @@ import {newToken,tokenHash} from '../../platform/security.js';
 import {hashPassword,isLegacyHash,verifyPassword} from './adapters/out/passwords.js';
 import * as store from './adapters/out/store.js';
 import type {GlobalRole} from './domain.js';
-import type {AuditEntry,AuditTrail,UserDirectory} from './ports.js';
+import type {AuditEntry,AuditFilter,AuditTrail,UserDirectory} from './ports.js';
 
 export const sessionHours=24;
 const badCredentials=()=>new Failure('unauthorized','Identifiants invalides');
@@ -30,7 +30,9 @@ export class IdentityService implements SessionVerifier,UserDirectory,AuditTrail
     if(isLegacyHash(found.passwordHash))await store.setPasswordHash(this.db.pool,found.user.id,await hashPassword(password));
     return {user:found.user,token:await this.openSession(found.user.id)};
   }
-  private async openSession(userId:string){const token=newToken();await store.insertSession(this.db.pool,userId,tokenHash(token),sessionHours);return token;}
+  private async openSession(userId:string){
+    const token=newToken();if(!await store.insertSession(this.db.pool,userId,tokenHash(token),sessionHours))throw badCredentials();return token;
+  }
 
   async verify(token:string):Promise<Identity|undefined>{
     const found=await store.sessionByHash(this.db.pool,tokenHash(token));
@@ -48,25 +50,47 @@ export class IdentityService implements SessionVerifier,UserDirectory,AuditTrail
   rename(userId:string,name:string){return store.renameUser(this.db.pool,userId,name);}
 
   record(db:Queryable,entry:AuditEntry){return store.insertAudit(db,entry);}
-  async auditTrail(actor:SessionUser,limit:number,beforeId?:string){
+  async auditTrail(actor:SessionUser,limit:number,filter:AuditFilter){
     this.requireAdmin(actor);
-    return store.auditEntries(this.db.pool,limit,beforeId);
+    return store.auditEntries(this.db.pool,limit,filter);
   }
-  private requireAdmin(actor:SessionUser){if(actor.globalRole!=='admin')throw forbidden('Réservé à l’administrateur');}
+  accountCounts(){return store.accountCounts(this.db.pool);}
+  async adminUsers(actor:SessionUser,limit:number,query:string,cursor?:string){
+    this.requireAdmin(actor);
+    const items=await store.adminUsers(this.db.pool,limit+1,query,cursor);
+    const more=items.length>limit;
+    if(more)items.pop();
+    return {items,nextCursor:more?items[items.length-1].handle:null};
+  }
+  requireAdmin(actor:SessionUser){if(actor.globalRole!=='admin')throw forbidden('Réservé à l’administrateur');}
+  async requireAdminSession(db:Queryable,actor:Identity){
+    const found=await store.sessionByHash(db,tokenHash(actor.token),true);
+    if(!found)throw new Failure('unauthorized','Authentification requise');
+    this.requireAdmin(found.user);
+  }
+  async confirmAdminPassword(actor:SessionUser,password:string){
+    this.requireAdmin(actor);
+    const record=await store.credentials(this.db.pool,actor.handle);
+    if(!record||record.disabled||record.user.id!==actor.id||!await verifyPassword(record.passwordHash,password))
+      throw new Failure('forbidden','Mot de passe incorrect','PASSWORD_MISMATCH');
+  }
 
   /** Changer le rôle global ou désactiver un compte. L'administrateur ne lit aucune conversation. */
-  async administer(actor:SessionUser,targetId:string,change:{globalRole?:GlobalRole;disabled?:boolean}){
-    this.requireAdmin(actor);
-    if(actor.id===targetId)throw conflict('Un administrateur ne modifie pas son propre compte');
+  async administer(actor:Identity,targetId:string,change:{globalRole?:GlobalRole;disabled?:boolean;revokeSessions?:true}){
+    this.requireAdmin(actor.user);
     const {revoked,user}=await this.db.transaction(async tx=>{
-      if(!await store.userById(tx,targetId))throw notFound('Utilisateur indisponible');
+      // Sérialise le contrôle du dernier administrateur, même lorsque les cibles diffèrent.
+      await tx.query("select pg_advisory_xact_lock(hashtext('chatisen:administer-users'))");
+      await this.requireAdminSession(tx,actor);
+      const target=await store.userById(tx,targetId,true);
+      if(!target)throw notFound('Utilisateur indisponible');
+      if(target.user.globalRole==='admin'&&!target.disabled&&(change.globalRole==='user'||change.disabled===true)
+        &&!await store.hasOtherActiveAdmin(tx,targetId))throw conflict('Le dernier administrateur actif doit être conservé','LAST_ADMIN');
+      if(actor.user.id===targetId&&change.disabled===true)throw conflict('Un administrateur ne peut pas se désactiver','SELF_ADMINISTRATION');
       if(change.globalRole!==undefined)await store.setRole(tx,targetId,change.globalRole);
-      let revoked:string[]=[];
-      if(change.disabled!==undefined){
-        await store.setDisabled(tx,targetId,change.disabled);
-        if(change.disabled)revoked=await store.revokeUserSessions(tx,targetId);
-      }
-      await store.insertAudit(tx,{actorId:actor.id,action:'user.administered',targetType:'user',targetId,detail:change});
+      if(change.disabled!==undefined)await store.setDisabled(tx,targetId,change.disabled);
+      const revoked=change.disabled||change.revokeSessions?await store.revokeUserSessions(tx,targetId):[];
+      await store.insertAudit(tx,{actorId:actor.user.id,action:'user.administered',targetType:'user',targetId,detail:change});
       return {revoked,user:(await store.userById(tx,targetId))!.user};
     });
     for(const sessionId of revoked)await this.hooks.revoked(sessionId);

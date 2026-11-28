@@ -1,4 +1,4 @@
-# Supervision : Prometheus et Grafana (flux T17), accès par IAP seulement (T16).
+# Supervision : collecte T17, Grafana par IAP (T16), Prometheus privé (FW7).
 project=$(meta project/project-id)
 
 install -d -m 755 /opt/chatisen/monitoring /opt/chatisen/monitoring/provisioning/datasources \
@@ -26,6 +26,8 @@ rule_files: [/etc/prometheus/alerts.yml]
 scrape_configs:
   - job_name: prometheus
     static_configs: [{targets: ["localhost:9090"]}]
+  - job_name: noeud-ops
+    static_configs: [{targets: ["@@CHATISEN_OPS_IP@@:9100"], labels: {instance: chatisen-ops}}]
 EOF
   job api app 9091
   job noeud-app app 9100
@@ -73,7 +75,15 @@ services:
       - /opt/chatisen/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus:/prometheus
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
-    ports: ["127.0.0.1:9090:9090"]
+    ports: ["127.0.0.1:9090:9090", "@@CHATISEN_OPS_IP@@:9090:9090"]
+  node-exporter:
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+    image: prom/node-exporter:v1.8.2
+    network_mode: host
+    pid: host
+    restart: always
+    volumes: ["/:/host:ro,rslave"]
+    command: ["--path.rootfs=/host", "--web.listen-address=@@CHATISEN_OPS_IP@@:9100"]
   grafana:
     logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
     image: grafana/grafana:12.0.0

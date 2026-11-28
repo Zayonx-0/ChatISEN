@@ -41,7 +41,7 @@ test('identity: accounts, sessions, profile, search, administration and audit',a
     assert.equal((await h.call(alice,'PATCH',`/users/${bob.id}`,{disabled:true})).statusCode,403);
     assert.equal((await h.call(alice,'GET','/audit-events')).statusCode,403);
     await h.pool.query("update identity.users set global_role='admin' where id=$1",[root.id]);
-    assert.equal((await h.call(root,'PATCH',`/users/${root.id}`,{globalRole:'user'})).statusCode,409);
+    assert.equal((await h.call(root,'PATCH',`/users/${root.id}`,{disabled:true})).statusCode,409);
     assert.equal((await h.call(root,'PATCH',`/users/${randomUUID()}`,{disabled:true})).statusCode,404);
     assert.equal((await h.call(root,'PATCH',`/users/${bob.id}`,{})).statusCode,400);
     const conversation=await h.direct(alice,bob);

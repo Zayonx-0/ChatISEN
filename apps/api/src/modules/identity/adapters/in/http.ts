@@ -3,7 +3,7 @@ import {guards,identityOf,requireOrigin,type SessionUser} from '../../../../plat
 import {invalid,notFound} from '../../../../platform/errors.js';
 import {cookieName,csrfFor} from '../../../../platform/security.js';
 import {body,isUuid,pageLimit} from '../../../../platform/validation.js';
-import {displayName,handle,password} from '../../domain.js';
+import {displayName,handle,handlePattern,password} from '../../domain.js';
 import {sessionHours,type IdentityService} from '../../application.js';
 
 const profile=(user:SessionUser,token:string)=>({id:user.id,handle:user.handle,displayName:user.displayName,createdAt:user.createdAt,csrfToken:csrfFor(token),globalRole:user.globalRole});
@@ -48,16 +48,31 @@ export async function registerIdentityRoutes(app:FastifyInstance,identity:Identi
     return {items:await identity.search(query.q.trim(),pageLimit(query.limit))};
   });
   app.patch('/api/v1/users/:userId',{preHandler:mutation},async(request)=>{
+    const actor=identityOf(request);identity.requireAdmin(actor.user);
     const {userId}=request.params as {userId:string};
     if(!isUuid(userId))throw notFound('Utilisateur indisponible');
-    const input=body(request.body,[],['globalRole','disabled']);
-    if(!Object.keys(input).length||(input.globalRole!==undefined&&input.globalRole!=='user'&&input.globalRole!=='admin')||(input.disabled!==undefined&&typeof input.disabled!=='boolean'))throw invalid('Modification invalide');
-    return identity.administer(identityOf(request).user,userId.toLowerCase(),input as {globalRole?:'user'|'admin';disabled?:boolean});
+    const input=body(request.body,[],['globalRole','disabled','revokeSessions']);
+    if(!Object.keys(input).length||(input.globalRole!==undefined&&input.globalRole!=='user'&&input.globalRole!=='admin')||
+      (input.disabled!==undefined&&typeof input.disabled!=='boolean')||(input.revokeSessions!==undefined&&input.revokeSessions!==true))throw invalid('Modification invalide');
+    return identity.administer(actor,userId.toLowerCase(),input as {globalRole?:'user'|'admin';disabled?:boolean;revokeSessions?:true});
   });
-  app.get('/api/v1/audit-events',{preHandler:authenticate},async(request)=>{
-    const query=request.query as {limit?:unknown;beforeId?:unknown};
-    if(query.beforeId!==undefined&&(typeof query.beforeId!=='string'||!/^[1-9][0-9]{0,17}$/.test(query.beforeId)))throw invalid('Pagination invalide');
-    const limit=pageLimit(query.limit),items=await identity.auditTrail(identityOf(request).user,limit,query.beforeId as string|undefined);
-    return {items,nextBeforeId:items.length===limit?items[items.length-1].id:null};
+  app.get('/api/v1/admin/users',{preHandler:authenticate},async(request,reply)=>{
+    const actor=identityOf(request).user;identity.requireAdmin(actor);
+    const {q='',cursor,limit}=request.query as {q?:unknown;cursor?:unknown;limit?:unknown};
+    if(typeof q!=='string'||q.length>80||(cursor!==undefined&&(typeof cursor!=='string'||!handlePattern.test(cursor))))throw invalid('Recherche ou pagination invalide');
+    reply.header('Cache-Control','no-store');
+    return identity.adminUsers(actor,pageLimit(limit),q.trim(),cursor);
+  });
+  app.get('/api/v1/audit-events',{preHandler:authenticate},async(request,reply)=>{
+    const actor=identityOf(request).user;identity.requireAdmin(actor);
+    const {beforeId,action,targetType,limit:requestedLimit}=request.query as Record<string,unknown>;
+    if(beforeId!==undefined&&(typeof beforeId!=='string'||!/^[1-9][0-9]{0,17}$/.test(beforeId)))throw invalid('Pagination invalide');
+    if(action!==undefined&&(typeof action!=='string'||!/^[a-z][a-z0-9_.-]{2,63}$/.test(action)))throw invalid('Action invalide');
+    if(targetType!==undefined&&targetType!=='user'&&targetType!=='conversation'&&targetType!=='server')throw invalid('Type de cible invalide');
+    const limit=pageLimit(requestedLimit),items=await identity.auditTrail(actor,limit+1,{beforeId,action,targetType});
+    const more=items.length>limit;
+    if(more)items.pop();
+    reply.header('Cache-Control','no-store');
+    return {items,nextBeforeId:more?items[items.length-1].id:null};
   });
 }

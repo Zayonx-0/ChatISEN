@@ -17,6 +17,7 @@ export const allowed={
   messaging:['groups','files'],
   quality:['calls'],
   notifications:['groups','identity'],
+  operations:['identity'],
 };
 const schemas=[...Object.keys(allowed),'realtime'];
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../apps/api/src');

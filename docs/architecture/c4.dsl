@@ -203,6 +203,9 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
                     modQuality = component "quality · V2" "Mesures getStats(), indicateurs et export pour l’étude." "Module" {
                         tags "Cible"
                     }
+                    modOperations = component "operations · lot D" "Vue webmaster, Prometheus privé, audit et redémarrages bornés." "Module" {
+                        tags "Cible"
+                    }
                     kernel = component "Noyau partagé" "Journal numéroté, outbox, pool SQL, logs et métriques. Aucune règle métier." "platform/"
                 }
             }
@@ -234,11 +237,15 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
         targetGh -> targetCloud "T19 · CD commande migration et mise à jour" "API GCP / WIF"
         targetCloud -> target "T19 · Déploie les modèles d’instance"
         target -> targetPush "T14 · Remet un Push chiffré"
-        targetClient -> targetLb "T02 · Charge et utilise l’application" "HTTPS / WSS 443"
+        targetClient -> targetLb "T02 · Chat et appels ; T23 · console admin" "HTTPS / WSS 443"
         targetLb -> targetEdge "T03 · Répartit vers les VM saines" "HTTPS 8443"
         targetEdge -> targetClient "T04 · Renvoie le build et sw.js" "HTML/CSS/JS"
-        targetEdge -> targetApi "T05/T06 · Vérifie la session puis relaie REST et WebSocket" "réseau Docker"
+        targetEdge -> targetApi "T05/T06/T23 · Vérifie la session puis relaie REST et WebSocket" "réseau Docker"
         targetApi -> targetSql "T07/T09 · Lit et écrit" "SQL, mTLS"
+        targetApi -> targetMonitoring "T24 · Prometheus privé" "TCP 9090 / FW7"
+        targetApi -> targetCloud "T25 · Reset borné et sauvegarde" "HTTPS 443 / IAM"
+        targetApi -> targetLb "T26 · Échéance du certificat web" "TLS 443"
+        targetApi -> targetTurn "T26 · Échéance du certificat TURN" "TLS 5349"
         targetApi -> targetPush "T14 · Envoie via VAPID" "HTTPS 443"
         targetPush -> targetClient "T15 · Réveille le service worker" "Web Push"
         targetClient -> targetClient "T11 · Média direct entre les deux navigateurs" "WebRTC / DTLS-SRTP"
@@ -266,6 +273,7 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
         gatewayRest -> modMessaging "Messages et historique"
         gatewayRest -> modCalls "Appels et signaux"
         gatewayRest -> modNotifications "Abonnements Push"
+        gatewayRest -> modOperations "T23 · Vue webmaster, redémarrage"
         modGroups -> modIdentity "Importe l’annuaire"
         modMessaging -> modGroups "Contrôle le droit"
         modMessaging -> modFiles "V2 · Vérifie le fichier"
@@ -274,6 +282,7 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
         modQuality -> modCalls "V2 · Lit l’appel"
         modNotifications -> modGroups "Destinataires"
         modNotifications -> modIdentity "Sessions actives"
+        modOperations -> modIdentity "Rôle, mot de passe et audit"
         modMessaging -> kernel "T07 · Écrit journal et outbox"
         modNotifications -> kernel "Lit l’outbox"
         gatewayWs -> kernel "T08 · Relit le journal"
@@ -341,7 +350,7 @@ workspace "ChatISEN" "Conception cible du 26 novembre 2026 · inventaire de la d
         }
         component targetApi "03-composants-api" "Modules du monolithe, adaptateurs et noyau partagé." {
             title "03 · Composants — modules de l’API"
-            include targetEdge gatewayRest gatewayWs modIdentity modGroups modMessaging modCalls modNotifications modFiles modQuality kernel targetSql
+            include targetEdge gatewayRest gatewayWs modIdentity modGroups modMessaging modCalls modNotifications modFiles modQuality modOperations kernel targetSql
             autoLayout tb
         }
         styles {

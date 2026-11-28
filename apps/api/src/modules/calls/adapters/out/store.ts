@@ -85,3 +85,7 @@ export async function finishMediaJob(tx:Tx,id:string,error:string|null,attempts:
   if(!error)await tx.query("update calls.media_jobs set state='done',completed_at=now(),attempts=$2 where id=$1",[id,attempts]);
   else await tx.query("update calls.media_jobs set state=(case when $2>=8 then 'failed' else 'pending' end)::calls.media_job_state,attempts=$2,last_error=$3,run_after=now()+make_interval(secs=>$2*5) where id=$1",[id,attempts,error.slice(0,500)]);
 }
+export async function activeCallCount(db:Queryable){
+  const {rows:[row]}=await db.query("select count(*) as total from calls.calls where state='active'");
+  return Number(row.total);
+}

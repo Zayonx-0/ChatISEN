@@ -16,11 +16,13 @@ import {MessageService,registerMessageRoutes} from './modules/messaging/index.js
 import {CallService,livekitFromEnv,registerCallRoutes,type MediaServer} from './modules/calls/index.js';
 import {QualityService,registerQualityRoutes} from './modules/quality/index.js';
 import {NotificationService,registerNotificationRoutes,webPushFromEnv,type PushConfig} from './modules/notifications/index.js';
+import {OperationsService,operationsFromEnv,registerOperationsRoutes,type OperationsOptions} from './modules/operations/index.js';
 
 export type AppOptions={
   databaseUrl:string;
   /** Adaptateurs sortants. Absents de l'objet : lus dans l'environnement. */
   push?:PushConfig;media?:MediaServer;objects?:ObjectStore;
+  operations?:OperationsOptions;
   /** Faux dans les tests qui déclenchent eux-mêmes les traitements de fond. */
   background?:boolean;
   logger?:boolean;
@@ -65,6 +67,18 @@ export async function buildApp(options:AppOptions){
   const calls=new CallService(db,groups,identity,setting('media',()=>livekitFromEnv()));
   const quality=new QualityService(db,calls);
   const notifications=new NotificationService(db,groups,identity,identity,setting('push',()=>webPushFromEnv()),(message,error)=>app.log.warn({err:error},message));
+  const operations=new OperationsService(db,identity,{
+    accounts:()=>identity.accountCounts(),conversations:()=>groups.conversationCount(),dailyMessages:()=>messages.dailyMessageCounts(),
+    activeCalls:()=>calls.activeCallCount(),fileBytes:()=>files.availableFileBytes(),database:()=>db.ping(),
+  },options.operations??operationsFromEnv());
+  if(operations.enabled&&(options.background??true)){
+    let pending:Promise<void>|undefined;
+    const timer=setInterval(()=>{
+      pending??=operations.reconcile().catch(report('Vérification du redémarrage impossible')).finally(()=>{pending=undefined;});
+    },15_000);
+    timer.unref();
+    app.addHook('onClose',async()=>{clearInterval(timer);await pending;});
+  }
   hooks.onRevoked(sessionId=>notifications.forgetSession(sessionId));
   hooks.onRevoked(sessionId=>calls.endForSession(sessionId));
 
@@ -75,6 +89,7 @@ export async function buildApp(options:AppOptions){
   await registerCallRoutes(app,calls,identity,db,{background:options.background??true});
   await registerQualityRoutes(app,quality,identity);
   await registerNotificationRoutes(app,notifications,identity,db,{background:options.background??true});
+  await registerOperationsRoutes(app,operations,identity);
   await registerWebsocket(app,db,identity,{canRead:async(conversationId,userId)=>Boolean(await groups.membership(conversationId,userId))},
     event=>event.event==='message.created');
 
@@ -85,5 +100,5 @@ export async function buildApp(options:AppOptions){
     catch{return reply.code(503).send({status:'unavailable',database:'postgres'});}
   });
   if(options.metricsRoute)app.get('/metrics',async(_request,reply)=>{reply.header('Content-Type',registry.contentType);return collectMetrics(db.pool);});
-  return {app,db,routes,services:{identity,groups,files,messages,calls,quality,notifications,sweepFiles}};
+  return {app,db,routes,services:{identity,groups,files,messages,calls,quality,notifications,operations,sweepFiles}};
 }

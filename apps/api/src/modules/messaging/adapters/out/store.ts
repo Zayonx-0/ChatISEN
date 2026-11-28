@@ -24,3 +24,12 @@ export async function latest(db:Queryable,conversationId:string,limit:number,bef
 export async function referencesFile(db:Queryable,id:string){
   return Boolean((await db.query('select 1 from messaging.messages where file_id=$1',[id])).rowCount);
 }
+export async function dailyMessageCounts(db:Queryable):Promise<{day:string;count:number}[]>{
+  const {rows}=await db.query(`with today as (select (now() at time zone 'UTC')::date as day),
+    counts as (select (created_at at time zone 'UTC')::date as day,count(*) as total
+      from messaging.messages where created_at>=((select day-6 from today)::timestamp at time zone 'UTC') group by 1)
+    select to_char(today.day-offsets.n,'YYYY-MM-DD') as day,coalesce(total,0) as total
+    from today cross join generate_series(6,0,-1) as offsets(n)
+    left join counts on counts.day=today.day-offsets.n order by today.day-offsets.n`);
+  return rows.map(row=>({day:row.day,count:Number(row.total)}));
+}

@@ -1,7 +1,7 @@
 import {iso,type Queryable} from '../../../../platform/db.js';
 import type {SessionUser} from '../../../../platform/http.js';
 import type {GlobalRole} from '../../domain.js';
-import type {AuditEntry,PublicUser} from '../../ports.js';
+import type {AuditEntry,AuditFilter,PublicUser} from '../../ports.js';
 
 const columns='id,handle,display_name,global_role,created_at';
 type UserRow={id:string;handle:string;display_name:string;global_role:GlobalRole;created_at:Date};
@@ -15,9 +15,27 @@ export async function credentials(db:Queryable,handle:string){
   const row=(await db.query(`select ${columns},password_hash,disabled_at from identity.users where handle=$1`,[handle])).rows[0];
   return row?{user:toUser(row),passwordHash:row.password_hash as string,disabled:Boolean(row.disabled_at)}:undefined;
 }
-export async function userById(db:Queryable,id:string){
-  const row=(await db.query(`select ${columns},disabled_at from identity.users where id=$1`,[id])).rows[0];
+export async function userById(db:Queryable,id:string,lock=false){
+  const row=(await db.query(`select ${columns},disabled_at from identity.users where id=$1${lock?' for update':''}`,[id])).rows[0];
   return row?{user:toUser(row),disabled:Boolean(row.disabled_at)}:undefined;
+}
+export async function accountCounts(db:Queryable){
+  const {rows:[row]}=await db.query(`select count(*) as total,count(*) filter(where disabled_at is null) as active from identity.users`);
+  const total=Number(row.total),active=Number(row.active);
+  return {total,active,disabled:total-active};
+}
+export async function adminUsers(db:Queryable,limit:number,query:string,cursor?:string){
+  const escaped=query.replace(/[\\%_]/g,'\\$&');
+  const {rows}=await db.query(`select u.id,u.handle,u.display_name,u.global_role,u.created_at,u.disabled_at,
+    case when u.disabled_at is null then (select count(*) from identity.sessions s where s.user_id=u.id
+      and s.revoked_at is null and s.expires_at>now()) else 0 end as active_sessions
+    from identity.users u where ($3::text is null or u.handle>$3)
+      and (u.handle like '%'||lower($2)||'%' or u.display_name ilike '%'||$2||'%') order by u.handle limit $1`,[limit,escaped,cursor??null]);
+  return rows.map(row=>({...toUser(row),disabled:Boolean(row.disabled_at),activeSessions:Number(row.active_sessions)}));
+}
+export async function hasOtherActiveAdmin(db:Queryable,id:string){
+  const {rows:[row]}=await db.query(`select exists(select 1 from identity.users where id<>$1 and global_role='admin' and disabled_at is null) as found`,[id]);
+  return Boolean(row.found);
 }
 export async function publicUsers(db:Queryable,ids:string[]){
   const rows=(await db.query('select id,handle,display_name from identity.users where id=any($1::uuid[])',[ids])).rows;
@@ -42,13 +60,15 @@ export async function setDisabled(db:Queryable,id:string,disabled:boolean){
 export async function setPasswordHash(db:Queryable,id:string,hash:string){await db.query('update identity.users set password_hash=$2 where id=$1',[id,hash]);}
 
 export async function insertSession(db:Queryable,userId:string,hash:Buffer,hours:number){
-  await db.query(`insert into identity.sessions(user_id,token_hash,expires_at,absolute_expires_at)
-    values($1,$2,now()+make_interval(hours=>$3),now()+make_interval(hours=>$3))`,[userId,hash,hours]);
+  const result=await db.query(`insert into identity.sessions(user_id,token_hash,expires_at,absolute_expires_at)
+    select id,$2,now()+make_interval(hours=>$3),now()+make_interval(hours=>$3)
+    from (select id from identity.users where id=$1 and disabled_at is null for share) enabled`,[userId,hash,hours]);
+  return result.rowCount===1;
 }
-export async function sessionByHash(db:Queryable,hash:Buffer){
+export async function sessionByHash(db:Queryable,hash:Buffer,lock=false){
   const row=(await db.query(`select s.id as session_id,s.expires_at,u.id,u.handle,u.display_name,u.global_role,u.created_at
     from identity.sessions s join identity.users u on u.id=s.user_id
-    where s.token_hash=$1 and s.revoked_at is null and s.expires_at>now() and u.disabled_at is null`,[hash])).rows[0];
+    where s.token_hash=$1 and s.revoked_at is null and s.expires_at>clock_timestamp() and u.disabled_at is null${lock?' for share of u,s':''}`,[hash])).rows[0];
   return row?{user:toUser(row),session:{id:row.session_id as string,expiresAt:iso(row.expires_at)}}:undefined;
 }
 export async function activeSessions(db:Queryable,ids:string[]){
@@ -65,8 +85,9 @@ export async function insertAudit(db:Queryable,entry:AuditEntry){
   await db.query('insert into identity.audit_log(actor_id,action,target_type,target_id,detail) values($1,$2,$3,$4,$5::jsonb)',
     [entry.actorId,entry.action,entry.targetType,entry.targetId,JSON.stringify(entry.detail??{})]);
 }
-export async function auditEntries(db:Queryable,limit:number,beforeId?:string){
+export async function auditEntries(db:Queryable,limit:number,filter:AuditFilter){
   const rows=(await db.query(`select id,actor_id,action,target_type,target_id,detail,occurred_at from identity.audit_log
-    where $2::bigint is null or id<$2::bigint order by id desc limit $1`,[limit,beforeId??null])).rows;
+    where ($2::bigint is null or id<$2::bigint) and ($3::text is null or action=$3) and ($4::text is null or target_type=$4)
+    order by id desc limit $1`,[limit,filter.beforeId??null,filter.action??null,filter.targetType??null])).rows;
   return rows.map(row=>({id:String(row.id),actorId:row.actor_id,action:row.action,targetType:row.target_type,targetId:row.target_id,detail:row.detail,at:iso(row.occurred_at)}));
 }

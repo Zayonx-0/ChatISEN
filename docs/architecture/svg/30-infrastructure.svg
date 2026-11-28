@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1460" viewBox="0 0 2200 1460" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1488" viewBox="0 0 2200 1488" role="img" aria-labelledby="title">
 <title id="title">ChatISEN · Infrastructure et déploiement</title>
 <defs><marker id="web-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#1f56c9"/></marker><marker id="media-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#0b7a83"/></marker><marker id="data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#146c43"/></marker><marker id="ops-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#a8470c"/></marker><marker id="admin-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#6d31a3"/></marker><marker id="push-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#a82f63"/></marker></defs>
 <style>
@@ -16,7 +16,7 @@ text { font-family: Arial, Helvetica, "Liberation Sans", sans-serif; fill:#13263
 .badge { font-size:12.5px; font-weight:700; fill:#ffffff; }
 text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fill:#a8470c}text.admin{fill:#6d31a3}text.push{fill:#a82f63}
 </style>
-<rect x="0" y="0" width="2200" height="1460" rx="0" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
+<rect x="0" y="0" width="2200" height="1488" rx="0" fill="#f6f8fc" stroke="none" stroke-width="1.2"/>
 <text x="30" y="56" class="title" text-anchor="start">Infrastructure et déploiement · cible GCP</text>
 <text x="32" y="86" class="subtitle" text-anchor="start">Machines, conteneurs, réseau, services managés et chaîne TLS. Orange pointillé : brique prévue en V2.</text>
 <rect x="374" y="120" width="1798" height="1050" rx="18" fill="#f1ecfb" stroke="#9a7fd1" stroke-width="1.8"/>
@@ -55,7 +55,7 @@ text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fi
 <rect x="1190" y="740" width="150" height="226" rx="10" fill="#fff9ee" stroke="#c08a2e" stroke-width="1.5" stroke-dasharray="8 5"/><g aria-hidden="true" transform="translate(1202 751) scale(1.0833333333333333)"><g fill="none" stroke="#0b7a83" stroke-width="1.700" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><path d="m5.500 6.500 4 3.500m9-3.500-4 3.500m-9 7.500 4-3.500m9 3.500-4-3.500"/></g></g><text x="1238" y="769" class="card" text-anchor="start">SFU B · V2</text><text x="1203" y="795" class="micro" text-anchor="start">VM · zone b</text><text x="1203" y="816" class="micro" text-anchor="start">LiveKit</text><text x="1203" y="837" class="micro" text-anchor="start">conférences</text><text x="1203" y="858" class="micro" text-anchor="start">UDP 7882</text><text x="1203" y="879" class="micro" text-anchor="start">TCP 7881</text><text x="1203" y="900" class="micro" text-anchor="start">API 7880</text><text x="1203" y="921" class="micro" text-anchor="start">métr. 6789</text>
 <rect x="1370" y="700" width="335" height="282" rx="12" fill="#fbefe6" stroke="#c9936b" stroke-width="1.2"/>
 <text x="1384" y="724" class="section" text-anchor="start">SOUS-RÉSEAU OPS 10.40.30.0/24</text>
-<rect x="1384" y="740" width="307" height="226" rx="10" fill="#ffffff" stroke="#c3d0e0" stroke-width="1.2"/><g aria-hidden="true" transform="translate(1396 751) scale(1.0833333333333333)"><g fill="none" stroke="#a8470c" stroke-width="1.700" stroke-linejoin="round" stroke-linecap="round"><path d="M4 4v16h16M8 16v-5m4 5V8m4 8v-3"/></g></g><text x="1432" y="769" class="card" text-anchor="start">VM supervision</text><text x="1397" y="795" class="micro" text-anchor="start">Docker Compose</text><text x="1397" y="816" class="micro" text-anchor="start">Prometheus : collecte les VM</text><text x="1397" y="837" class="micro" text-anchor="start" xml:space="preserve">  toutes les 15 s</text><text x="1397" y="858" class="micro" text-anchor="start">Grafana :3000, via IAP seul</text><text x="1397" y="879" class="micro" text-anchor="start">tableaux et alertes</text><text x="1397" y="900" class="micro" text-anchor="start">(déjà configurés dans le</text><text x="1397" y="921" class="micro" text-anchor="start">Compose du dépôt)</text>
+<rect x="1384" y="740" width="307" height="226" rx="10" fill="#ffffff" stroke="#c3d0e0" stroke-width="1.2"/><g aria-hidden="true" transform="translate(1396 751) scale(1.0833333333333333)"><g fill="none" stroke="#a8470c" stroke-width="1.700" stroke-linejoin="round" stroke-linecap="round"><path d="M4 4v16h16M8 16v-5m4 5V8m4 8v-3"/></g></g><text x="1432" y="769" class="card" text-anchor="start">VM supervision</text><text x="1397" y="795" class="micro" text-anchor="start">Docker Compose</text><text x="1397" y="816" class="micro" text-anchor="start">Prometheus : collecte les VM</text><text x="1397" y="837" class="micro" text-anchor="start" xml:space="preserve">  toutes les 15 s</text><text x="1397" y="858" class="micro" text-anchor="start">TCP 9090 privé (FW7)</text><text x="1397" y="879" class="micro" text-anchor="start">Grafana :3000, via IAP seul</text><text x="1397" y="900" class="micro" text-anchor="start">node-exporter local</text><text x="1397" y="921" class="micro" text-anchor="start">tableaux et alertes</text>
 <rect x="720" y="1010" width="300" height="108" rx="10" fill="#ffffff" stroke="#c3d0e0" stroke-width="1.2"/><g aria-hidden="true" transform="translate(732 1021) scale(1.0833333333333333)"><g fill="none" stroke="#a8470c" stroke-width="1.700" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="M11 12h10m-3.500-3.500L21 12l-3.500 3.500"/></g></g><text x="768" y="1039" class="card" text-anchor="start">Cloud NAT</text><text x="733" y="1065" class="micro" text-anchor="start">sortie Internet des VM sans IP</text><text x="733" y="1086" class="micro" text-anchor="start">publique : Web Push, mises à jour</text>
 <rect x="1032" y="1010" width="323" height="108" rx="10" fill="#ffffff" stroke="#c3d0e0" stroke-width="1.2"/><g aria-hidden="true" transform="translate(1044 1021) scale(1.0833333333333333)"><g fill="none" stroke="#146c43" stroke-width="1.700" stroke-linejoin="round" stroke-linecap="round"><circle cx="8" cy="14" r="4.5"/><path d="m11.500 11 8-8m-3 3 3 3m-6 0 2 2"/></g></g><text x="1080" y="1039" class="card" text-anchor="start">Private Service Access</text><text x="1045" y="1065" class="micro" text-anchor="start">plage réservée 10.40.32.0/20</text><text x="1045" y="1086" class="micro" text-anchor="start">Cloud SQL et Redis en IP privée</text>
 <text x="1760" y="198" class="zone" text-anchor="start">SERVICES MANAGÉS GCP</text>
@@ -76,6 +76,7 @@ text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fi
 <path class="flow" d="M650 652H705" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)"/>
 <path class="flow" d="M1676 576H1732V290H1760" fill="none" stroke="#146c43" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#data-arrow)" marker-start="url(#data-arrow)"/>
 <path class="flow" d="M1660 740V692H960V670" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)" stroke-dasharray="7 5"/>
+<path class="flow" d="M1669 670V740" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)"/>
 <path class="flow" d="M1600 692V670" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)" stroke-dasharray="7 5"/>
 <path class="flow" d="M1384 852H1340" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)" stroke-dasharray="7 5"/>
 <path class="flow" d="M330 1106H352V1156H1744V848H1760" fill="none" stroke="#a8470c" stroke-width="2.300" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ops-arrow)"/>
@@ -86,9 +87,10 @@ text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fi
 <rect x="1019.0" y="240.5" width="82" height="23" rx="6" fill="#ffffff" stroke="#1f56c9" stroke-width="1.2" class="flow-label"/><text x="1060" y="256.5" class="id web" text-anchor="middle">HTTPS 8443</text>
 <rect x="1715.0" y="408.5" width="34" height="23" rx="6" fill="#ffffff" stroke="#146c43" stroke-width="1.2" class="flow-label"/><text x="1732" y="424.5" class="id data" text-anchor="middle">SQL</text>
 <rect x="1100.0" y="680.5" width="160" height="23" rx="6" fill="#ffffff" stroke="#a8470c" stroke-width="1.2" class="flow-label"/><text x="1180" y="696.5" class="id ops" text-anchor="middle">collecte des métriques</text>
+<rect x="1652.0" y="698.5" width="44" height="23" rx="6" fill="#ffffff" stroke="#a8470c" stroke-width="1.2" class="flow-label"/><text x="1674" y="714.5" class="id ops" text-anchor="middle">FW7</text>
 <rect x="730.0" y="1144.5" width="340" height="23" rx="6" fill="#ffffff" stroke="#a8470c" stroke-width="1.2" class="flow-label"/><text x="900" y="1160.5" class="id ops" text-anchor="middle">images (CI) · migration et mise à jour du MIG (CD)</text>
 <rect x="1721.0" y="708.5" width="34" height="23" rx="6" fill="#ffffff" stroke="#a8470c" stroke-width="1.2" class="flow-label"/><text x="1738" y="724.5" class="id ops" text-anchor="middle">pull</text>
-<rect x="30" y="1190" width="1060" height="250" rx="12" fill="#ffffff" stroke="#b42318" stroke-width="1.6"/>
+<rect x="30" y="1190" width="1060" height="278" rx="12" fill="#ffffff" stroke="#b42318" stroke-width="1.6"/>
 <text x="48" y="1218" class="zone" text-anchor="start">PARE-FEU DU VPC</text>
 <text x="48" y="1248" class="mono" text-anchor="start">FW1</text>
 <text x="140" y="1248" class="small" text-anchor="start">proxys et sondes GCP 35.191.0.0/16, 130.211.0.0/22 → VM app</text>
@@ -108,9 +110,12 @@ text.web{fill:#1f56c9}text.media{fill:#0b7a83}text.data{fill:#146c43}text.ops{fi
 <text x="48" y="1388" class="mono" text-anchor="start">FW6 · V2</text>
 <text x="140" y="1388" class="small" text-anchor="start">Internet → SFU (média) ; sous-réseau app → SFU (API)</text>
 <text x="852" y="1388" class="small" text-anchor="start">UDP 7882 · TCP 7881, 7880</text>
-<text x="48" y="1416" class="mono" text-anchor="start">refus</text>
-<text x="140" y="1416" class="small" text-anchor="start">tout autre entrant : ni SSH public, ni 5432, ni 3000 de l’API, ni 9090</text>
-<text x="852" y="1416" class="small" text-anchor="start">bloqué</text>
+<text x="48" y="1416" class="mono" text-anchor="start">FW7</text>
+<text x="140" y="1416" class="small" text-anchor="start">VM app → Prometheus de la supervision, réseau privé</text>
+<text x="852" y="1416" class="small" text-anchor="start">TCP 9090</text>
+<text x="48" y="1444" class="mono" text-anchor="start">refus</text>
+<text x="140" y="1444" class="small" text-anchor="start">tout autre entrant : SSH public, 5432, API 3000 et Prometheus public interdits</text>
+<text x="852" y="1444" class="small" text-anchor="start">bloqué</text>
 <rect x="1110" y="1190" width="1060" height="250" rx="12" fill="#ffffff" stroke="#146c43" stroke-width="1.6"/>
 <text x="1128" y="1218" class="zone" text-anchor="start">CHAÎNE TLS ET PKI</text>
 <text x="1128" y="1248" class="mono" text-anchor="start">Navigateur → LB</text>

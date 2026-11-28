@@ -19,6 +19,7 @@ DEPENDENCIES = {
     "messaging": ("groups", "files"),
     "quality": ("calls",),
     "notifications": ("groups", "identity"),
+    "operations": ("identity",),
 }
 
 # name: x, y, width, height, scope, French title, responsibility, public port, schema, code today
@@ -47,6 +48,11 @@ MODULES = {
                  ["Comptes, profils, mots de passe Argon2id, sessions, rôle global (admin en V2)",
                   "Port public : SessionVerifier · UserDirectory",
                   "Schéma SQL : identity        Code : apps/api (identity/) et démo (scrypt)"]),
+    "operations": (1250, 628, 400, 164, "Lot D", "Console du webmaster",
+                   ["Vue agrégée par les façades (composition)",
+                    "Prometheus privé et appels Compute bornés",
+                    "Schéma SQL : operations · restart_gate",
+                    "Audit et contrôle du rôle via identity"]),
 }
 
 
@@ -92,8 +98,9 @@ def arrows():
         arrow("M935 562V628", "web"),                    # quality -> calls
         arrow("M440 792V858", "web"),                    # files -> groups
         arrow("M935 792V858", "web"),                    # calls -> groups
-        arrow("M1380 562V920H1160", "web"),              # notifications -> groups
-        arrow("M1560 562V1150H1160", "web"),             # notifications -> identity
+        arrow("M1380 562V597H1210V920H1160", "web"),     # notifications -> groups
+        arrow("M1560 562V597H1680V1184H1160", "web"),     # notifications -> identity
+        arrow("M1450 792V1125H1160", "web"),             # operations -> identity
         arrow("M760 1018V1084", "web"),                  # groups -> identity
     ]
 

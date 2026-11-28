@@ -48,11 +48,15 @@ resource "google_compute_instance_template" "app" {
     sql-connection          = google_sql_database_instance.pg.connection_name
     public-host             = local.web_host
     # Adresse que le load balancer ajoute à X-Forwarded-For.
-    lb-public-ip  = google_compute_address.public.address
-    proxy-cidr    = google_compute_subnetwork.proxy.ip_cidr_range
-    acme-upstream = local.ops_ip
-    turn-host     = local.turn_host
-    files-bucket  = google_storage_bucket.files.name
+    lb-public-ip            = google_compute_address.public.address
+    proxy-cidr              = google_compute_subnetwork.proxy.ip_cidr_range
+    acme-upstream           = local.ops_ip
+    turn-host               = local.turn_host
+    files-bucket            = google_storage_bucket.files.name
+    operations-enabled      = tostring(var.operations_restarts_enabled)
+    operations-zone-a       = local.zones[0]
+    operations-zone-b       = local.zones[1]
+    operations-sql-instance = google_sql_database_instance.pg.name
     # Noms DNS internes, écrits sans référence aux VM pour garder les cycles de vie séparés.
     sfu-1-host     = "chatisen-sfu-1.${local.zones[0]}.c.${var.project}.internal"
     sfu-2-host     = "chatisen-sfu-2.${local.zones[1]}.c.${var.project}.internal"
@@ -69,6 +73,10 @@ resource "google_compute_instance_template" "app" {
 
   lifecycle {
     create_before_destroy = true
+    precondition {
+      condition     = !var.operations_restarts_enabled || var.operations_app_instances != null
+      error_message = "Relever les deux noms exacts des VM applicatives du MIG avant d'activer les redémarrages du lot D."
+    }
   }
   depends_on = [google_secret_manager_secret_version.v, google_secret_manager_secret_iam_member.lecture,
     google_secret_manager_secret_iam_member.vapid, google_compute_router_nat.cible,

@@ -57,3 +57,7 @@ export async function command(tx:Tx,userId:string,clientId:string){
 export async function saveCommand(tx:Tx,userId:string,clientId:string,hash:Buffer,conversationId:string){
   await tx.query('insert into groups.creation_commands(user_id,client_id,command_hash,conversation_id) values($1,$2,$3,$4)',[userId,clientId,hash,conversationId]);
 }
+export async function conversationCount(db:Queryable){
+  const {rows:[row]}=await db.query("select count(*) as total from groups.conversations");
+  return Number(row.total);
+}
