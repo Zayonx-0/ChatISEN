@@ -46,6 +46,8 @@ locals {
     turn   = "sa-turn@${var.project}.iam.gserviceaccount.com"
     ops    = "sa-ops@${var.project}.iam.gserviceaccount.com"
     deploy = "sa-deploy@${var.project}.iam.gserviceaccount.com"
+    # Créé par cd/compte-migration.sh.
+    migration = "sa-migration@${var.project}.iam.gserviceaccount.com"
   }
   labels = { application = "chatisen", environnement = "cible" }
 }

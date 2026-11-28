@@ -116,8 +116,9 @@ resource "google_compute_region_instance_group_manager" "app" {
   }
   # Le CD applique la consigne à une seule zone à la fois.
   update_policy {
-    type                         = var.ordered_app_rollout ? "OPPORTUNISTIC" : "PROACTIVE"
-    minimal_action               = var.ordered_app_rollout ? "RESTART" : "REPLACE"
+    type = var.ordered_app_rollout ? "OPPORTUNISTIC" : "PROACTIVE"
+    # Google refuse RESTART avec max_unavailable à 0 : le CD choisit l’action à chaque demande.
+    minimal_action               = "REPLACE"
     max_surge_fixed              = 2
     max_unavailable_fixed        = 0
     instance_redistribution_type = var.ordered_app_rollout ? "NONE" : "PROACTIVE"
