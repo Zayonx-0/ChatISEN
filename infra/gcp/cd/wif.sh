@@ -6,15 +6,24 @@ REGION=${CHATISEN_REGION:-europe-west4}
 NUMBER=424540770012
 REPOSITORY=Zayonx-0/ChatISEN
 REPO_ID=1468601062
+# GitHub signe les sujets avec les identifiants fixes du propriétaire et du dépôt.
+SUBJECT="repo:Zayonx-0@61589082/ChatISEN@$REPO_ID"
 POOL=iam.googleapis.com/projects/$NUMBER/locations/global/workloadIdentityPools/github
 DEPLOY=sa-deploy@$PROJECT.iam.gserviceaccount.com
 IMAGES=sa-images@$PROJECT.iam.gserviceaccount.com
 OLD_MEMBER=principalSet://$POOL/attribute.repository_id/$REPO_ID
-DEPLOY_MEMBER=principal://$POOL/subject/repo:$REPOSITORY:environment:cible
-IMAGES_MEMBER=principal://$POOL/subject/repo:$REPOSITORY:environment:cible-images
+DEPLOY_MEMBER=principal://$POOL/subject/$SUBJECT:environment:cible
+IMAGES_MEMBER=principal://$POOL/subject/$SUBJECT:environment:cible-images
+# Première écriture, avec les seuls noms : aucun jeton ne lui correspond. Elle est remplacée puis retirée.
+NAMED_DEPLOY_MEMBER=principal://$POOL/subject/repo:$REPOSITORY:environment:cible
+NAMED_IMAGES_MEMBER=principal://$POOL/subject/repo:$REPOSITORY:environment:cible-images
 BASE="assertion.repository_id=='$REPO_ID' && assertion.ref=='refs/heads/main'"
 OLD_CONDITION="$BASE && assertion.environment=='cible'"
-NEW_CONDITION="$BASE && ((assertion.environment=='cible' && assertion.sub=='repo:$REPOSITORY:environment:cible') || (assertion.environment=='cible-images' && assertion.sub=='repo:$REPOSITORY:environment:cible-images'))"
+separated() {
+  printf '%s' "$BASE && ((assertion.environment=='cible' && assertion.sub=='$1:environment:cible') || (assertion.environment=='cible-images' && assertion.sub=='$1:environment:cible-images'))"
+}
+NEW_CONDITION=$(separated "$SUBJECT")
+NAMED_CONDITION=$(separated "repo:$REPOSITORY")
 OLD_MAPPING='assertion.repository_id'
 NEW_MAPPING="assertion.environment=='cible' ? assertion.repository_id : 'cible-images-$REPO_ID'"
 WIF_ROLE=roles/iam.workloadIdentityUser
@@ -44,6 +53,8 @@ die() { echo "$*" >&2; exit 1; }
 mode=${1:-}
 case $mode in prepare|finalize|rollback) ;; *) die "Usage : wif.sh prepare | finalize <run-deploy-réussi> | rollback" ;; esac
 [[ $(gc projects describe "$PROJECT" --format='value(projectNumber)') == "$NUMBER" ]] || die "Projet inattendu."
+[[ $(gh api "repos/$REPOSITORY/actions/oidc/customization/sub" --jq .sub_claim_prefix) == "$SUBJECT" ]] ||
+  die "GitHub annonce un autre format de sujet que celui attendu."
 providers=$(gc iam workload-identity-pools providers list --location=global --workload-identity-pool=github --format=json)
 jq -e 'all(.[]; .state != "ACTIVE" or (.name | endswith("/providers/chatisen")))' <<<"$providers" >/dev/null ||
   die "Le pool contient un autre fournisseur actif."
@@ -55,6 +66,12 @@ jq -e --arg member "serviceAccount:$IMAGES" '
   all(.bindings[]?.members[]; . != $member)' <<<"$project_policy" >/dev/null ||
   die "sa-images dispose d’un droit au niveau du projet."
 wif=$(provider describe --format=json)
+drop_named() {
+  local current_policy
+  current_policy=$(get_policy "$1")
+  if has "$current_policy" "$2"; then remove "$1" "$2"; fi
+}
+if [[ $mode == prepare ]]; then drop_named "$DEPLOY" "$NAMED_DEPLOY_MEMBER"; fi
 policy=$(get_policy "$DEPLOY")
 restrict_pool "$policy" "$OLD_MEMBER" "$DEPLOY_MEMBER" || die "Liaison du pool inattendue sur sa-deploy."
 current=$(jq -r .attributeCondition <<<"$wif")
@@ -65,6 +82,8 @@ if [[ $current == "$OLD_CONDITION" && $mapping == "$OLD_MAPPING" ]]; then
   has "$policy" "$OLD_MEMBER" || die "Ancienne liaison introuvable."
 elif [[ $current == "$NEW_CONDITION" && $mapping == "$NEW_MAPPING" ]]; then
   has "$policy" "$DEPLOY_MEMBER" || die "Liaison cible introuvable."
+elif [[ $current == "$NAMED_CONDITION" && $mapping == "$NEW_MAPPING" && $mode != finalize ]]; then
+  has "$policy" "$OLD_MEMBER" || die "Ancienne liaison introuvable."
 else
   die "Condition ou mappage WIF inattendu."
 fi
@@ -75,6 +94,7 @@ case $mode in
     if [[ -z $accounts ]]; then
       gc iam service-accounts create sa-images --display-name="Publication Artifact Registry"
     fi
+    drop_named "$IMAGES" "$NAMED_IMAGES_MEMBER"
     restrict_pool "$(get_policy "$IMAGES")" "$IMAGES_MEMBER" || die "Liaison du pool inattendue sur sa-images."
     registry_policy=$(repo_policy)
     jq -e --arg member "serviceAccount:$IMAGES" --arg role "$WRITER" '
@@ -86,7 +106,7 @@ case $mode in
     add "$IMAGES" "$IMAGES_MEMBER"
     add "$DEPLOY" "$DEPLOY_MEMBER"
     # L'ancien principalSet continue à sélectionner uniquement l'environnement cible.
-    if [[ $current == "$OLD_CONDITION" ]]; then condition "$NEW_CONDITION" "$NEW_MAPPING"; fi
+    if [[ $current != "$NEW_CONDITION" ]]; then condition "$NEW_CONDITION" "$NEW_MAPPING"; fi
     ;;
   finalize)
     run=${2:?indiquer le run GitHub réussi}
@@ -114,6 +134,6 @@ case $mode in
   rollback)
     # Avant finalize : l'ancien workflow garde son writer et peut reprendre sur « cible ».
     has "$policy" "$OLD_MEMBER" || die "Ancienne liaison retirée : restaurer la livraison avec le workflow actuel."
-    if [[ $current == "$NEW_CONDITION" ]]; then condition "$OLD_CONDITION" "$OLD_MAPPING"; fi
+    if [[ $current != "$OLD_CONDITION" ]]; then condition "$OLD_CONDITION" "$OLD_MAPPING"; fi
     ;;
 esac
