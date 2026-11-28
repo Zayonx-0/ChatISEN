@@ -19,3 +19,5 @@ infra/edge/certs/
 *.tfstate.*
 *.tfplan
 *.tfvars
+# Réglages publics de la cible, sans secret.
+!infra/gcp/operations.auto.tfvars

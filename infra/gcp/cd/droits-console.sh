@@ -23,7 +23,8 @@ bind() {
     --condition="^~^title=$title~expression=$expression" >/dev/null
 }
 
-vms=$(gc compute instances list --filter='name~^chatisen-(app-[a-z0-9-]+|turn|ops|sfu-[12])$' \
+# Sans guillemets, gcloud lit les parenthèses comme un groupement et ne trouve aucune VM.
+vms=$(gc compute instances list --filter='name~"^chatisen-(app-[a-z0-9-]+|turn|ops|sfu-[12])$"' \
   --format='csv[no-heading](name,zone.basename())' | sort)
 [[ $(wc -l <<<"$vms" | tr -d ' ') == 6 ]] || { echo "Six VM de la cible attendues, liste reçue :" >&2; echo "$vms" >&2; exit 1; }
 expression=
