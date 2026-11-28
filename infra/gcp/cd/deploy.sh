@@ -8,6 +8,8 @@ JOB=chatisen-migration
 HEALTH_URL=${CHATISEN_HEALTH_URL:-https://ia-pple.isen.fedyna.fr/healthz-edge}
 TIMEOUT=${CHATISEN_ROLL_TIMEOUT:-720}
 POLL=${CHATISEN_ROLL_POLL:-10}
+# Durée pendant laquelle l'aiguilleur doit servir sans interruption une VM avant de toucher l'autre.
+LB_STABLE=${CHATISEN_LB_STABLE:-90}
 REGISTRY=$REGION-docker.pkg.dev/$PROJECT/chatisen
 BOOTSTRAP=false
 if [[ ${1:-} == --bootstrap ]]; then
@@ -40,11 +42,25 @@ matches() {
       .boot != $boot and .ready == true and
       ($now - .time >= -10 and $now - .time < 90)' <<<"$sample" >/dev/null
 }
+# Le contrôle de santé du groupe ne suffit pas : l'aiguilleur a le sien et reprend la VM plus tard.
+lb_report() { gc compute backend-services get-health "$GROUP" --region "$REGION" --format=json; }
+served() {
+  local report
+  report=$(lb_report) &&
+    jq -e --arg tail "/instances/$(jq -r '.instance | split("/") | last' <<<"$1")" '
+      any(.. | objects | .healthStatus? // empty | .[];
+        (.instance | endswith($tail)) and .healthState == "HEALTHY")' <<<"$report" >/dev/null
+}
 public_health() { curl --silent --show-error --fail --max-time 10 --output /dev/null "$HEALTH_URL"; }
 wait_for() {
-  local zone=$1 api=$2 edge=$3 before=$4 info deadline=$((SECONDS + TIMEOUT))
+  local zone=$1 api=$2 edge=$3 before=$4 info since= deadline=$((SECONDS + TIMEOUT))
   while ((SECONDS < deadline)); do
-    if info=$(member "$zone") && matches "$zone" "$info" "$api" "$edge" "$before" && public_health; then return 0; fi
+    if info=$(member "$zone") && matches "$zone" "$info" "$api" "$edge" "$before" && served "$info" && public_health; then
+      since=${since:-$SECONDS}
+      if ((SECONDS - since >= LB_STABLE)); then return 0; fi
+    else
+      since=
+    fi
     sleep "$POLL"
   done
   return 1
@@ -62,7 +78,7 @@ set_images() {
 }
 restart_zone() {
   local zone=$1 peer=$2 action=$3 info other name
-  info=$(member "$zone") && other=$(member "$peer") && alive "$other" && public_health || return 1
+  info=$(member "$zone") && other=$(member "$peer") && alive "$other" && served "$other" && public_health || return 1
   jq -e '.currentAction == "NONE"' <<<"$info" >/dev/null || return 1
   name=$(jq -r '.instance | split("/") | last' <<<"$info")
   mig update-instances --instances="$name" --minimal-action="$action" --most-disruptive-allowed-action="$action" >/dev/null
@@ -83,6 +99,8 @@ B=$REGION-b
 a=$(member "$A")
 b=$(member "$B")
 alive "$a" && alive "$b" && public_health || { log "Les deux VM doivent être saines au départ." >&2; exit 1; }
+# Avant toute écriture : l'état de l'aiguilleur doit être lisible et couvrir les deux VM.
+served "$a" && served "$b" || { log "L'aiguilleur ne confirme pas les deux VM : rien n'est modifié." >&2; exit 1; }
 
 previous_api=$(configured api-image "$state")
 previous_edge=$(configured edge-image "$state")

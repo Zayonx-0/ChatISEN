@@ -2,6 +2,16 @@
 
 Vérifications faites sur la cible avec des comptes de test, masqués ensuite. Les scripts d'essai et leurs sorties brutes ne sont pas versionnés : ce relevé en donne le résultat et les limites. Ce n'est pas une campagne de mesures ; les essais de charge, de sécurité sur banc et de qualité réseau restent à faire (section 13 du dossier).
 
+## 28 novembre 2026, première livraison approuvée, zone par zone
+
+| Domaine | Résultat observé | Limite de l'essai |
+|---|---|---|
+| Livraison (T18 à T20) | Approbation manuelle sur GitHub, migration, APP-A puis APP-B, digests actifs vérifiés ; 9 minutes pour le job de déploiement. | Retour arrière non provoqué sur la cible. |
+| Disponibilité | **Coupure d'environ 45 s** : 14 réponses 503 sur 166 sondes. APP-B a redémarré alors que le load balancer n'avait pas encore repris APP-A. Le script attend désormais que le load balancer serve la VM mise à jour pendant 90 s avant de toucher l'autre. | La correction est testée avec une doublure de Google Cloud ; elle reste à constater sur la prochaine livraison qui redémarre les VM. |
+| Rôle SQL de l'API | L'API en ligne se connecte avec le rôle limité aux données. | L'ancien accès au secret du propriétaire est retiré aux VM. |
+| Parcours après livraison | Accès et messages (16 contrôles), appels en direct et par le relais, conférence en direct et par le relais, fichiers et Web Push réussis. | Mêmes limites que les essais précédents. |
+| Journaux (T17) | Un même `requestId` relie la ligne Nginx et la ligne de l'API sur la VM ; l'agent de journaux des six VM envoie à Cloud Logging. | La recherche dans le stockage régional reste à faire. |
+
 ## 27 novembre 2026, après la livraison de 12 h 32 (heure de Paris)
 
 | Domaine | Résultat observé | Limite de l'essai |

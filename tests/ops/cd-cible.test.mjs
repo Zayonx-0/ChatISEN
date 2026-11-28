@@ -28,6 +28,14 @@ else if(line.includes('get-guest-attributes')){
   if(vm.uninstrumented)process.exit(1);
   out([{key:'release',value:JSON.stringify({api:vm.images['api-image'],edge:vm.images['edge-image'],ready:vm.healthy,boot:String(vm.boot),time:Math.floor(Date.now()/1000)})}]);
 }
+else if(line.includes('backend-services get-health')){
+  if(state.lbDenied){process.stderr.write("Required 'compute.regionBackendServices.get' permission\\n");process.exit(1);}
+  out([{status:{healthStatus:Object.entries(state.vms).map(([zone,vm])=>({
+    instance:'x/zones/europe-west4-'+zone+'/instances/app-'+zone,healthState:vm.healthy&&!(vm.lbWait>0)?'HEALTHY':'UNHEALTHY'
+  }))}}]);
+  for(const vm of Object.values(state.vms))if(vm.lbWait>0)vm.lbWait--;
+  save();
+}
 else if(line.includes('all-instances-config update')){
   if(state.refused){process.stderr.write("Required 'compute.healthChecks.use' permission\\n");process.exit(1);}
   state.desired=Object.fromEntries(args.find(a=>a.startsWith('--metadata=')).slice(11).split(',').map(p=>p.split('=')));
@@ -36,9 +44,12 @@ else if(line.includes('all-instances-config update')){
 else if(line.includes('update-instances')){
   const zone=args.find(a=>a.startsWith('--instances=')).at(-1),vm=state.vms[zone],newRelease=state.desired['api-image']!==state.old['api-image'];
   if(!Object.entries(state.vms).some(([key,peer])=>key!==zone&&peer.healthy))process.exit(7);
+  // Personne n'est servi si l'aiguilleur n'a pas encore repris l'autre VM.
+  if(!Object.entries(state.vms).some(([key,peer])=>key!==zone&&peer.healthy&&!(peer.lbWait>0)))state.outage=true;
   state.restarts.push(zone);
   vm.boot++;vm.healthy=!(newRelease&&state.unhealthy===zone);
   vm.images=newRelease&&state.different===zone?state.old:state.desired;
+  vm.lbWait=newRelease&&state.lbRefuses===zone?1e9:state.lbLag||0;
   delete vm.uninstrumented;
   save();
 }
@@ -55,7 +66,7 @@ function scenario({api=image('api','b'),edge=image('edge','b'),bootstrap=false,.
     }
     const result=spawnSync('bash',[resolve('infra/gcp/cd/deploy.sh'),...(bootstrap?['--bootstrap']:[api,edge])],{
       encoding:'utf8',timeout:60_000,
-      env:{...process.env,PATH:`${directory}:${process.env.PATH}`,FAKE_STATE:file,CHATISEN_ROLL_TIMEOUT:'2',CHATISEN_ROLL_POLL:'0'},
+      env:{...process.env,PATH:`${directory}:${process.env.PATH}`,FAKE_STATE:file,CHATISEN_ROLL_TIMEOUT:'2',CHATISEN_ROLL_POLL:'0',CHATISEN_LB_STABLE:'0'},
     });
     return {...result,state:JSON.parse(readFileSync(file,'utf8'))};
   }finally{rmSync(directory,{recursive:true,force:true});}
@@ -110,6 +121,28 @@ test('CD cible : refus de mise à jour, aucune VM touchée',()=>{
   assert.match(run.stderr,/aucune VM n’a été touchée/);
   assert.deepEqual(run.state.restarts,[]);
   assert.equal(run.state.calls.filter(call=>call.includes('all-instances-config update')).length,1);
+});
+
+test('CD cible : APP-B attend que l’aiguilleur ait repris APP-A',()=>{
+  const run=scenario({lbLag:6});
+  assert.equal(run.status,0,run.stdout+run.stderr);
+  assert.deepEqual(run.state.restarts,['a','b']);
+  assert.ok(!run.state.outage,'les deux VM ne doivent jamais être hors service en même temps');
+});
+
+test('CD cible : une VM saine que l’aiguilleur ne reprend pas laisse l’autre intacte',()=>{
+  const run=scenario({lbRefuses:'a'});
+  assert.equal(run.status,1);
+  assert.match(run.stderr,/Retour arrière vérifié/);
+  assert.equal(run.state.vms.b.boot,1);
+  assert.ok(!run.state.outage);
+});
+
+test('CD cible : état de l’aiguilleur illisible, rien n’est modifié',()=>{
+  const run=scenario({lbDenied:true});
+  assert.equal(run.status,1);
+  assert.deepEqual(run.state.restarts,[]);
+  assert.ok(!run.state.calls.some(call=>call.includes('jobs execute')||call.includes('all-instances-config update')));
 });
 
 test('CD cible : échec de migration, aucune VM touchée',()=>{
